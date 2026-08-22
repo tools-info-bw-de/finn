@@ -20,6 +20,7 @@ export class ICMPService {
 	}
 
 	public sendPing(targetIp: string): void {
+		console.log(`Sending ping to ${targetIp}`);
 		this.seqCounter++;
 		const seq = this.seqCounter;
 		const startTime = performance.now();

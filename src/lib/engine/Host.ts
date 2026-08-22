@@ -25,5 +25,8 @@ export class Host implements NetworkNode {
 
 		this.icmp = new ICMPService(this.networkLayer);
 		this.networkLayer.registerProtocolHandler('ICMP', this.icmp);
+
+		this.dataLinkLayer.upperLayer = this.networkLayer;
+		this.networkLayer.lowerLayer = this.dataLinkLayer;
 	}
 }

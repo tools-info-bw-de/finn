@@ -3,8 +3,8 @@ import { Host } from '../src/lib/engine/Host';
 import { Cable } from '../src/lib/engine/Cable.svelte';
 
 // 1. Zwei Rechner (Hosts) erstellen
-const pc1 = new Host('pc1', '192.168.1.10', 'AA:AA:AA:AA:AA:11');
-const pc2 = new Host('pc2', '192.168.1.20', 'BB:BB:BB:BB:BB:22');
+const pc1 = new Host('pc1', 'AA:AA:AA:AA:AA:11', '192.168.1.10');
+const pc2 = new Host('pc2', 'BB:BB:BB:BB:BB:22', '192.168.1.20');
 
 // 2. Kabel anlegen und Datenlinks verbinden
 const cable = new Cable('cable-1');
@@ -25,6 +25,6 @@ setTimeout(() => {
 
 	console.log('\n=== CAPTURED FRAMES (PC 1) ===');
 	pc1.dataLinkLayer.captureBuffer.forEach((f) => {
-		console.log(f);
+		console.log(f.header);
 	});
-}, 300);
+}, 4500);

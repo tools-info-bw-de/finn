@@ -1,6 +1,6 @@
 # Finn
 
-Freier INteraktiver Netzwerkeditor
+<ins>**F**</ins>reier <ins>**IN**</ins>teraktiver <ins>**N**</ins>etzwerkeditor
 
 Finn ist ein freier Netzwerkeditor, der es ermöglicht, Netzwerke zu erstellen und zu simulieren. Die Software ist in TypeScript geschrieben und nutzt SvelteKit als Framework. Die Anwedung läuft vollständig im Browser und benötigt keine Installation.
 

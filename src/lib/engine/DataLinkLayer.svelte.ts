@@ -1,0 +1,48 @@
+import type { LayerInterface, EthernetFrame, IPPacket, ARPPacket } from './types';
+import type { Cable } from './Cable.svelte';
+
+export class DataLinkLayer implements LayerInterface {
+	public macAddress: string;
+	public cable?: Cable;
+	public upperLayer?: LayerInterface;
+
+	public captureBuffer = $state<EthernetFrame[]>([]);
+
+	constructor(macAddress: string) {
+		this.macAddress = macAddress;
+	}
+
+	public send(packet: IPPacket | ARPPacket, destinationMac: string, type: 'IP' | 'ARP'): void {
+		const frame: EthernetFrame = {
+			uuid: crypto.randomUUID(),
+			header: {
+				srcMac: this.macAddress,
+				dstMac: destinationMac,
+				type
+			},
+			payload: packet
+		};
+
+		this.captureBuffer.push(frame);
+		if (this.captureBuffer.length > 100) {
+			this.captureBuffer.shift(); // Remove the oldest frame if buffer exceeds 100 frames
+		}
+
+		if (this.cable) {
+			this.cable.transmit(this, frame);
+		} else {
+			console.warn('No cable connected to the DataLinkLayer.', this.macAddress);
+		}
+	}
+
+	public receive(frame: EthernetFrame): void {
+		this.captureBuffer.push(frame);
+		if (this.captureBuffer.length > 100) {
+			this.captureBuffer.shift(); // Remove the oldest frame if buffer exceeds 100 frames
+		}
+
+		if (frame.header.dstMac === this.macAddress || frame.header.dstMac === 'ff:ff:ff:ff:ff:ff') {
+			this.upperLayer?.receive(frame.payload, frame.header.type);
+		}
+	}
+}

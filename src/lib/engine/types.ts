@@ -8,6 +8,8 @@ export interface EthernetFrame {
 	payload: IPPacket | ARPPacket;
 }
 
+//--------------------
+
 export interface ARPPacket {
 	type: 'request' | 'reply';
 	senderIP: string;
@@ -26,10 +28,12 @@ export interface IPPacket {
 	payload: ICMPPacket | UDPDatagram | TCPSegment;
 }
 
+//------------------------
+
 export interface ICMPPacket {
-	header: {
-		type: 'echo-request' | 'echo-reply';
-	};
+	type: 'echo-request' | 'echo-reply' | 'time-exceeded';
+	seq?: number; // Only for echo-request and echo-reply
+	timestamp?: number; // Only for echo-request and echo-reply
 }
 
 export interface UDPDatagram {
@@ -55,9 +59,19 @@ export interface TCPSegment {
 	payload: Uint8Array;
 }
 
+//------------------------
+
 export interface LayerInterface {
 	send(data: unknown, destination: string, type?: string): void;
 	receive(data: unknown, type?: string): void;
 	upperLayer?: LayerInterface;
 	lowerLayer?: LayerInterface;
+}
+
+export interface NetworkNode {
+	type: 'host' | 'switch' | 'router';
+}
+
+export interface ProtocolHandler {
+	receive(data: unknown, srcIp: string): void;
 }

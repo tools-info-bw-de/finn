@@ -1,19 +1,20 @@
 import type { DataLinkLayer } from './DataLinkLayer.svelte';
 import type { ARPPacket, IPPacket } from './types';
 import { SvelteMap } from 'svelte/reactivity';
+import { HostConfig } from './HostConfig.svelte';
 
 // ARP-Services für ein Gerät inkl. ARP-Cache und Warteschlange für ausstehende IP-Pakete, die auf die Auflösung warten
 
 export class ArpService {
+	private config: HostConfig;
 	private dataLink: DataLinkLayer;
-	private myIp: string;
 
 	public table = $state<Record<string, string>>({}); // Maps IP addresses to MAC addresses
 	private pendingQueue: Map<string, IPPacket[]> = new SvelteMap(); // Maps IP addresses to queued IP packets
 
-	constructor(dataLink: DataLinkLayer, myIp: string) {
+	constructor(config: HostConfig, dataLink: DataLinkLayer) {
+		this.config = config;
 		this.dataLink = dataLink;
-		this.myIp = myIp;
 	}
 
 	public resolve(dstIp: string, ipPacket: IPPacket, onResolved: (mac: string) => void): void {
@@ -40,11 +41,11 @@ export class ArpService {
 		this.table[arpPacket.senderIP] = arpPacket.senderMac;
 
 		// answer request
-		if (arpPacket.type === 'request' && arpPacket.targetIP === this.myIp) {
+		if (arpPacket.type === 'request' && arpPacket.targetIP === this.config.ipAddress) {
 			const arpReply: ARPPacket = {
 				type: 'reply',
-				senderIP: this.myIp,
-				senderMac: this.dataLink.macAddress,
+				senderIP: this.config.ipAddress,
+				senderMac: this.config.macAddress,
 				targetIP: arpPacket.senderIP,
 				targetMac: arpPacket.senderMac
 			};
@@ -52,7 +53,7 @@ export class ArpService {
 		}
 
 		// otherwise it's a reply, so we can send any queued packets
-		if (arpPacket.type === 'reply' && arpPacket.targetIP === this.myIp) {
+		if (arpPacket.type === 'reply' && arpPacket.targetIP === this.config.ipAddress) {
 			const pendingPackets = this.pendingQueue.get(arpPacket.senderIP) || [];
 			for (const pendingPacket of pendingPackets) {
 				onPacketReadyToDeliver(pendingPacket, arpPacket.senderMac);
@@ -64,8 +65,8 @@ export class ArpService {
 	private sendRequest(targetIp: string): void {
 		const arpRequest: ARPPacket = {
 			type: 'request',
-			senderIP: this.myIp,
-			senderMac: this.dataLink.macAddress,
+			senderIP: this.config.ipAddress,
+			senderMac: this.config.macAddress,
 			targetIP: targetIp
 		};
 		this.dataLink.send(arpRequest, 'ff:ff:ff:ff:ff:ff', 'ARP'); // Broadcast MAC address

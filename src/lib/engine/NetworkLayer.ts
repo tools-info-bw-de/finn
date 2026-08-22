@@ -4,18 +4,27 @@ import type {
 	ARPPacket,
 	ICMPPacket,
 	UDPDatagram,
-	TCPSegment
+	TCPSegment,
+	ProtocolHandler
 } from './types';
 import type { ArpService } from './ArpService.svelte';
+import { HostConfig } from './HostConfig.svelte';
 
 export class NetworkLayer implements LayerInterface {
-	public ipAdress: string;
+	public config: HostConfig;
 	public arpService: ArpService;
 	public upperLayer?: LayerInterface;
 	public lowerLayer?: LayerInterface;
 
-	constructor(ipAdress: string, arpService: ArpService) {
-		this.ipAdress = ipAdress;
+	// Register protocol handlers for ICMP, UDP, and TCP
+	private protocolHandlers = new Map<string, ProtocolHandler>();
+
+	public registerProtocolHandler(protocol: 'ICMP' | 'UDP' | 'TCP', handler: ProtocolHandler): void {
+		this.protocolHandlers.set(protocol, handler);
+	}
+
+	constructor(config: HostConfig, arpService: ArpService) {
+		this.config = config;
 		this.arpService = arpService;
 	}
 
@@ -28,7 +37,7 @@ export class NetworkLayer implements LayerInterface {
 
 		const ipPacket: IPPacket = {
 			header: {
-				srcIp: this.ipAdress,
+				srcIp: this.config.ipAddress,
 				dstIp: destinationIp,
 				protocol,
 				ttl: 64 // Default TTL value
@@ -51,11 +60,29 @@ export class NetworkLayer implements LayerInterface {
 
 		// otherwise it's an IP packet
 		const ipPacket = packet as IPPacket;
-		if (ipPacket.header.dstIp === this.ipAdress || ipPacket.header.dstIp === '255.255.255.255') {
-			this.upperLayer?.receive(ipPacket.payload, ipPacket.header.protocol);
+
+		// reduce ttl
+		ipPacket.header.ttl--;
+
+		if (
+			ipPacket.header.dstIp === this.config.ipAddress ||
+			ipPacket.header.dstIp === '255.255.255.255'
+		) {
+			const handler = this.protocolHandlers.get(ipPacket.header.protocol);
+			if (handler) {
+				handler.receive(ipPacket.payload, ipPacket.header.srcIp);
+			}
+		} else if (ipPacket.header.ttl == 0) {
+			const icmpPacket: ICMPPacket = {
+				type: 'time-exceeded'
+			};
+			this.send(icmpPacket, ipPacket.header.srcIp, 'ICMP');
+			console.warn(
+				`IP packet dropped due to TTL=0. Packet from ${ipPacket.header.srcIp} to ${ipPacket.header.dstIp}`
+			);
 		} else {
 			console.warn(
-				`IP packet not for this device. Expected ${this.ipAdress}, got ${ipPacket.header.dstIp}`
+				`IP packet not for this device. Expected ${this.config.ipAddress}, got ${ipPacket.header.dstIp}`
 			);
 		}
 	}

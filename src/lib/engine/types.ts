@@ -1,3 +1,5 @@
+import type { Cable } from './Cable.svelte';
+
 export interface EthernetFrame {
 	uuid: string;
 	header: {
@@ -74,4 +76,9 @@ export interface NetworkNode {
 
 export interface ProtocolHandler {
 	receive(data: unknown, srcIp: string): void;
+}
+
+export interface CableEndpoint {
+	cable?: Cable;
+	receive(frame: EthernetFrame): void;
 }

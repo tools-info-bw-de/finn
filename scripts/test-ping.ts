@@ -7,7 +7,7 @@ const pc1 = new Host('pc1', 'AA:AA:AA:AA:AA:11', '192.168.1.10');
 const pc2 = new Host('pc2', 'BB:BB:BB:BB:BB:22', '192.168.1.20');
 
 // 2. Kabel anlegen und Datenlinks verbinden
-const cable = new Cable('cable-1');
+const cable = new Cable();
 cable.connect(pc1.dataLinkLayer, pc2.dataLinkLayer);
 
 console.log('--- STARTING NETWORK SIMULATION ---');

@@ -20,6 +20,7 @@
 		"@sveltejs/adapter-auto": "^7.0.1",
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
+		"@types/bootstrap": "^5.2.11",
 		"@types/node": "^24",
 		"eslint": "^10.4.1",
 		"eslint-config-prettier": "^10.1.8",
@@ -35,5 +36,10 @@
 		"vite": "^8.0.16",
 		"vite-node": "^6.0.0",
 		"vitest": "^4.1.8"
+	},
+	"dependencies": {
+		"@popperjs/core": "^2.11.8",
+		"@xyflow/svelte": "^1.6.3",
+		"bootstrap": "^5.3.8"
 	}
 }

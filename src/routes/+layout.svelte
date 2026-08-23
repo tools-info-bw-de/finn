@@ -1,5 +1,6 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.svg';
+	import 'bootstrap';
 
 	let { children } = $props();
 </script>
@@ -9,3 +10,7 @@
 </svelte:head>
 
 {@render children()}
+
+<style>
+	@import 'bootstrap/dist/css/bootstrap.min.css';
+</style>

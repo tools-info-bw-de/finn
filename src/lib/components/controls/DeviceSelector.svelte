@@ -2,12 +2,24 @@
 	import laptop from '$lib/assets/laptop.png';
 	import desktop from '$lib/assets/desktop.png';
 	import switch_wifi from '$lib/assets/switch-wifi.png';
+	import { Host } from '$lib/engine/Host.svelte';
+	import { Switch } from '$lib/engine/Switch.svelte';
+	import { generateRandomMac } from '$lib/engine/helpers';
+	import { nodes } from '$lib/states/nodes.svelte';
 
-	interface Props {
-		createNode: (type: 'notebook' | 'desktop' | 'switch') => void;
+	function createNode(type: 'notebook' | 'desktop' | 'switch') {
+		console.log(type);
+		if (type === 'notebook') {
+			let host: Host = new Host(`Notebook`, generateRandomMac(), '192.168.0.10', 'notebook');
+			nodes.push(host);
+		} else if (type === 'desktop') {
+			let host: Host = new Host(`Rechner`, generateRandomMac(), '192.168.0.10', 'desktop');
+			nodes.push(host);
+		} else if (type === 'switch') {
+			let switchDevice: Switch = new Switch('Switch');
+			nodes.push(switchDevice);
+		}
 	}
-
-	let { createNode }: Props = $props();
 </script>
 
 <div class="d-flex flex-column">

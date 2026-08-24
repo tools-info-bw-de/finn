@@ -10,6 +10,7 @@ Diese Implementation ist sehr stark an [Filius](https://www.lernsoftware-filius.
 
 Die Seite verwendet Bilder von Flaticon.com:
 
+- Cable: <a href="https://www.flaticon.com/de/kostenlose-icons/kabel" title="kabel Icons">Kabel Icons erstellt von surang - Flaticon</a>
 - Notebook: <a href="https://www.flaticon.com/de/kostenlose-icons/computer" title="computer Icons">Computer Icons erstellt von vectorsmarket15 - Flaticon</a>
 - Desktop: <a href="https://www.flaticon.com/de/kostenlose-icons/pc-turm" title="pc-turm Icons">Pc-turm Icons erstellt von Vector Stall - Flaticon</a>
 - Switch: <a href="https://www.flaticon.com/de/kostenlose-icons/modem" title="modem Icons">Modem Icons erstellt von vectorsmarket15 - Flaticon</a>

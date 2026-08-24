@@ -1,6 +1,7 @@
 <script lang="ts">
-	/* import type { NetworkNode } from '$lib/engine/types'; */
 	import { nodes } from '$lib/states/nodes.svelte';
+	import { cables, newCable } from '$lib/states/cables.svelte';
+	import cable from '$lib/assets/cable.png';
 
 	/* interface Props {
 		nodes: NetworkNode[];
@@ -20,13 +21,6 @@
 	let startPointer = { x: 0, y: 0 };
 	let startPan = { x: 0, y: 0 };
 	let startNodePos = { x: 0, y: 0 };
-
-	/* let nodes = $state([
-		{ id: 'pc1', name: 'PC 1', x: 100, y: 150, width: 140, height: 80 },
-		{ id: 'sw1', name: 'Switch 1', x: 500, y: 200, width: 140, height: 80 }
-	]); */
-
-	let connections = $state([{ from: 'pc1', to: 'sw1' }]);
 
 	function getNodeCenter(nodeUuid: string) {
 		const node = nodes.find((n) => n.uuid === nodeUuid);
@@ -76,6 +70,13 @@
 		e.stopPropagation(); // Verhindert Karten-Pan
 		draggingNodeId = uuid;
 
+		if (newCable.adding) {
+			if (!newCable.uuids.includes(uuid)) {
+				newCable.uuids.push(uuid);
+			}
+			return; // Kein Dragging, wenn wir gerade ein Kabel hinzufügen
+		}
+
 		const node = nodes.find((n) => n.uuid === uuid);
 		if (node) {
 			startPointer = { x: e.clientX, y: e.clientY };
@@ -98,6 +99,15 @@
 				node.x = startNodePos.x + dx / zoom;
 				node.y = startNodePos.y + dy / zoom;
 			}
+		}
+
+		if (newCable.adding) {
+			let cableTooltip = document.querySelector('.cable-tooltip') as HTMLElement;
+
+			let x = e.clientX;
+			let y = e.clientY;
+			cableTooltip.style.left = `${x}px`;
+			cableTooltip.style.top = `${y}px`;
 		}
 	}
 
@@ -125,9 +135,9 @@
 
 	<div class="world" style="transform: translate({pan.x}px, {pan.y}px) scale({zoom});">
 		<svg class="svg-layer">
-			{#each connections as conn (conn)}
-				{@const start = getNodeCenter(conn.from)}
-				{@const end = getNodeCenter(conn.to)}
+			{#each cables as c (c.cableuuid)}
+				{@const start = getNodeCenter(c.from)}
+				{@const end = getNodeCenter(c.to)}
 				<path d={getCubicPath(start.x, start.y, end.x, end.y)} class="cable" />
 			{/each}
 		</svg>
@@ -143,9 +153,27 @@
 			</div>
 		{/each}
 	</div>
+
+	{#if newCable.adding}
+		<div class="cable-tooltip">
+			<img src={cable} alt="Cable" width="32" height="32" />
+		</div>
+	{/if}
 </div>
 
 <style>
+	.cable-tooltip {
+		position: absolute;
+		background: #313244;
+		color: #cdd6f4;
+		padding: 6px 12px;
+		border-radius: 6px;
+		font-size: 12px;
+		font-weight: bold;
+		z-index: 10;
+		border: 1px solid #45475a;
+	}
+
 	.viewport {
 		position: relative;
 		width: 100%;
@@ -188,10 +216,11 @@
 
 	.svg-layer {
 		position: absolute;
-		width: 10000px;
-		height: 10000px;
-		top: -5000px;
-		left: -5000px;
+		width: 100%;
+		height: 100%;
+		top: 0;
+		left: 0;
+		overflow: visible;
 		pointer-events: none;
 	}
 

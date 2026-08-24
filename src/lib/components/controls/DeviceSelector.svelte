@@ -1,4 +1,5 @@
 <script lang="ts">
+	import cable from '$lib/assets/cable.png';
 	import laptop from '$lib/assets/laptop.png';
 	import desktop from '$lib/assets/desktop.png';
 	import switch_wifi from '$lib/assets/switch-wifi.png';
@@ -6,6 +7,7 @@
 	import { Switch } from '$lib/engine/Switch.svelte';
 	import { generateRandomMac } from '$lib/engine/helpers';
 	import { nodes } from '$lib/states/nodes.svelte';
+	import { cables, newCable } from '$lib/states/cables.svelte';
 
 	function createNode(type: 'notebook' | 'desktop' | 'switch') {
 		console.log(type);
@@ -20,9 +22,28 @@
 			nodes.push(switchDevice);
 		}
 	}
+
+	function startAddingCable() {
+		newCable.adding = true;
+		newCable.uuids = [];
+	}
+
+	$effect(() => {
+		if (newCable.adding && newCable.uuids.length === 2) {
+			cables.push({
+				cableuuid: crypto.randomUUID(),
+				from: newCable.uuids[0],
+				to: newCable.uuids[1]
+			});
+			newCable.adding = false;
+		}
+	});
 </script>
 
 <div class="d-flex flex-column">
+	<button type="button" class="btn btn-primary" onclick={startAddingCable}>
+		<img src={cable} alt="Cable" width="32" height="32" />
+	</button>
 	<button type="button" class="btn btn-primary" onclick={() => createNode('notebook')}>
 		<img src={laptop} alt="Laptop" width="32" height="32" />
 	</button>

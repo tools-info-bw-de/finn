@@ -1,9 +1,17 @@
 <script lang="ts">
+	/* import type { NetworkNode } from '$lib/engine/types'; */
+	import { nodes } from '$lib/states/nodes.svelte';
+
+	/* interface Props {
+		nodes: NetworkNode[];
+	}
+	let { nodes }: Props = $props(); */
+
 	let pan = $state({ x: 0, y: 0 });
 	let zoom = $state(1);
 
-	const MIN_ZOOM = 0.2;
-	const MAX_ZOOM = 3.0;
+	const MIN_ZOOM = 0.3;
+	const MAX_ZOOM = 2.0;
 
 	let isPanning = $state(false);
 	let draggingNodeId = $state<string | null>(null);
@@ -13,19 +21,19 @@
 	let startPan = { x: 0, y: 0 };
 	let startNodePos = { x: 0, y: 0 };
 
-	let nodes = $state([
+	/* let nodes = $state([
 		{ id: 'pc1', name: 'PC 1', x: 100, y: 150, width: 140, height: 80 },
 		{ id: 'sw1', name: 'Switch 1', x: 500, y: 200, width: 140, height: 80 }
-	]);
+	]); */
 
 	let connections = $state([{ from: 'pc1', to: 'sw1' }]);
 
-	function getNodeCenter(nodeId: string) {
-		const node = nodes.find((n) => n.id === nodeId);
+	function getNodeCenter(nodeUuid: string) {
+		const node = nodes.find((n) => n.uuid === nodeUuid);
 		if (!node) return { x: 0, y: 0 };
 		return {
-			x: node.x + node.width / 2,
-			y: node.y + node.height / 2
+			x: node.x + 64 / 2,
+			y: node.y + 64 / 2
 		};
 	}
 
@@ -64,11 +72,11 @@
 	}
 
 	// 3. Klick auf Node (Node-Drag starten)
-	function handleNodePointerDown(e: PointerEvent, id: string) {
+	function handleNodePointerDown(e: PointerEvent, uuid: string) {
 		e.stopPropagation(); // Verhindert Karten-Pan
-		draggingNodeId = id;
+		draggingNodeId = uuid;
 
-		const node = nodes.find((n) => n.id === id);
+		const node = nodes.find((n) => n.uuid === uuid);
 		if (node) {
 			startPointer = { x: e.clientX, y: e.clientY };
 			startNodePos = { x: node.x, y: node.y };
@@ -84,7 +92,7 @@
 			pan.x = startPan.x + dx;
 			pan.y = startPan.y + dy;
 		} else if (draggingNodeId) {
-			const node = nodes.find((n) => n.id === draggingNodeId);
+			const node = nodes.find((n) => n.uuid === draggingNodeId);
 			if (node) {
 				// WICHTIG: Distanz durch Zoom teilen!
 				node.x = startNodePos.x + dx / zoom;
@@ -124,11 +132,11 @@
 			{/each}
 		</svg>
 
-		{#each nodes as node (node.id)}
+		{#each nodes as node (node.uuid)}
 			<div
 				class="network-node"
-				style="left: {node.x}px; top: {node.y}px; width: {node.width}px; height: {node.height}px;"
-				onpointerdown={(e) => handleNodePointerDown(e, node.id)}
+				style="left: {node.x}px; top: {node.y}px; width: 64px; height: 64px;"
+				onpointerdown={(e) => handleNodePointerDown(e, node.uuid)}
 			>
 				<div class="node-header">{node.name}</div>
 				<div class="node-body">Pos: {Math.round(node.x)}, {Math.round(node.y)}</div>

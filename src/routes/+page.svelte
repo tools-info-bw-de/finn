@@ -1,38 +1,42 @@
 <script lang="ts">
 	import 'bootstrap';
-	import type { Edge, Node } from '@xyflow/svelte';
 	import Navbar from '$lib/components/controls/Navbar.svelte';
 	import DeviceSelector from '$lib/components/controls/DeviceSelector.svelte';
 	import NetworkCanvas from '$lib/components/controls/NetworkCanvas.svelte';
+	/* import type { NetworkNode } from '$lib/engine/types'; */
+	//import type { Cable } from '$lib/engine/Cable.svelte';
+	import { Host } from '$lib/engine/Host.svelte';
+	import { Switch } from '$lib/engine/Switch.svelte';
+	import { generateRandomMac } from '$lib/engine/helpers';
+	import { nodes } from '$lib/states/nodes.svelte';
 
-	type HostNode = Node<{ label: string }, 'default'>;
+	/* let nodes = $state<NetworkNode[]>([]); */
+	//let edges = $state<Cable[]>([]);
 
-	let nodes = $state<HostNode[]>([]);
-	let edges = $state<Edge[]>([]);
-	let placingNodeId = $state<string | null>(null);
-	let nextHostNumber = 1;
-
-	function addHost() {
-		const id = `host-${nextHostNumber}`;
-		nextHostNumber += 1;
-		placingNodeId = id;
-		nodes = [
-			...nodes,
-			{
-				id,
-				type: 'default',
-				data: { label: `Laptop ${nextHostNumber - 1}` },
-				position: { x: 0, y: 0 }
-			}
-		];
+	function createNode(type: 'notebook' | 'desktop' | 'switch') {
+		console.log(type);
+		if (type === 'notebook') {
+			let host: Host = new Host(`Notebook`, generateRandomMac(), '192.168.0.10', 'notebook');
+			nodes.push(host);
+		} else if (type === 'desktop') {
+			let host: Host = new Host(`Rechner`, generateRandomMac(), '192.168.0.10', 'desktop');
+			nodes.push(host);
+		} else if (type === 'switch') {
+			let switchDevice: Switch = new Switch('Switch');
+			nodes.push(switchDevice);
+		}
 	}
+
+	$effect(() => {
+		console.log('Nodes:', nodes);
+	});
 </script>
 
 <div class="d-flex flex-column vh-100 vw-100">
 	<Navbar />
 
 	<div class="d-flex flex-row flex-fill">
-		<DeviceSelector onAddHost={addHost} />
+		<DeviceSelector {createNode} />
 		<NetworkCanvas />
 		<!-- <Network
 			bind:nodes

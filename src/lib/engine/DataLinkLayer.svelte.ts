@@ -44,7 +44,7 @@ export class DataLinkLayer implements LayerInterface, CableEndpoint {
 
 		if (
 			frame.header.dstMac === this.config.macAddress ||
-			frame.header.dstMac === 'ff:ff:ff:ff:ff:ff'
+			frame.header.dstMac === 'FF:FF:FF:FF:FF:FF'
 		) {
 			this.upperLayer?.receive(frame.payload, frame.header.type);
 		}

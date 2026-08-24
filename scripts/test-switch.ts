@@ -1,13 +1,13 @@
 // scripts/test-switch.ts
-import { Host } from '../src/lib/engine/Host';
+import { Host } from '../src/lib/engine/Host.svelte';
 import { Switch } from '../src/lib/engine/Switch.svelte';
 import { Cable } from '../src/lib/engine/Cable.svelte';
 
 // 1. Geräte erzeugen
-const pc1 = new Host('pc1', 'AA:AA:AA:AA:AA:11', '192.168.1.10');
-const pc2 = new Host('pc2', 'BB:BB:BB:BB:BB:22', '192.168.1.20');
-const pc3 = new Host('pc3', 'CC:CC:CC:CC:CC:33', '192.168.1.30');
-const pc4 = new Host('pc4', 'DD:DD:DD:DD:DD:44', '192.168.1.40');
+const pc1 = new Host('pc1', 'AA:AA:AA:AA:AA:11', '192.168.1.10', 'notebook');
+const pc2 = new Host('pc2', 'BB:BB:BB:BB:BB:22', '192.168.1.20', 'desktop');
+const pc3 = new Host('pc3', 'CC:CC:CC:CC:CC:33', '192.168.1.30', 'desktop');
+const pc4 = new Host('pc4', 'DD:DD:DD:DD:DD:44', '192.168.1.40', 'notebook');
 
 const sw1 = new Switch('Main-Switch');
 const sw2 = new Switch('Secondary-Switch');

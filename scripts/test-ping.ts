@@ -3,8 +3,8 @@ import { Host } from '../src/lib/engine/Host';
 import { Cable } from '../src/lib/engine/Cable.svelte';
 
 // 1. Zwei Rechner (Hosts) erstellen
-const pc1 = new Host('pc1', 'AA:AA:AA:AA:AA:11', '192.168.1.10');
-const pc2 = new Host('pc2', 'BB:BB:BB:BB:BB:22', '192.168.1.20');
+const pc1 = new Host('pc1', 'AA:AA:AA:AA:AA:11', '192.168.1.10', 'notebook');
+const pc2 = new Host('pc2', 'BB:BB:BB:BB:BB:22', '192.168.1.20', 'desktop');
 
 // 2. Kabel anlegen und Datenlinks verbinden
 const cable = new Cable();

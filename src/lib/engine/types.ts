@@ -71,7 +71,11 @@ export interface LayerInterface {
 }
 
 export interface NetworkNode {
-	type: 'host' | 'switch' | 'router';
+	type: 'notebook' | 'desktop' | 'switch' | 'router';
+	uuid: string;
+	name: string;
+	x: number;
+	y: number;
 }
 
 export interface ProtocolHandler {

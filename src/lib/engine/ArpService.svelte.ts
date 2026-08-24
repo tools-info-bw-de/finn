@@ -69,6 +69,6 @@ export class ArpService {
 			senderMac: this.config.macAddress,
 			targetIP: targetIp
 		};
-		this.dataLink.send(arpRequest, 'ff:ff:ff:ff:ff:ff', 'ARP'); // Broadcast MAC address
+		this.dataLink.send(arpRequest, 'FF:FF:FF:FF:FF:FF', 'ARP'); // Broadcast MAC address
 	}
 }

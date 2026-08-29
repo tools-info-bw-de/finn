@@ -1,8 +1,8 @@
 export const cables = $state<
 	{
 		cableuuid: string;
-		from: string;
-		to: string;
+		from: string; //uuid
+		to: string; //uuid
 	}[]
 >([]);
 

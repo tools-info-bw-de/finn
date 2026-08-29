@@ -84,8 +84,29 @@
 		}
 	}
 
+	let mouse = $state({
+		x: 0,
+		y: 0
+	});
+
+	function screenToWorld(clientX: number, clientY: number) {
+		const rect = (
+			document.querySelector('.viewport') as HTMLElement | null
+		)?.getBoundingClientRect();
+		if (!rect) return { x: 0, y: 0 };
+
+		return {
+			x: (clientX - rect.left - pan.x) / zoom,
+			y: (clientY - rect.top - pan.y) / zoom
+		};
+	}
+
 	// 4. Globale Bewegung verarbeiten (über <svelte:window>)
 	function handleWindowPointerMove(e: PointerEvent) {
+		const worldPos = screenToWorld(e.clientX, e.clientY);
+		mouse.x = worldPos.x;
+		mouse.y = worldPos.y;
+
 		const dx = e.clientX - startPointer.x;
 		const dy = e.clientY - startPointer.y;
 
@@ -140,6 +161,11 @@
 				{@const end = getNodeCenter(c.to)}
 				<path d={getCubicPath(start.x, start.y, end.x, end.y)} class="cable" />
 			{/each}
+			{#if newCable.adding && newCable.uuids.length === 1}
+				{@const start = getNodeCenter(newCable.uuids[0])}
+				{@const end = { x: mouse.x, y: mouse.y }}
+				<path d={getCubicPath(start.x, start.y, end.x, end.y)} class="cable" />
+			{/if}
 		</svg>
 
 		{#each nodes as node (node.uuid)}
@@ -163,7 +189,7 @@
 
 <style>
 	.cable-tooltip {
-		position: absolute;
+		position: fixed;
 		background: #313244;
 		color: #cdd6f4;
 		padding: 6px 12px;

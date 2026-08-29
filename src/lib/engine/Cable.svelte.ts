@@ -8,16 +8,20 @@ export class Cable {
 	private currentlyTransmitting: EthernetFrame[] = [];
 	public isTransmitting = $derived(this.currentlyTransmitting.length > 0);
 
-	constructor() {
+	constructor(a: CableEndpoint, b: CableEndpoint) {
 		this.uuid = crypto.randomUUID();
-	}
-
-	public connect(a: CableEndpoint, b: CableEndpoint): void {
 		this.endA = a;
 		this.endB = b;
 		a.cable = this;
 		b.cable = this;
 	}
+
+	/*public connect(a: CableEndpoint, b: CableEndpoint): void {
+		this.endA = a;
+		this.endB = b;
+		a.cable = this;
+		b.cable = this;
+	}*/
 
 	public transmit(sender: CableEndpoint, frame: EthernetFrame): void {
 		this.currentlyTransmitting.push(frame);

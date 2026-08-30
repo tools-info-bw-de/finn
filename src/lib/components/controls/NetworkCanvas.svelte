@@ -340,11 +340,25 @@
 
 	.network-node {
 		position: absolute;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
 		border-radius: 8px;
 		border: 2px solid transparent;
 		color: #cdd6f4;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 		/* ESSENZIELL: Verhindert Text-Selection & Touch-Gesten */
 		touch-action: none;
+	}
+
+	.network-node:hover {
+		cursor: pointer;
+	}
+
+	.network-node:active {
+		cursor: grabbing !important;
+	}
+
+	.network-node > img {
+		filter: drop-shadow(4px 4px 6px rgba(148, 148, 148, 0.4));
 	}
 </style>

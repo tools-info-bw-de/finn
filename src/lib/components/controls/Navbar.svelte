@@ -1,3 +1,9 @@
+<script lang="ts">
+	import hammer from '$lib/assets/hammer.svg';
+	import play from '$lib/assets/play.svg';
+	import { settings } from '$lib/states/settings.svelte';
+</script>
+
 <nav class="navbar navbar-expand-lg bg-light">
 	<button type="button" class="btn btn-outline-primary"
 		><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"
@@ -6,10 +12,35 @@
 			/></svg
 		></button
 	>
+
+	<div class="d-flex flex-row gap-2">
+		<input
+			type="radio"
+			class="btn-check"
+			name="mode"
+			id="edit-mode"
+			autocomplete="off"
+			bind:group={settings.mode}
+			value="edit"
+		/>
+		<label class="btn btn-outline-success" for="edit-mode"><img src={hammer} alt="edit" /></label>
+
+		<input
+			type="radio"
+			class="btn-check"
+			name="mode"
+			id="play-mode"
+			autocomplete="off"
+			bind:group={settings.mode}
+			value="play"
+		/>
+		<label class="btn btn-outline-danger" for="play-mode"><img src={play} alt="play" /></label>
+	</div>
 </nav>
 
 <style>
-	button > svg {
+	button > svg,
+	label > img {
 		width: 2.5rem;
 		height: 2.5rem;
 	}

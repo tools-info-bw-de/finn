@@ -5,16 +5,19 @@
 	import NetworkCanvas from '$lib/components/controls/NetworkCanvas.svelte';
 	import { editNode } from '$lib/states/nodes.svelte';
 	import NodeSettings from '$lib/components/controls/NodeSettings.svelte';
+	import { settings } from '$lib/states/settings.svelte';
 </script>
 
 <div class="d-flex flex-column vh-100 vw-100">
 	<Navbar />
 
 	<div class="d-flex flex-row flex-fill">
-		<DeviceSelector />
+		{#if settings.mode === 'edit'}
+			<DeviceSelector />
+		{/if}
 		<NetworkCanvas />
 	</div>
-	{#if editNode}
+	{#if settings.mode === 'edit' && editNode}
 		<NodeSettings />
 	{/if}
 </div>

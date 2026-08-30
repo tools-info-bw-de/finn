@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { nodes } from '$lib/states/nodes.svelte';
+	import { nodes, editNode } from '$lib/states/nodes.svelte';
 	import { cables, newCable } from '$lib/states/cables.svelte';
 	import cable from '$lib/assets/cable.png';
 
@@ -101,6 +101,7 @@
 		};
 	}
 
+	let isDraggingNode = $state(false);
 	// 4. Globale Bewegung verarbeiten (über <svelte:window>)
 	function handleWindowPointerMove(e: PointerEvent) {
 		const worldPos = screenToWorld(e.clientX, e.clientY);
@@ -114,6 +115,11 @@
 			pan.x = startPan.x + dx;
 			pan.y = startPan.y + dy;
 		} else if (draggingNodeId) {
+			// Prüfen, ob große Entfernung bewegt wird, oder nur geklickt wird
+			if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+				isDraggingNode = true;
+			}
+
 			const node = nodes.find((n) => n.uuid === draggingNodeId);
 			if (node) {
 				// WICHTIG: Distanz durch Zoom teilen!
@@ -134,13 +140,40 @@
 
 	// 5. Drag beenden
 	function handleWindowPointerUp() {
+		if (!isDraggingNode) {
+			handleNodeClick();
+		}
+
 		isPanning = false;
+		isDraggingNode = false;
 		draggingNodeId = null;
+	}
+
+	function handleNodeClick() {
+		if (draggingNodeId) {
+			const node = nodes.find((n) => n.uuid === draggingNodeId);
+			if (node) {
+				editNode.uuid = node.uuid;
+			}
+		}
+	}
+
+	function handleKeyDown(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			if (newCable.adding) {
+				newCable.adding = false;
+				newCable.uuids = [];
+			}
+		}
 	}
 </script>
 
 <!-- Globale Event-Listener garantieren, dass Dragging nicht abbricht wenn man schnell zieht -->
-<svelte:window onpointermove={handleWindowPointerMove} onpointerup={handleWindowPointerUp} />
+<svelte:window
+	onpointermove={handleWindowPointerMove}
+	onpointerup={handleWindowPointerUp}
+	onkeydown={handleKeyDown}
+/>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
@@ -159,7 +192,12 @@
 			{#each cables as c (c.cableuuid)}
 				{@const start = getNodeCenter(c.from)}
 				{@const end = getNodeCenter(c.to)}
-				<path d={getCubicPath(start.x, start.y, end.x, end.y)} class="cable" />
+				{@const isTransmitting = c.cable.isTransmitting}
+				<path
+					class:transmitting={isTransmitting}
+					d={getCubicPath(start.x, start.y, end.x, end.y)}
+					class="cable"
+				/>
 			{/each}
 			{#if newCable.adding && newCable.uuids.length === 1}
 				{@const start = getNodeCenter(newCable.uuids[0])}
@@ -256,13 +294,18 @@
 		fill: none;
 	}
 
+	.cable.transmitting {
+		stroke: #f38ba8 !important;
+		stroke-width: 4px;
+	}
+
 	.network-node {
 		position: absolute;
 		background: #313244;
 		border: 2px solid #45475a;
 		border-radius: 8px;
 		color: #cdd6f4;
-		cursor: move;
+		/* cursor: move;*/
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 		/* ESSENZIELL: Verhindert Text-Selection & Touch-Gesten */
 		touch-action: none;

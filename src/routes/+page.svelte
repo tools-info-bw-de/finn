@@ -3,8 +3,8 @@
 	import Navbar from '$lib/components/controls/Navbar.svelte';
 	import DeviceSelector from '$lib/components/controls/DeviceSelector.svelte';
 	import NetworkCanvas from '$lib/components/controls/NetworkCanvas.svelte';
-	import { nodes } from '$lib/states/nodes.svelte';
-	import { cables, newCable } from '$lib/states/cables.svelte';
+	import { editNode } from '$lib/states/nodes.svelte';
+	import NodeSettings from '$lib/components/controls/NodeSettings.svelte';
 </script>
 
 <div class="d-flex flex-column vh-100 vw-100">
@@ -14,5 +14,7 @@
 		<DeviceSelector />
 		<NetworkCanvas />
 	</div>
-	<div class="h-25">{newCable.adding} - {newCable.uuids.length}<br />{cables.length}</div>
+	{#if editNode}
+		<NodeSettings />
+	{/if}
 </div>

@@ -5,7 +5,7 @@ export class Cable {
 	private endA?: CableEndpoint;
 	private endB?: CableEndpoint;
 
-	private currentlyTransmitting: EthernetFrame[] = [];
+	private currentlyTransmitting = $state<EthernetFrame[]>([]);
 	public isTransmitting = $derived(this.currentlyTransmitting.length > 0);
 
 	constructor(a: CableEndpoint, b: CableEndpoint) {
@@ -15,13 +15,6 @@ export class Cable {
 		a.cable = this;
 		b.cable = this;
 	}
-
-	/*public connect(a: CableEndpoint, b: CableEndpoint): void {
-		this.endA = a;
-		this.endB = b;
-		a.cable = this;
-		b.cable = this;
-	}*/
 
 	public transmit(sender: CableEndpoint, frame: EthernetFrame): void {
 		this.currentlyTransmitting.push(frame);

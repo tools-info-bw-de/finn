@@ -54,6 +54,7 @@ export class ICMPService {
 			this.logs.push(
 				`Antwort von ${srcIp}: bytes=32 seq=${packet.seq} Zeit=${timeMs.toFixed(2)} ms`
 			);
+			console.log(`Received ping reply from ${srcIp} in ${timeMs.toFixed(2)} ms`);
 
 			this.results.push({
 				seq: packet.seq || 0,

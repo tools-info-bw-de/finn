@@ -39,8 +39,7 @@
 			return host.dataLinkLayer;
 		} else if (node.type === 'switch') {
 			const switchDevice = node as Switch;
-			// TODO: Implement switch port selection
-			return switchDevice.ports[0];
+			return switchDevice.getPort();
 		} else {
 			throw new Error(`Unknown node type: ${node.type}`);
 		}

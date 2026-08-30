@@ -53,7 +53,7 @@
 				to: newCable.uuids[1],
 				cable: new Cable(getCableEndpoint(newCable.uuids[0]), getCableEndpoint(newCable.uuids[1]))
 			});
-			newCable.adding = false;
+			newCable.uuids = [];
 		}
 	});
 </script>

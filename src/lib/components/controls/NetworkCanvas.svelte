@@ -2,6 +2,9 @@
 	import { nodes, editNode } from '$lib/states/nodes.svelte';
 	import { cables, newCable } from '$lib/states/cables.svelte';
 	import cable from '$lib/assets/cable.png';
+	import notebook from '$lib/assets/laptop.png';
+	import desktop from '$lib/assets/desktop.png';
+	import switch_wifi from '$lib/assets/switch-wifi.png';
 	import { Host } from '$lib/engine/Host.svelte';
 
 	let pan = $state({ x: 0, y: 0 });
@@ -183,6 +186,19 @@
 			}
 		}
 	}
+
+	function getImageForNodeType(type: string) {
+		switch (type) {
+			case 'notebook':
+				return notebook;
+			case 'desktop':
+				return desktop;
+			case 'switch':
+				return switch_wifi;
+			default:
+				return '';
+		}
+	}
 </script>
 
 <!-- Globale Event-Listener garantieren, dass Dragging nicht abbricht wenn man schnell zieht -->
@@ -229,8 +245,14 @@
 				style="left: {node.x}px; top: {node.y}px; width: 64px; height: 64px;"
 				onpointerdown={(e) => handleNodePointerDown(e, node.uuid)}
 			>
-				<div class="node-header">{node.name}</div>
-				<div class="node-body">Pos: {Math.round(node.x)}, {Math.round(node.y)}</div>
+				<img
+					src={getImageForNodeType(node.type)}
+					alt={node.type}
+					width="64"
+					height="64"
+					draggable={false}
+				/>
+				<div class="nodeName">{node.name}</div>
 			</div>
 		{/each}
 	</div>
@@ -318,28 +340,11 @@
 
 	.network-node {
 		position: absolute;
-		background: #313244;
-		border: 2px solid #45475a;
 		border-radius: 8px;
+		border: 2px solid transparent;
 		color: #cdd6f4;
-		/* cursor: move;*/
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 		/* ESSENZIELL: Verhindert Text-Selection & Touch-Gesten */
 		touch-action: none;
-	}
-
-	.node-header {
-		background: #181825;
-		padding: 6px 10px;
-		font-weight: bold;
-		font-size: 13px;
-		border-top-left-radius: 6px;
-		border-top-right-radius: 6px;
-	}
-
-	.node-body {
-		padding: 8px 10px;
-		font-size: 11px;
-		color: #a6adc8;
 	}
 </style>

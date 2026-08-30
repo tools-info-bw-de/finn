@@ -15,8 +15,15 @@
 
 	function sendTestPing() {
 		// get device with ip 10 as Host
-		const device = nodes.find((n) => (n as Host).config.ipAddress === '192.168.0.10') as
-			Host | undefined;
+		let device = null;
+		for (const n of nodes) {
+			if (n.type === 'notebook' || n.type === 'desktop') {
+				if ((n as Host).config.ipAddress === '192.168.0.10') {
+					device = n as Host;
+					break;
+				}
+			}
+		}
 		if (device) {
 			device.icmp.sendPing('192.168.0.11');
 		} else {

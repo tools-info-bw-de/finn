@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { nodes, editNode } from '$lib/states/nodes.svelte';
 	import { Host } from '$lib/engine/Host.svelte';
-	import { cables } from '$lib/states/cables.svelte';
 
 	let n: Host | undefined = $derived(nodes.find((n) => n.uuid === editNode.uuid)) as
 		Host | undefined;
@@ -26,7 +25,6 @@
 	}
 </script>
 
-{cables[0].cable.isTransmitting}
 <form>
 	<div class="row mb-3">
 		<label for="name" class="col-sm-2 col-form-label">Name</label>

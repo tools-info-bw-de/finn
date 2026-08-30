@@ -2,11 +2,7 @@
 	import { nodes, editNode } from '$lib/states/nodes.svelte';
 	import { cables, newCable } from '$lib/states/cables.svelte';
 	import cable from '$lib/assets/cable.png';
-
-	/* interface Props {
-		nodes: NetworkNode[];
-	}
-	let { nodes }: Props = $props(); */
+	import { Host } from '$lib/engine/Host.svelte';
 
 	let pan = $state({ x: 0, y: 0 });
 	let zoom = $state(1);
@@ -65,12 +61,33 @@
 		startPan = { x: pan.x, y: pan.y };
 	}
 
+	function allowedCableConnection(nodeUuid: string): boolean {
+		const node = nodes.find((n) => n.uuid === nodeUuid);
+		if (!node) return false;
+
+		if (node.type === 'notebook' || node.type === 'desktop') {
+			const host = node as Host;
+			return host.dataLinkLayer.cable === undefined; // Host kann nur 1 Kabel haben
+		} else if (node.type === 'switch') {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
 	// 3. Klick auf Node (Node-Drag starten)
 	function handleNodePointerDown(e: PointerEvent, uuid: string) {
 		e.stopPropagation(); // Verhindert Karten-Pan
 		draggingNodeId = uuid;
 
 		if (newCable.adding) {
+			if (!allowedCableConnection(uuid)) {
+				console.log('Cannot connect cable to this node type');
+				//TODO Mauszeiger ändern, dass es nicht erlaubt ist
+				//ODER: toast anzeigen
+				return;
+			}
+
 			if (!newCable.uuids.includes(uuid)) {
 				newCable.uuids.push(uuid);
 			}

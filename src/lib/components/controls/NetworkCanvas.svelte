@@ -11,7 +11,6 @@
 
 	interface WindowData {
 		nodeUuid: string;
-		title: string;
 		x: number;
 		y: number;
 		width: number;
@@ -176,12 +175,22 @@
 	// 5. Drag beenden
 	function handleWindowPointerUp() {
 		if (!isDraggingNode) {
-			handleNodeClick();
+			if (draggingNodeUuid) {
+				handleNodeClick();
+			} else {
+				handleViewportClick();
+			}
 		}
 
 		isPanning = false;
 		isDraggingNode = false;
 		draggingNodeUuid = null;
+	}
+
+	function handleViewportClick() {
+		if (settings.mode === 'edit') {
+			editNode.uuid = '';
+		}
 	}
 
 	function handleNodeClick() {
@@ -204,7 +213,6 @@
 					// Neues Fenster öffnen
 					openWindows.push({
 						nodeUuid: node.uuid,
-						title: node.name,
 						x: 100,
 						y: 100,
 						width: 400,
@@ -225,7 +233,6 @@
 	}
 
 	function closeWindow(nodeUuid: string) {
-		console.log('Closing window for node:', nodeUuid);
 		openWindows = openWindows.filter((w) => w.nodeUuid !== nodeUuid);
 	}
 
@@ -234,6 +241,8 @@
 			if (newCable.adding) {
 				newCable.adding = false;
 				newCable.uuids = [];
+			} else if (editNode.uuid) {
+				editNode.uuid = '';
 			}
 		}
 	}
@@ -303,13 +312,14 @@
 					height="64"
 					draggable={false}
 				/>
-				<div class="nodeName">
-					{#if node.type === 'notebook' || (node.type === 'desktop' && (node as Host).config.useIpAsName)}
-						{(node as Host).config.ipAddress}
-					{:else}
-						{node.name}
-					{/if}
+				<div>
+					{node.name}
 				</div>
+				{#if node.type === 'notebook' || node.type === 'desktop'}
+					<div>
+						{(node as Host).config.ipAddress}
+					</div>
+				{/if}
 			</div>
 		{/each}
 	</div>
@@ -322,7 +332,7 @@
 
 	{#each openWindows as win (win.nodeUuid)}
 		<Window
-			title={win.title}
+			nodeUuid={win.nodeUuid}
 			bind:x={win.x}
 			bind:y={win.y}
 			bind:width={win.width}

@@ -17,7 +17,7 @@
 		{/if}
 		<NetworkCanvas />
 	</div>
-	{#if settings.mode === 'edit' && editNode}
+	{#if settings.mode === 'edit' && editNode.uuid}
 		<NodeSettings />
 	{/if}
 </div>

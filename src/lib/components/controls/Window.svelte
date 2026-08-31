@@ -1,8 +1,10 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { nodes } from '$lib/states/nodes.svelte';
+	import type { Host } from '$lib/engine/Host.svelte';
 
 	let {
-		title = 'Fenster',
+		nodeUuid,
 		x = $bindable(100),
 		y = $bindable(100),
 		width = $bindable(320),
@@ -12,7 +14,7 @@
 		onFocus,
 		children
 	}: {
-		title: string;
+		nodeUuid: string;
 		x: number;
 		y: number;
 		width: number;
@@ -23,9 +25,21 @@
 		children?: Snippet;
 	} = $props();
 
+	let title = $derived.by(() => {
+		let node = nodes.find((n) => n.uuid === nodeUuid);
+		if (!node) return 'Unknown Node';
+		if (node.type === 'notebook' || node.type === 'desktop') {
+			return `${node.name} (${(node as Host).config.ipAddress})`;
+		}
+		return node.name;
+	});
+
 	let isDragging = false;
 	let isResizing = false;
 	let dragOffset = { x: 0, y: 0 };
+
+	let startResizePointer = { x: 0, y: 0 };
+	let startResizeSize = { width: 0, height: 0 };
 
 	// --- VERSCHIEBEN (DRAG) ---
 	function handleHeaderPointerDown(e: PointerEvent) {
@@ -60,14 +74,23 @@
 		e.stopPropagation();
 		onFocus();
 		isResizing = true;
+
+		// Startwerte beim ersten Anpacken sichern
+		startResizePointer = { x: e.clientX, y: e.clientY };
+		startResizeSize = { width, height };
+
 		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 	}
 
 	function handleResizePointerMove(e: PointerEvent) {
 		if (isResizing) {
-			// Mindestgröße von 200x120px einhalten
-			width = Math.max(200, e.clientX - x);
-			height = Math.max(120, e.clientY - y);
+			// Differenz seit dem Klick berechnen
+			const dx = e.clientX - startResizePointer.x;
+			const dy = e.clientY - startResizePointer.y;
+
+			// Neue Größe = Ursprungsgröße + zurückgelegter Weg
+			width = Math.max(200, startResizeSize.width + dx);
+			height = Math.max(120, startResizeSize.height + dy);
 		}
 	}
 

@@ -6,6 +6,21 @@
 	import desktop from '$lib/assets/desktop.png';
 	import switch_wifi from '$lib/assets/switch-wifi.png';
 	import { Host } from '$lib/engine/Host.svelte';
+	import { settings } from '$lib/states/settings.svelte';
+	import Window from '$lib/components/controls/Window.svelte';
+
+	interface WindowData {
+		nodeUuid: string;
+		title: string;
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+		zIndex: number;
+	}
+
+	let openWindows = $state<WindowData[]>([]);
+	let windowsMaxZIndex = $state(100);
 
 	let pan = $state({ x: 0, y: 0 });
 	let zoom = $state(1);
@@ -14,7 +29,7 @@
 	const MAX_ZOOM = 2.0;
 
 	let isPanning = $state(false);
-	let draggingNodeId = $state<string | null>(null);
+	let draggingNodeUuid = $state<string | null>(null);
 
 	// Startpositionen für exakte Differenzberechnung
 	let startPointer = { x: 0, y: 0 };
@@ -81,7 +96,7 @@
 	// 3. Klick auf Node (Node-Drag starten)
 	function handleNodePointerDown(e: PointerEvent, uuid: string) {
 		e.stopPropagation(); // Verhindert Karten-Pan
-		draggingNodeId = uuid;
+		draggingNodeUuid = uuid;
 
 		if (newCable.adding) {
 			if (!allowedCableConnection(uuid)) {
@@ -134,13 +149,13 @@
 		if (isPanning) {
 			pan.x = startPan.x + dx;
 			pan.y = startPan.y + dy;
-		} else if (draggingNodeId) {
+		} else if (draggingNodeUuid) {
 			// Prüfen, ob große Entfernung bewegt wird, oder nur geklickt wird
 			if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
 				isDraggingNode = true;
 			}
 
-			const node = nodes.find((n) => n.uuid === draggingNodeId);
+			const node = nodes.find((n) => n.uuid === draggingNodeUuid);
 			if (node) {
 				// WICHTIG: Distanz durch Zoom teilen!
 				node.x = startNodePos.x + dx / zoom;
@@ -166,16 +181,52 @@
 
 		isPanning = false;
 		isDraggingNode = false;
-		draggingNodeId = null;
+		draggingNodeUuid = null;
 	}
 
 	function handleNodeClick() {
-		if (draggingNodeId) {
-			const node = nodes.find((n) => n.uuid === draggingNodeId);
+		if (settings.mode === 'edit' && draggingNodeUuid) {
+			const node = nodes.find((n) => n.uuid === draggingNodeUuid);
 			if (node) {
 				editNode.uuid = node.uuid;
 			}
 		}
+
+		if (settings.mode === 'play' && draggingNodeUuid) {
+			const node = nodes.find((n) => n.uuid === draggingNodeUuid);
+			if (node) {
+				// Prüfen, ob das Fenster bereits geöffnet ist
+				const existingWindow = openWindows.find((w) => w.nodeUuid === node.uuid);
+				if (existingWindow) {
+					// Fenster in den Vordergrund bringen
+					focusWindow(node.uuid);
+				} else {
+					// Neues Fenster öffnen
+					openWindows.push({
+						nodeUuid: node.uuid,
+						title: node.name,
+						x: 100,
+						y: 100,
+						width: 400,
+						height: 300,
+						zIndex: ++windowsMaxZIndex
+					});
+				}
+			}
+		}
+	}
+
+	function focusWindow(nodeUuid: string) {
+		const win = openWindows.find((w) => w.nodeUuid === nodeUuid);
+		if (win && win.zIndex !== windowsMaxZIndex) {
+			windowsMaxZIndex++;
+			win.zIndex = windowsMaxZIndex;
+		}
+	}
+
+	function closeWindow(nodeUuid: string) {
+		console.log('Closing window for node:', nodeUuid);
+		openWindows = openWindows.filter((w) => w.nodeUuid !== nodeUuid);
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
@@ -252,7 +303,13 @@
 					height="64"
 					draggable={false}
 				/>
-				<div class="nodeName">{node.name}</div>
+				<div class="nodeName">
+					{#if node.type === 'notebook' || (node.type === 'desktop' && (node as Host).config.useIpAsName)}
+						{(node as Host).config.ipAddress}
+					{:else}
+						{node.name}
+					{/if}
+				</div>
 			</div>
 		{/each}
 	</div>
@@ -262,6 +319,26 @@
 			<img src={cable} alt="Cable" width="32" height="32" />
 		</div>
 	{/if}
+
+	{#each openWindows as win (win.nodeUuid)}
+		<Window
+			title={win.title}
+			bind:x={win.x}
+			bind:y={win.y}
+			bind:width={win.width}
+			bind:height={win.height}
+			zIndex={win.zIndex}
+			onFocus={() => focusWindow(win.nodeUuid)}
+			onClose={() => closeWindow(win.nodeUuid)}
+		>
+			<!-- Formular/Inhalt spezifisch für den Node -->
+			<p>Node ID: <code>{win.nodeUuid}</code></p>
+			<label>
+				IP-Adresse:
+				<input type="text" value="192.168.1.10" />
+			</label>
+		</Window>
+	{/each}
 </div>
 
 <style>

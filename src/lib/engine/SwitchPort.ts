@@ -1,13 +1,13 @@
 import type { CableEndpoint, EthernetFrame } from './types';
 import type { Cable } from './Cable.svelte';
-import { Switch } from './Switch.svelte';
+import { SwitchWifi } from './SwitchWifi.svelte';
 
 export class SwitchPort implements CableEndpoint {
-	public switch: Switch;
+	public switch: SwitchWifi;
 	public portNumber: number;
 	public cable?: Cable;
 
-	constructor(portNumber: number, switchInstance: Switch) {
+	constructor(portNumber: number, switchInstance: SwitchWifi) {
 		this.portNumber = portNumber;
 		this.switch = switchInstance;
 	}

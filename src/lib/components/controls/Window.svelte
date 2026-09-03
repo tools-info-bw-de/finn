@@ -4,7 +4,8 @@
 	import { cubicOut } from 'svelte/easing';
 	import { scale } from 'svelte/transition';
 	import Terminal from '$lib/components/controls/Window/Host/Terminal.svelte';
-	import { cables } from '$lib/states/cables.svelte';
+	import { SwitchWifi } from '$lib/engine/SwitchWifi.svelte';
+	import SwitchSAT from '$lib/components/controls/Window/SwitchSAT.svelte';
 
 	let {
 		nodeUuid,
@@ -36,6 +37,8 @@
 		if (!node) return 'Unknown Node';
 		if (type === 'notebook' || type === 'desktop') {
 			return `${node.name} (${(node as Host).config.ipAddress})`;
+		} else if (type === 'switch') {
+			return `${node.name} (Switch SAT Tabelle)`;
 		}
 		return node.name;
 	});
@@ -123,7 +126,7 @@
 		onpointermove={handleHeaderPointerMove}
 		onpointerup={handleHeaderPointerUp}
 	>
-		<span class="title">{title}{cables[0].cable.uuid}</span>
+		<span class="title">{title}</span>
 		<button
 			class="close-btn"
 			onclick={(e) => {
@@ -135,7 +138,11 @@
 
 	<!-- Inhalt -->
 	<div class="window-content">
-		<Terminal {host} />
+		{#if type === 'notebook' || type === 'desktop'}
+			<Terminal {host} />
+		{:else if type === 'switch'}
+			<SwitchSAT switch_wifi={nodes.find((n) => n.uuid === nodeUuid) as SwitchWifi} />
+		{/if}
 	</div>
 
 	<!-- Resize Handle unten rechts -->

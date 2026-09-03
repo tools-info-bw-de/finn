@@ -7,7 +7,7 @@ export interface MacTableEntry {
 	updatedAt: number; // Timestamp of the last update
 }
 
-export class Switch implements NetworkNode {
+export class SwitchWifi implements NetworkNode {
 	public uuid: string = crypto.randomUUID();
 	public type: 'switch';
 	public name = $state<string>('');

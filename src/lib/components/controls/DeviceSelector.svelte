@@ -7,9 +7,8 @@
 	import { SwitchWifi } from '$lib/engine/SwitchWifi.svelte';
 	import { generateRandomMac } from '$lib/engine/helpers';
 	import { nodes } from '$lib/states/nodes.svelte';
-	import { cables, newCable } from '$lib/states/cables.svelte';
+	import { cables, newCable, getCableEndpoint } from '$lib/states/cables.svelte';
 	import { Cable } from '$lib/engine/Cable.svelte';
-	import type { CableEndpoint } from '$lib/engine/types';
 
 	function createNode(type: 'notebook' | 'desktop' | 'switch') {
 		console.log(type);
@@ -30,28 +29,14 @@
 		newCable.uuids = [];
 	}
 
-	function getCableEndpoint(nodeUuid: string): CableEndpoint {
-		const node = nodes.find((n) => n.uuid === nodeUuid);
-		if (!node) throw new Error(`Node with UUID ${nodeUuid} not found`);
-
-		if (node.type === 'notebook' || node.type === 'desktop') {
-			const host = node as Host;
-			return host.dataLinkLayer;
-		} else if (node.type === 'switch') {
-			const switchDevice = node as SwitchWifi;
-			return switchDevice.getPort();
-		} else {
-			throw new Error(`Unknown node type: ${node.type}`);
-		}
-	}
-
 	$effect(() => {
 		if (newCable.adding && newCable.uuids.length === 2) {
+			const c = new Cable(getCableEndpoint(newCable.uuids[0]), getCableEndpoint(newCable.uuids[1]));
 			cables.push({
-				cableuuid: crypto.randomUUID(),
+				cableuuid: c.uuid,
 				from: newCable.uuids[0],
 				to: newCable.uuids[1],
-				cable: new Cable(getCableEndpoint(newCable.uuids[0]), getCableEndpoint(newCable.uuids[1]))
+				cable: c
 			});
 			newCable.uuids = [];
 		}

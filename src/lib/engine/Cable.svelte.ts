@@ -1,4 +1,6 @@
+import { DataLinkLayer } from './DataLinkLayer.svelte';
 import type { CableEndpoint, EthernetFrame } from './types';
+import { SwitchPort } from './SwitchPort.ts';
 
 export class Cable {
 	public uuid: string;
@@ -13,6 +15,23 @@ export class Cable {
 		this.endB = b;
 		a.cable = this;
 		b.cable = this;
+	}
+
+	public remove(): void {
+		if (this.endA && this.endA instanceof DataLinkLayer) {
+			this.endA.cable = undefined;
+		} else if (this.endA && this.endA instanceof SwitchPort) {
+			this.endA.switch.removeCable(this);
+		}
+
+		if (this.endB && this.endB instanceof DataLinkLayer) {
+			this.endB.cable = undefined;
+		} else if (this.endB && this.endB instanceof SwitchPort) {
+			this.endB.switch.removeCable(this);
+		}
+
+		this.endA = undefined;
+		this.endB = undefined;
 	}
 
 	public get isTransmitting(): boolean {

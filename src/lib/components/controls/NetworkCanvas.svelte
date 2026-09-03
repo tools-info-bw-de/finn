@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { nodes, editNode } from '$lib/states/nodes.svelte';
-	import { cables, newCable } from '$lib/states/cables.svelte';
+	import { cables, newCable, removeCable } from '$lib/states/cables.svelte';
 	import cable from '$lib/assets/cable.png';
 	import notebook from '$lib/assets/laptop.png';
 	import desktop from '$lib/assets/desktop.png';
@@ -294,10 +294,15 @@
 			{#each cables as c (c.cableuuid)}
 				{@const start = getNodeCenter(c.from)}
 				{@const end = getNodeCenter(c.to)}
+				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<path
 					class:transmitting={c.cable.isTransmitting}
+					class:cableEdit={settings.mode === 'edit'}
 					d={getCubicPath(start.x, start.y, end.x, end.y)}
 					class="cable"
+					onclick={() => {
+						removeCable(c.cableuuid);
+					}}
 				/>
 			{/each}
 			{#if newCable.adding && newCable.uuids.length === 1}
@@ -419,6 +424,17 @@
 		stroke: #89b4fa;
 		stroke-width: 3px;
 		fill: none;
+	}
+
+	.cableEdit {
+		cursor: pointer;
+		pointer-events: all; /* Ermöglicht Klicks auf die Kabel */
+	}
+
+	.cableEdit:hover {
+		stroke: #f38ba8;
+		stroke-width: 5px;
+		stroke-dasharray: 10, 10;
 	}
 
 	.cable.transmitting {

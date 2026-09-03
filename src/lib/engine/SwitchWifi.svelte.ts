@@ -1,5 +1,6 @@
 import { SwitchPort } from './SwitchPort';
 import type { EthernetFrame, NetworkNode } from './types';
+import { Cable } from './Cable.svelte';
 
 export interface MacTableEntry {
 	mac: string;
@@ -30,6 +31,19 @@ export class SwitchWifi implements NetworkNode {
 		const port = new SwitchPort(this.portCounter++, this);
 		this.ports.push(port);
 		return port;
+	}
+
+	public removeCable(cable: Cable): void {
+		const portNumberToRemove: number =
+			this.ports.find((port) => port.cable?.uuid === cable.uuid)?.portNumber ?? -1;
+		if (portNumberToRemove === -1) {
+			return;
+		}
+		this.macTable = Object.fromEntries(
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			Object.entries(this.macTable).filter(([_, entry]) => entry.port !== portNumberToRemove)
+		);
+		this.ports = this.ports.filter((port) => port.cable?.uuid !== cable.uuid);
 	}
 
 	public receive(portNumber: number, frame: EthernetFrame): void {

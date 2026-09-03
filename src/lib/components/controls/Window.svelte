@@ -206,7 +206,6 @@
 
 	.window-content {
 		flex: 1;
-		padding: 12px;
 		overflow: auto;
 		color: #cdd6f4;
 	}

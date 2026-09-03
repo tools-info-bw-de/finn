@@ -45,9 +45,18 @@
 		};
 	}
 
-	function getCubicPath(x1: number, y1: number, x2: number, y2: number) {
-		const dx = Math.abs(x2 - x1) * 0.5;
-		return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+	function getCablePath(x1: number, y1: number, x2: number, y2: number) {
+		if ((x1 < x2 && y1 < y2) || (x1 > x2 && y1 > y2)) {
+			// Diagonal von links oben nach rechts unten oder umgekehrt
+			const qx = Math.min(x1, x2) + Math.abs(x2 - x1) * 0.75;
+			const qy = Math.min(y1, y2) + Math.abs(y2 - y1) * 0.25;
+			return `M ${x1} ${y1} Q ${qx} ${qy},  ${x2} ${y2}`;
+		} else {
+			// Diagonal von links unten nach rechts oben oder umgekehrt
+			const qx = Math.min(x1, x2) + Math.abs(x2 - x1) * 0.25;
+			const qy = Math.min(y1, y2) + Math.abs(y2 - y1) * 0.25;
+			return `M ${x1} ${y1} Q ${qx} ${qy},  ${x2} ${y2}`;
+		}
 	}
 
 	// 1. Zoom per Mausrad
@@ -297,8 +306,8 @@
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<path
 					class:transmitting={c.cable.isTransmitting}
-					class:cableEdit={settings.mode === 'edit'}
-					d={getCubicPath(start.x, start.y, end.x, end.y)}
+					class:cableEdit={settings.mode === 'edit' && !newCable.adding}
+					d={getCablePath(start.x, start.y, end.x, end.y)}
 					class="cable"
 					onclick={() => {
 						removeCable(c.cableuuid);
@@ -308,7 +317,7 @@
 			{#if newCable.adding && newCable.uuids.length === 1}
 				{@const start = getNodeCenter(newCable.uuids[0])}
 				{@const end = { x: mouse.x, y: mouse.y }}
-				<path d={getCubicPath(start.x, start.y, end.x, end.y)} class="cable" />
+				<path d={getCablePath(start.x, start.y, end.x, end.y)} class="cable" />
 			{/if}
 		</svg>
 
@@ -339,7 +348,8 @@
 
 	{#if newCable.adding}
 		<div class="cable-tooltip">
-			<img src={cable} alt="Cable" width="32" height="32" />
+			<img src={cable} alt="Cable" width="40" height="40" />
+			<span>{newCable.uuids.length + 1}</span>
 		</div>
 	{/if}
 
@@ -360,14 +370,30 @@
 <style>
 	.cable-tooltip {
 		position: fixed;
-		background: #313244;
+		/*background: #313244;*/
 		color: #cdd6f4;
-		padding: 6px 12px;
-		border-radius: 6px;
+		margin: 6px 12px;
+		/*border: 1px solid #45475a;
+		border-radius: 6px;*/
 		font-size: 12px;
 		font-weight: bold;
 		z-index: 10;
-		border: 1px solid #45475a;
+	}
+
+	.cable-tooltip span {
+		display: inline-flex;
+		justify-content: center;
+		align-items: center;
+		position: absolute;
+		top: 32px;
+		left: 32px;
+		font-size: 16px;
+		color: black;
+		font-weight: bold;
+		background: rgba(255, 255, 255, 0.575);
+		width: 1.5rem;
+		aspect-ratio: 1;
+		border-radius: 50%;
 	}
 
 	.viewport {

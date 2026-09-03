@@ -20,6 +20,7 @@
 
 	let openWindows = $state<WindowData[]>([]);
 	let windowsMaxZIndex = $state(100);
+	let viewportEl: HTMLDivElement;
 
 	let pan = $state({ x: 0, y: 0 });
 	let zoom = $state(1);
@@ -173,8 +174,15 @@
 	}
 
 	// 5. Drag beenden
-	function handleWindowPointerUp() {
-		if (!isDraggingNode) {
+	function handleWindowPointerUp(e: PointerEvent) {
+		const viewportRect = viewportEl.getBoundingClientRect();
+		const isWithinViewport =
+			e.clientX >= viewportRect.left &&
+			e.clientX <= viewportRect.right &&
+			e.clientY >= viewportRect.top &&
+			e.clientY <= viewportRect.bottom;
+
+		if (isWithinViewport && !isDraggingNode) {
 			if (draggingNodeUuid) {
 				handleNodeClick();
 			} else {
@@ -270,6 +278,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
+	bind:this={viewportEl}
 	class="viewport"
 	class:panning={isPanning}
 	style="background-size: {24 * zoom}px {24 *
@@ -285,9 +294,8 @@
 			{#each cables as c (c.cableuuid)}
 				{@const start = getNodeCenter(c.from)}
 				{@const end = getNodeCenter(c.to)}
-				{@const isTransmitting = c.cable.isTransmitting}
 				<path
-					class:transmitting={isTransmitting}
+					class:transmitting={c.cable.isTransmitting}
 					d={getCubicPath(start.x, start.y, end.x, end.y)}
 					class="cable"
 				/>
@@ -340,14 +348,7 @@
 			zIndex={win.zIndex}
 			onFocus={() => focusWindow(win.nodeUuid)}
 			onClose={() => closeWindow(win.nodeUuid)}
-		>
-			<!-- Formular/Inhalt spezifisch für den Node -->
-			<p>Node ID: <code>{win.nodeUuid}</code></p>
-			<label>
-				IP-Adresse:
-				<input type="text" value="192.168.1.10" />
-			</label>
-		</Window>
+		/>
 	{/each}
 </div>
 

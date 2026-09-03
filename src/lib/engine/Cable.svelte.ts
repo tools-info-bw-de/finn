@@ -6,7 +6,6 @@ export class Cable {
 	private endB?: CableEndpoint;
 
 	private currentlyTransmitting = $state<EthernetFrame[]>([]);
-	public isTransmitting = $derived(this.currentlyTransmitting.length > 0);
 
 	constructor(a: CableEndpoint, b: CableEndpoint) {
 		this.uuid = crypto.randomUUID();
@@ -14,6 +13,10 @@ export class Cable {
 		this.endB = b;
 		a.cable = this;
 		b.cable = this;
+	}
+
+	public get isTransmitting(): boolean {
+		return this.currentlyTransmitting.length > 0;
 	}
 
 	public transmit(sender: CableEndpoint, frame: EthernetFrame): void {

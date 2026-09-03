@@ -1,7 +1,10 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
 	import { nodes } from '$lib/states/nodes.svelte';
 	import type { Host } from '$lib/engine/Host.svelte';
+	import { cubicOut } from 'svelte/easing';
+	import { scale } from 'svelte/transition';
+	import Terminal from '$lib/components/controls/Window/Host/Terminal.svelte';
+	import { cables } from '$lib/states/cables.svelte';
 
 	let {
 		nodeUuid,
@@ -11,8 +14,7 @@
 		height = $bindable(220),
 		zIndex = 100,
 		onClose,
-		onFocus,
-		children
+		onFocus
 	}: {
 		nodeUuid: string;
 		x: number;
@@ -22,13 +24,17 @@
 		zIndex: number;
 		onClose: () => void;
 		onFocus: () => void;
-		children?: Snippet;
 	} = $props();
+
+	let type = $derived(nodes.find((n) => n.uuid === nodeUuid)?.type);
+	let host = $derived.by(() => {
+		return nodes.find((n) => n.uuid === nodeUuid) as Host;
+	});
 
 	let title = $derived.by(() => {
 		let node = nodes.find((n) => n.uuid === nodeUuid);
 		if (!node) return 'Unknown Node';
-		if (node.type === 'notebook' || node.type === 'desktop') {
+		if (type === 'notebook' || type === 'desktop') {
 			return `${node.name} (${(node as Host).config.ipAddress})`;
 		}
 		return node.name;
@@ -108,6 +114,7 @@
 	class="window"
 	style="left: {x}px; top: {y}px; width: {width}px; height: {height}px; z-index: {zIndex};"
 	onpointerdown={onFocus}
+	transition:scale={{ duration: 180, start: 0.92, opacity: 0, easing: cubicOut }}
 >
 	<!-- Header / Drag Handle -->
 	<div
@@ -116,7 +123,7 @@
 		onpointermove={handleHeaderPointerMove}
 		onpointerup={handleHeaderPointerUp}
 	>
-		<span class="title">{title}</span>
+		<span class="title">{title}{cables[0].cable.uuid}</span>
 		<button
 			class="close-btn"
 			onclick={(e) => {
@@ -128,7 +135,7 @@
 
 	<!-- Inhalt -->
 	<div class="window-content">
-		{@render children?.()}
+		<Terminal {host} />
 	</div>
 
 	<!-- Resize Handle unten rechts -->

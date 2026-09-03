@@ -50,6 +50,12 @@
 			</div>
 		</div>
 		<div class="row mb-3">
+			<label for="mac" class="col-sm-2 col-form-label">MAC</label>
+			<div class="col-sm-10">
+				<input value={n?.config.macAddress} disabled type="text" class="form-control" id="mac" />
+			</div>
+		</div>
+		<div class="row mb-3">
 			<label for="ip" class="col-sm-2 col-form-label">IP</label>
 			<div class="col-sm-10">
 				<input

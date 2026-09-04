@@ -2,14 +2,15 @@ import { DataLinkLayer } from './DataLinkLayer.svelte';
 import { NetworkLayer } from './NetworkLayer';
 import { ArpService } from './ArpService.svelte';
 import type { NetworkNode } from './types';
-import { HostConfig } from './HostConfig.svelte';
+import { NetworkConfig } from './NetworkConfig.svelte';
 import { ICMPService } from './ICMPService.svelte';
 
 // Ist entweder ein Notebook oder ein Rechner - wird nur durch den "type" unterschieden!
 export class Host implements NetworkNode {
 	public uuid: string = crypto.randomUUID();
 	public name = $state<string>('');
-	public config: HostConfig;
+	public config: NetworkConfig;
+	public useIpAsName = $state<boolean>(false);
 	public type: 'notebook' | 'desktop';
 	public x = $state<number>(0);
 	public y = $state<number>(0);
@@ -20,9 +21,15 @@ export class Host implements NetworkNode {
 
 	public icmp: ICMPService;
 
-	constructor(name: string, macAddress: string, ipAddress: string, type: 'notebook' | 'desktop') {
+	constructor(
+		name: string,
+		macAddress: string,
+		ipAddress: string,
+		netmask: string,
+		type: 'notebook' | 'desktop'
+	) {
 		this.name = name;
-		this.config = new HostConfig(macAddress, ipAddress);
+		this.config = new NetworkConfig(macAddress, ipAddress, netmask);
 		this.type = type;
 		this.x = 0;
 		this.y = 0;

@@ -8,10 +8,10 @@ import type {
 	ProtocolHandler
 } from './types';
 import type { ArpService } from './ArpService.svelte';
-import { HostConfig } from './HostConfig.svelte';
+import { NetworkConfig } from './NetworkConfig.svelte';
 
 export class NetworkLayer implements LayerInterface {
-	public config: HostConfig;
+	public config: NetworkConfig;
 	public arpService: ArpService;
 	public upperLayer?: LayerInterface;
 	public lowerLayer?: LayerInterface;
@@ -23,7 +23,7 @@ export class NetworkLayer implements LayerInterface {
 		this.protocolHandlers.set(protocol, handler);
 	}
 
-	constructor(config: HostConfig, arpService: ArpService) {
+	constructor(config: NetworkConfig, arpService: ArpService) {
 		this.config = config;
 		this.arpService = arpService;
 	}

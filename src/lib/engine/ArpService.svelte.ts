@@ -1,7 +1,7 @@
 import type { DataLinkLayer } from './DataLinkLayer.svelte';
 import type { ARPPacket, IPPacket } from './types';
 import { SvelteMap } from 'svelte/reactivity';
-import { HostConfig } from './HostConfig.svelte';
+import { HostConfig } from './NetworkConfig.svelte';
 
 // ARP-Services für ein Gerät inkl. ARP-Cache und Warteschlange für ausstehende IP-Pakete, die auf die Auflösung warten
 

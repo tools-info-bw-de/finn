@@ -13,10 +13,22 @@
 	function createNode(type: 'notebook' | 'desktop' | 'switch') {
 		console.log(type);
 		if (type === 'notebook') {
-			let host: Host = new Host(`Notebook`, generateRandomMac(), '192.168.0.10', 'notebook');
+			let host: Host = new Host(
+				`Notebook`,
+				generateRandomMac(),
+				'192.168.0.10',
+				'255.255.255.0',
+				'notebook'
+			);
 			nodes.push(host);
 		} else if (type === 'desktop') {
-			let host: Host = new Host(`Rechner`, generateRandomMac(), '192.168.0.10', 'desktop');
+			let host: Host = new Host(
+				`Rechner`,
+				generateRandomMac(),
+				'192.168.0.10',
+				'255.255.255.0',
+				'desktop'
+			);
 			nodes.push(host);
 		} else if (type === 'switch') {
 			let switchDevice: SwitchWifi = new SwitchWifi('Switch');

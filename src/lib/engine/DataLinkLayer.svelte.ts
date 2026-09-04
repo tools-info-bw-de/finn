@@ -1,6 +1,6 @@
 import type { LayerInterface, EthernetFrame, IPPacket, ARPPacket, CableEndpoint } from './types';
 import type { Cable } from './Cable.svelte';
-import { HostConfig } from './HostConfig.svelte';
+import { HostConfig } from './NetworkConfig.svelte';
 
 export class DataLinkLayer implements LayerInterface, CableEndpoint {
 	public config: HostConfig;

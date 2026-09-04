@@ -8,6 +8,7 @@
 	import { Host } from '$lib/engine/Host.svelte';
 	import { settings } from '$lib/states/settings.svelte';
 	import Window from '$lib/components/controls/Window.svelte';
+	import ContextMenuEdit from './ContextMenuEdit.svelte';
 
 	interface WindowData {
 		nodeUuid: string;
@@ -276,6 +277,19 @@
 				return '';
 		}
 	}
+
+	let contextMenuEdit = $state<{ x: number; y: number; uuid: string }>({ x: 0, y: 0, uuid: '' });
+	function handleContextMenuNode(e: MouseEvent, nodeUuid: string) {
+		e.preventDefault();
+		contextMenuEdit.uuid = nodeUuid;
+		let { x, y } = screenToWorld(e.clientX, e.clientY);
+		contextMenuEdit.x = x;
+		contextMenuEdit.y = y;
+	}
+
+	function closeContextMenu() {
+		contextMenuEdit.uuid = '';
+	}
 </script>
 
 <!-- Globale Event-Listener garantieren, dass Dragging nicht abbricht wenn man schnell zieht -->
@@ -283,6 +297,7 @@
 	onpointermove={handleWindowPointerMove}
 	onpointerup={handleWindowPointerUp}
 	onkeydown={handleKeyDown}
+	onclick={closeContextMenu}
 />
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -326,6 +341,9 @@
 				class="network-node"
 				style="left: {node.x}px; top: {node.y}px; width: 64px; height: 64px;"
 				onpointerdown={(e) => handleNodePointerDown(e, node.uuid)}
+				oncontextmenu={(e) => {
+					handleContextMenuNode(e, node.uuid);
+				}}
 			>
 				<img
 					src={getImageForNodeType(node.type)}
@@ -344,6 +362,9 @@
 				{/if}
 			</div>
 		{/each}
+		{#if settings.mode === 'edit' && contextMenuEdit.uuid !== ''}
+			<ContextMenuEdit uuid={contextMenuEdit.uuid} x={contextMenuEdit.x} y={contextMenuEdit.y} />
+		{/if}
 	</div>
 
 	{#if newCable.adding}

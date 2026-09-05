@@ -106,7 +106,16 @@
 	// 3. Klick auf Node (Node-Drag starten)
 	function handleNodePointerDown(e: PointerEvent, uuid: string) {
 		e.stopPropagation(); // Verhindert Karten-Pan
+		if (e.button !== 0) return; // Nur Linksklick erlauben (sonst wird dies auch beim Kontextmenü ausgeführt)
+
+		console.log('hu');
 		draggingNodeUuid = uuid;
+
+		if (settings.mode === 'play') {
+			// Im Play-Modus keine Dragging-Logik, nur Fenster öffnen
+			handleNodeClick();
+			return;
+		}
 
 		if (newCable.adding) {
 			if (!allowedCableConnection(uuid)) {
@@ -159,7 +168,7 @@
 		if (isPanning) {
 			pan.x = startPan.x + dx;
 			pan.y = startPan.y + dy;
-		} else if (draggingNodeUuid) {
+		} else if (draggingNodeUuid && settings.mode === 'edit') {
 			// Prüfen, ob große Entfernung bewegt wird, oder nur geklickt wird
 			if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
 				isDraggingNode = true;
@@ -192,7 +201,7 @@
 			e.clientY >= viewportRect.top &&
 			e.clientY <= viewportRect.bottom;
 
-		if (isWithinViewport && !isDraggingNode) {
+		if (isWithinViewport && !isDraggingNode && !newCable.adding) {
 			if (draggingNodeUuid) {
 				handleNodeClick();
 			} else {
@@ -212,13 +221,12 @@
 	}
 
 	function handleNodeClick() {
+		// Zum Öffnen der Node-Settings
 		if (settings.mode === 'edit' && draggingNodeUuid) {
-			const node = nodes.find((n) => n.uuid === draggingNodeUuid);
-			if (node) {
-				editNode.uuid = node.uuid;
-			}
+			editNode.uuid = draggingNodeUuid;
 		}
 
+		// Zum Öffnen des Fensters im Play-Modus
 		if (settings.mode === 'play' && draggingNodeUuid) {
 			const node = nodes.find((n) => n.uuid === draggingNodeUuid);
 			if (node) {
@@ -281,6 +289,7 @@
 	let contextMenuEdit = $state<{ x: number; y: number; uuid: string }>({ x: 0, y: 0, uuid: '' });
 	function handleContextMenuNode(e: MouseEvent, nodeUuid: string) {
 		e.preventDefault();
+		e.stopPropagation();
 		contextMenuEdit.uuid = nodeUuid;
 		let { x, y } = screenToWorld(e.clientX, e.clientY);
 		contextMenuEdit.x = x;

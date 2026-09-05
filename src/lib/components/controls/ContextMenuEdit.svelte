@@ -3,6 +3,8 @@
 	import { Host } from '$lib/engine/Host.svelte';
 	import type { SwitchWifi } from '$lib/engine/SwitchWifi.svelte';
 	import { removeCable } from '$lib/states/cables.svelte';
+	import { cubicOut } from 'svelte/easing';
+	import { scale } from 'svelte/transition';
 
 	let { uuid, x, y } = $props<{ uuid: string; x: number; y: number }>();
 
@@ -32,7 +34,11 @@
 	}
 </script>
 
-<div class="list-group" style="left:{x}px; top:{y}px;">
+<div
+	class="list-group"
+	style="left:{x}px; top:{y}px;"
+	transition:scale={{ duration: 150, start: 0.95, opacity: 0, easing: cubicOut }}
+>
 	<button onclick={deleteNode} class="list-group-item list-group-item-action">
 		<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"
 			><!--!Font Awesome Free v7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path

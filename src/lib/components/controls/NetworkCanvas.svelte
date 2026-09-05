@@ -108,7 +108,6 @@
 		e.stopPropagation(); // Verhindert Karten-Pan
 		if (e.button !== 0) return; // Nur Linksklick erlauben (sonst wird dies auch beim Kontextmenü ausgeführt)
 
-		console.log('hu');
 		draggingNodeUuid = uuid;
 
 		if (settings.mode === 'play') {
@@ -204,7 +203,7 @@
 		if (isWithinViewport && !isDraggingNode && !newCable.adding) {
 			if (draggingNodeUuid) {
 				handleNodeClick();
-			} else {
+			} else if (e.button === 0) {
 				handleViewportClick();
 			}
 		}
@@ -215,6 +214,10 @@
 	}
 
 	function handleViewportClick() {
+		if (contextMenuEdit.uuid) {
+			closeContextMenu();
+			return;
+		}
 		if (settings.mode === 'edit') {
 			editNode.uuid = '';
 		}
@@ -267,6 +270,8 @@
 			if (newCable.adding) {
 				newCable.adding = false;
 				newCable.uuids = [];
+			} else if (contextMenuEdit.uuid) {
+				closeContextMenu();
 			} else if (editNode.uuid) {
 				editNode.uuid = '';
 			}

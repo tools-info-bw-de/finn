@@ -3,14 +3,16 @@
 	import laptop from '$lib/assets/laptop.png';
 	import desktop from '$lib/assets/desktop.png';
 	import switch_wifi from '$lib/assets/switch-wifi.png';
+	import router from '$lib/assets/router.png';
 	import { Host } from '$lib/engine/Host.svelte';
 	import { SwitchWifi } from '$lib/engine/SwitchWifi.svelte';
 	import { generateRandomMac } from '$lib/engine/helpers';
 	import { nodes } from '$lib/states/nodes.svelte';
-	import { cables, newCable, getCableEndpoint } from '$lib/states/cables.svelte';
+	import { Router } from '$lib/engine/Router.svelte';
+	import { cables, getCableEndpoint, newCable } from '$lib/states/cables.svelte';
 	import { Cable } from '$lib/engine/Cable.svelte';
 
-	function createNode(type: 'notebook' | 'desktop' | 'switch') {
+	function createNode(type: 'notebook' | 'desktop' | 'switch' | 'router') {
 		console.log(type);
 		if (type === 'notebook') {
 			let host: Host = new Host(
@@ -33,6 +35,15 @@
 		} else if (type === 'switch') {
 			let switchDevice: SwitchWifi = new SwitchWifi('Switch');
 			nodes.push(switchDevice);
+		} else if (type === 'router') {
+			let routerDevice: Router = new Router('Router');
+			/*const networkConfig1: NetworkConfig = {
+				ipAddress: '192.168.0.10',
+				netmask: '255.255.255.0',
+				gateway: ''
+			};
+			routerDevice.addInterface();*/
+			nodes.push(routerDevice);
 		}
 	}
 
@@ -67,5 +78,8 @@
 	</button>
 	<button type="button" class="btn btn-primary" onclick={() => createNode('switch')}>
 		<img src={switch_wifi} alt="Switch" width="32" height="32" />
+	</button>
+	<button type="button" class="btn btn-primary" onclick={() => createNode('router')}>
+		<img src={router} alt="Router" width="32" height="32" />
 	</button>
 </div>

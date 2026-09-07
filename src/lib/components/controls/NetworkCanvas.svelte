@@ -5,10 +5,13 @@
 	import notebook from '$lib/assets/laptop.png';
 	import desktop from '$lib/assets/desktop.png';
 	import switch_wifi from '$lib/assets/switch-wifi.png';
+	import router from '$lib/assets/router.png';
 	import { Host } from '$lib/engine/Host.svelte';
 	import { settings } from '$lib/states/settings.svelte';
 	import Window from '$lib/components/controls/Window.svelte';
 	import ContextMenuEdit from './ContextMenuEdit.svelte';
+	import type { Router } from '$lib/engine/Router.svelte';
+	import { DataLinkLayer } from '$lib/engine/DataLinkLayer.svelte';
 
 	interface WindowData {
 		nodeUuid: string;
@@ -17,9 +20,20 @@
 		width: number;
 		height: number;
 		zIndex: number;
+		open: boolean;
 	}
 
-	let openWindows = $state<WindowData[]>([]);
+	let windows = $state<WindowData[]>([]);
+	let visibleWindows = $derived.by(() => {
+		if (settings.mode === 'edit') {
+			return [];
+		} else {
+			return windows.filter((w) => {
+				return w.open;
+			});
+		}
+	});
+
 	let windowsMaxZIndex = $state(100);
 	let viewportEl: HTMLDivElement;
 
@@ -98,6 +112,16 @@
 			return host.dataLinkLayer.cable === undefined; // Host kann nur 1 Kabel haben
 		} else if (node.type === 'switch') {
 			return true;
+		} else if (node.type === 'router') {
+			// only allow, if a router-interface is free
+			const router = node as Router; // TODO: Typisierung für Router
+			return router.interfaces.some((i) => {
+				const lowerLayer = i.lowerLayer;
+				if (lowerLayer) {
+					return (lowerLayer as DataLinkLayer).cable === undefined;
+				}
+				return false;
+			});
 		} else {
 			return false;
 		}
@@ -234,18 +258,19 @@
 			const node = nodes.find((n) => n.uuid === draggingNodeUuid);
 			if (node) {
 				// Prüfen, ob das Fenster bereits geöffnet ist
-				const existingWindow = openWindows.find((w) => w.nodeUuid === node.uuid);
+				const existingWindow = windows.find((w) => w.nodeUuid === node.uuid);
 				if (existingWindow) {
 					// Fenster in den Vordergrund bringen
 					focusWindow(node.uuid);
 				} else {
 					// Neues Fenster öffnen
-					openWindows.push({
+					windows.push({
 						nodeUuid: node.uuid,
 						x: 100,
 						y: 100,
 						width: 400,
 						height: 300,
+						open: true,
 						zIndex: ++windowsMaxZIndex
 					});
 				}
@@ -254,15 +279,21 @@
 	}
 
 	function focusWindow(nodeUuid: string) {
-		const win = openWindows.find((w) => w.nodeUuid === nodeUuid);
-		if (win && win.zIndex !== windowsMaxZIndex) {
-			windowsMaxZIndex++;
-			win.zIndex = windowsMaxZIndex;
+		const win = windows.find((w) => w.nodeUuid === nodeUuid);
+		if (win) {
+			win.open = true;
+			if (win.zIndex !== windowsMaxZIndex) {
+				windowsMaxZIndex++;
+				win.zIndex = windowsMaxZIndex;
+			}
 		}
 	}
 
 	function closeWindow(nodeUuid: string) {
-		openWindows = openWindows.filter((w) => w.nodeUuid !== nodeUuid);
+		const win = windows.find((w) => w.nodeUuid === nodeUuid);
+		if (win) {
+			win.open = false;
+		}
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
@@ -286,6 +317,8 @@
 				return desktop;
 			case 'switch':
 				return switch_wifi;
+			case 'router':
+				return router;
 			default:
 				return '';
 		}
@@ -388,7 +421,7 @@
 		</div>
 	{/if}
 
-	{#each openWindows as win (win.nodeUuid)}
+	{#each visibleWindows as win (win.nodeUuid)}
 		<Window
 			nodeUuid={win.nodeUuid}
 			bind:x={win.x}

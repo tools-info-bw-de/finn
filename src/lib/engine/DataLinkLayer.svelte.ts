@@ -1,15 +1,15 @@
 import type { LayerInterface, EthernetFrame, IPPacket, ARPPacket, CableEndpoint } from './types';
 import type { Cable } from './Cable.svelte';
-import { HostConfig } from './NetworkConfig.svelte';
+import { NetworkConfig } from './NetworkConfig.svelte';
 
 export class DataLinkLayer implements LayerInterface, CableEndpoint {
-	public config: HostConfig;
+	public config: NetworkConfig;
 	public cable?: Cable;
 	public upperLayer?: LayerInterface;
 
 	public captureBuffer = $state<EthernetFrame[]>([]);
 
-	constructor(config: HostConfig) {
+	constructor(config: NetworkConfig) {
 		this.config = config;
 	}
 

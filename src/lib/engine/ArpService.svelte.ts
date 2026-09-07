@@ -1,18 +1,18 @@
 import type { DataLinkLayer } from './DataLinkLayer.svelte';
 import type { ARPPacket, IPPacket } from './types';
 import { SvelteMap } from 'svelte/reactivity';
-import { HostConfig } from './NetworkConfig.svelte';
+import { NetworkConfig } from './NetworkConfig.svelte';
 
 // ARP-Services für ein Gerät inkl. ARP-Cache und Warteschlange für ausstehende IP-Pakete, die auf die Auflösung warten
 
 export class ArpService {
-	private config: HostConfig;
+	private config: NetworkConfig;
 	private dataLink: DataLinkLayer;
 
 	public table = $state<Record<string, string>>({}); // Maps IP addresses to MAC addresses
 	private pendingQueue: Map<string, IPPacket[]> = new SvelteMap(); // Maps IP addresses to queued IP packets
 
-	constructor(config: HostConfig, dataLink: DataLinkLayer) {
+	constructor(config: NetworkConfig, dataLink: DataLinkLayer) {
 		this.config = config;
 		this.dataLink = dataLink;
 	}

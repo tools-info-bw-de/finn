@@ -23,6 +23,7 @@ type PingTimeoutEvent = {
 type IcmpEventPayloads = {
 	reply: PingReplyEvent;
 	timeout: PingTimeoutEvent;
+	message: string;
 };
 
 type IcmpEventName = keyof IcmpEventPayloads;

@@ -64,6 +64,20 @@
 				{/if}
 			</div>
 		</div>
+		<div class="row mb-3">
+			<label for="gateway" class="col-sm-2 col-form-label">Gateway</label>
+			<div class="col-sm-10 was-validated">
+				{#if n}
+					<input
+						bind:value={n.config.gateway}
+						type="text"
+						class="form-control"
+						id="gateway"
+						pattern={IPv4Pattern}
+					/>
+				{/if}
+			</div>
+		</div>
 	</form>
 
 	<form>

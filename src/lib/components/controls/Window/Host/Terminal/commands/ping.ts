@@ -1,3 +1,4 @@
+import { isSameSubnet } from '$lib/engine/helpers';
 import type { CommandHandler } from '../types';
 
 export const pingCommand: CommandHandler = ({ term, args, currentNode, signal }) => {
@@ -5,6 +6,13 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 
 	if (!targetIp) {
 		term.writeln('\x1b[31mFehler: IP-Adresse angeben (z.B. ping 192.168.1.10)\x1b[0m');
+		return Promise.resolve();
+	}
+
+	//TODO Hier (!) prüfen, ob die Ziel-IP erreicht werden kann!
+	const isLocal = isSameSubnet(currentNode.config.ipAddress, targetIp, currentNode.config.netmask);
+	if (!isLocal && !currentNode.config.gateway) {
+		term.writeln(`\x1b[31mFehler: Ziel-adresse nicht erreichbar.\x1b[0m`);
 		return Promise.resolve();
 	}
 
@@ -27,6 +35,22 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 			term.writeln(`Zeitüberschreitung der Anforderung (seq=${data.seq}).`);
 		};
 
+		const handleMessage = (message: string) => {
+			let errorMsg = '';
+			if (message === 'ENETUNREACH') {
+				errorMsg = 'Zieladresse nicht erreichbar.';
+			} else if (message === 'ERROR') {
+				errorMsg = 'Unbekannter Fehler beim Senden des Pakets.';
+			}
+			if (errorMsg !== '') {
+				term.writeln(`\x1b[31m${errorMsg}\x1b[0m`);
+				cleanup();
+				resolve();
+			} else {
+				term.writeln(message);
+			}
+		};
+
 		const cleanup = () => {
 			if (timerId) clearInterval(timerId);
 			currentNode.icmp.off('reply', handleReply);
@@ -40,6 +64,7 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 
 		currentNode.icmp.on('reply', handleReply);
 		currentNode.icmp.on('timeout', handleTimeout);
+		currentNode.icmp.on('message', handleMessage);
 
 		// Erstes Paket sofort senden
 		console.log('Sending first ping to', targetIp);

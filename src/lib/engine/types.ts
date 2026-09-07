@@ -33,9 +33,10 @@ export interface IPPacket {
 //------------------------
 
 export interface ICMPPacket {
-	type: 'echo-request' | 'echo-reply' | 'time-exceeded';
+	type: 'echo-request' | 'echo-reply' | 'time-exceeded' | 'destination-unreachable';
 	seq?: number; // Only for echo-request and echo-reply
 	timestamp?: number; // Only for echo-request and echo-reply
+	originalPacket?: IPPacket; // Only for time-exceeded and destination-unreachable
 }
 
 export interface UDPDatagram {

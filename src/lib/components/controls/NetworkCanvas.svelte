@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { nodes, editNode } from '$lib/states/nodes.svelte';
-	import { cables, newCable, removeCable } from '$lib/states/cables.svelte';
+	import { cables, highlightedCable, newCable, removeCable } from '$lib/states/cables.svelte';
 	import cable from '$lib/assets/cable.png';
 	import notebook from '$lib/assets/laptop.png';
 	import desktop from '$lib/assets/desktop.png';
@@ -368,6 +368,7 @@
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<path
 					class:transmitting={c.cable.isTransmitting}
+					class:highlight={c.cable.uuid === highlightedCable.uuid}
 					class:cableEdit={settings.mode === 'edit' && !newCable.adding}
 					d={getCablePath(start.x, start.y, end.x, end.y)}
 					class="cable"
@@ -533,6 +534,11 @@
 
 	.cable.transmitting {
 		stroke: #f38ba8 !important;
+		stroke-width: 4px;
+	}
+
+	.cable.highlight {
+		stroke: #74e997;
 		stroke-width: 4px;
 	}
 

@@ -15,6 +15,8 @@ export const cables = $state<
 	}[]
 >([]);
 
+export const highlightedCable = $state<{ uuid: string }>({ uuid: '' });
+
 export const newCable = $state<{
 	adding: boolean;
 	uuids: string[];

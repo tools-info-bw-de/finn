@@ -7,6 +7,7 @@ export class Cable {
 	private endA?: CableEndpoint;
 	private endB?: CableEndpoint;
 
+	public highlighted = $state<boolean>(false);
 	private currentlyTransmitting = $state<EthernetFrame[]>([]);
 
 	constructor(a: CableEndpoint, b: CableEndpoint) {

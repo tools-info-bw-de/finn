@@ -7,7 +7,7 @@ import { NetworkConfig } from './NetworkConfig.svelte';
 
 export class ArpService {
 	private config: NetworkConfig;
-	private dataLink: DataLinkLayer;
+	public dataLink: DataLinkLayer;
 
 	public table = $state<Record<string, string>>({}); // Maps IP addresses to MAC addresses
 	private pendingQueue: Map<string, IPPacket[]> = new SvelteMap(); // Maps IP addresses to queued IP packets

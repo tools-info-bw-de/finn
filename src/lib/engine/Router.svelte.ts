@@ -22,7 +22,7 @@ export interface RouteEntry {
 
 export class Router implements NetworkNode {
 	public uuid: string;
-	public name: string;
+	public name = $state<string>('');
 	public x = $state<number>(0);
 	public y = $state<number>(0);
 	public type: 'router';

@@ -1,17 +1,7 @@
 import type { ICMPPacket, IPPacket } from './types';
-import { ArpService } from './ArpService.svelte';
-import { NetworkLayer } from './NetworkLayer';
-import type { LayerInterface } from './types';
-import { NetworkConfig } from './NetworkConfig.svelte';
 import type { NetworkNode } from './types';
-import { DataLinkLayer } from './DataLinkLayer.svelte';
-import { generateRandomMac } from './helpers';
-
-export interface RouterInterface {
-	arpService: ArpService;
-	networkLayer: NetworkLayer;
-	lowerLayer?: LayerInterface;
-}
+import { ipToInt } from './helpers';
+import { RouterInterface } from './RouterInterface.svelte';
 
 export interface RouteEntry {
 	subnet: string;
@@ -35,44 +25,15 @@ export class Router implements NetworkNode {
 		this.name = name;
 		this.type = 'router';
 
-		const networkConfig1: NetworkConfig = new NetworkConfig(
-			generateRandomMac(),
-			'192.168.0.10',
-			'255.255.255.0'
-		);
-		const dataLinkLayer1: DataLinkLayer = new DataLinkLayer(networkConfig1);
-		const arpService1: ArpService = new ArpService(networkConfig1, dataLinkLayer1);
-		this.addInterface(networkConfig1, arpService1, dataLinkLayer1);
-
-		const networkConfig2: NetworkConfig = new NetworkConfig(
-			generateRandomMac(),
-			'192.168.0.10',
-			'255.255.255.0'
-		);
-		const dataLinkLayer2: DataLinkLayer = new DataLinkLayer(networkConfig2);
-		const arpService2: ArpService = new ArpService(networkConfig2, dataLinkLayer2);
-		this.addInterface(networkConfig2, arpService2, dataLinkLayer2);
+		this.addInterface();
+		this.addInterface();
 	}
 
 	/**
 	 * Fügt ein Interface zur Liste hinzu
 	 */
-	public addInterface(
-		config: NetworkConfig,
-		arpService: ArpService,
-		lowerLayer?: LayerInterface
-	): RouterInterface {
-		const networkLayer = new NetworkLayer(config, arpService, true);
-
-		if (lowerLayer) {
-			networkLayer.lowerLayer = lowerLayer;
-		}
-
-		const iface: RouterInterface = {
-			arpService,
-			networkLayer,
-			lowerLayer
-		};
+	public addInterface(): RouterInterface {
+		const iface = new RouterInterface();
 
 		this.interfaces.push(iface);
 
@@ -109,7 +70,7 @@ export class Router implements NetworkNode {
 	public addRoute(route: RouteEntry): void {
 		this.routingTable.push(route);
 		// Sortierung nach Präfixlänge (Longest Prefix Match)
-		this.routingTable.sort((a, b) => this.ipToInt(b.netmask) - this.ipToInt(a.netmask));
+		this.routingTable.sort((a, b) => ipToInt(b.netmask) - ipToInt(a.netmask));
 	}
 
 	private attachPacketListener(iface: RouterInterface): void {
@@ -137,6 +98,8 @@ export class Router implements NetworkNode {
 	}
 
 	public routePacket(ipPacket: IPPacket, ingressIface: RouterInterface): void {
+		console.log('routePacket', ipPacket);
+
 		// 1. TTL prüfen
 		ipPacket.header.ttl--;
 		if (ipPacket.header.ttl <= 0) {
@@ -146,22 +109,20 @@ export class Router implements NetworkNode {
 
 		// 2. Ziel-Route suchen
 		const route = this.findBestRoute(ipPacket.header.dstIp);
+		console.log(route);
 		if (!route) {
 			this.sendIcmpError(ipPacket, ingressIface, 'destination-unreachable');
 			return;
 		}
 
 		const egressIface = route.iface;
-		if (!egressIface.lowerLayer) {
-			return;
-		}
 
 		// 3. Next-Hop ermitteln
 		const nextHopIp = route.nextHop ?? ipPacket.header.dstIp;
 
 		// 4. Über das gefundene Ausgangs-Interface auflösen & senden
 		egressIface.arpService.resolve(nextHopIp, ipPacket, (macAddress) => {
-			egressIface.lowerLayer?.send(ipPacket, macAddress, 'IP');
+			egressIface.dataLinkLayer.send(ipPacket, macAddress, 'IP');
 		});
 	}
 
@@ -185,11 +146,11 @@ export class Router implements NetworkNode {
 	}
 
 	private findBestRoute(dstIp: string): RouteEntry | null {
-		const dstInt = this.ipToInt(dstIp);
+		const dstInt = ipToInt(dstIp);
 
 		for (const route of this.routingTable) {
-			const maskInt = this.ipToInt(route.netmask);
-			const subnetInt = this.ipToInt(route.subnet);
+			const maskInt = ipToInt(route.netmask);
+			const subnetInt = ipToInt(route.subnet);
 
 			if ((dstInt & maskInt) >>> 0 === subnetInt) {
 				return route;
@@ -198,12 +159,8 @@ export class Router implements NetworkNode {
 		return null;
 	}
 
-	private ipToInt(ip: string): number {
-		return ip.split('.').reduce((acc, oct) => ((acc << 8) + parseInt(oct, 10)) >>> 0, 0);
-	}
-
 	private getSubnetAddress(ip: string, mask: string): string {
-		const netInt = (this.ipToInt(ip) & this.ipToInt(mask)) >>> 0;
+		const netInt = (ipToInt(ip) & ipToInt(mask)) >>> 0;
 		return [(netInt >>> 24) & 255, (netInt >>> 16) & 255, (netInt >>> 8) & 255, netInt & 255].join(
 			'.'
 		);

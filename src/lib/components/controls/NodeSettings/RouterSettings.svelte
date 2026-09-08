@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { nodes, editNode } from '$lib/states/nodes.svelte';
-	import { Router, type RouterInterface } from '$lib/engine/Router.svelte';
-	import type { DataLinkLayer } from '$lib/engine/DataLinkLayer.svelte';
+	import { Router } from '$lib/engine/Router.svelte';
+	import { RouterInterface } from '$lib/engine/RouterInterface.svelte';
 	import { highlightedCable } from '$lib/states/cables.svelte';
 
 	let n: Router | undefined = $derived(nodes.find((n) => n.uuid === editNode.uuid)) as
@@ -23,13 +23,12 @@
 				return;
 			}
 			const index = parseInt(selectedTab.split('-')[1]);
-			const iface = n.interfaces[index] as RouterInterface;
-			const lowerLayer = iface.lowerLayer;
-			if (lowerLayer) {
-				const cable = (lowerLayer as DataLinkLayer).cable;
-				if (cable) {
-					highlightedCable.uuid = cable.uuid;
-				}
+			const iface = n.interfaces[index];
+			const cable = iface.dataLinkLayer.cable;
+			if (cable) {
+				highlightedCable.uuid = cable.uuid;
+			} else {
+				highlightedCable.uuid = '';
 			}
 		}
 	}
@@ -90,6 +89,11 @@
 							.config.ipAddress
 					}
 					type="text"
+					onchange={() => {
+						n.updateConnectedRoute(
+							n.interfaces[parseInt(selectedTab.split('-')[1])] as RouterInterface
+						);
+					}}
 					class="form-control"
 					id="ip"
 				/>
@@ -106,6 +110,11 @@
 							.config.netmask
 					}
 					type="text"
+					onchange={() => {
+						n.updateConnectedRoute(
+							n.interfaces[parseInt(selectedTab.split('-')[1])] as RouterInterface
+						);
+					}}
 					class="form-control"
 					id="netmask"
 				/>
@@ -128,8 +137,24 @@
 		</div>
 	</div>
 {:else if selectedTab === 'routingtable'}
-	<div class="px-4 py-2">
-		<h5>Weiterleitungstabelle</h5>
-		<p>Hier können die Einträge in der Weiterleitungstabelle des Routers verwaltet werden.</p>
-	</div>
+	<table class="table">
+		<thead>
+			<tr>
+				<th scope="col">Ziel</th>
+				<th scope="col">Netzmaske</th>
+				<th scope="col">Nächstes Gateway</th>
+				<th scope="col">Über Schnittstelle</th>
+			</tr>
+		</thead>
+		<tbody>
+			{#each n?.routingTable as route (route.iface.uuid)}
+				<tr>
+					<td>{route.subnet}</td>
+					<td>{route.netmask}</td>
+					<td>{route.nextHop}</td>
+					<td>{route.iface.networkLayer.config.ipAddress}</td>
+				</tr>
+			{/each}
+		</tbody>
+	</table>
 {/if}

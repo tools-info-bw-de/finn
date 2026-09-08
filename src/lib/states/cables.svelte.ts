@@ -4,7 +4,6 @@ import { nodes } from './nodes.svelte';
 import type { Host } from '$lib/engine/Host.svelte';
 import type { SwitchWifi } from '$lib/engine/SwitchWifi.svelte';
 import { Router } from '$lib/engine/Router.svelte';
-import { DataLinkLayer } from '$lib/engine/DataLinkLayer.svelte';
 
 export const cables = $state<
 	{
@@ -31,6 +30,11 @@ export function removeCable(cableuuid: string) {
 	}
 }
 
+/**
+ * Returns first new free cable endpoint for a given node UUID. This is used to connect a new cable to a node.
+ * @param nodeUuid
+ * @returns
+ */
 export function getCableEndpoint(nodeUuid: string): CableEndpoint {
 	const node = nodes.find((n) => n.uuid === nodeUuid);
 	if (!node) throw new Error(`Node with UUID ${nodeUuid} not found`);
@@ -44,16 +48,12 @@ export function getCableEndpoint(nodeUuid: string): CableEndpoint {
 	} else if (node.type === 'router') {
 		const router = node as Router;
 		const freeInterface = router.interfaces.find((i) => {
-			const lowerLayer = i.lowerLayer;
-			if (lowerLayer) {
-				return (lowerLayer as DataLinkLayer).cable === undefined;
-			}
-			return false;
+			return i.dataLinkLayer.cable === undefined;
 		});
 		if (!freeInterface) {
 			throw new Error(`No free interface available on router ${router.name}`);
 		}
-		return freeInterface.lowerLayer as CableEndpoint;
+		return freeInterface.dataLinkLayer;
 	} else {
 		throw new Error(`Unknown node type: ${node.type}`);
 	}

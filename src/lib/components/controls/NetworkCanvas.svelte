@@ -11,7 +11,6 @@
 	import Window from '$lib/components/controls/Window.svelte';
 	import ContextMenuEdit from './ContextMenuEdit.svelte';
 	import type { Router } from '$lib/engine/Router.svelte';
-	import { DataLinkLayer } from '$lib/engine/DataLinkLayer.svelte';
 
 	interface WindowData {
 		nodeUuid: string;
@@ -116,11 +115,7 @@
 			// only allow, if a router-interface is free
 			const router = node as Router; // TODO: Typisierung für Router
 			return router.interfaces.some((i) => {
-				const lowerLayer = i.lowerLayer;
-				if (lowerLayer) {
-					return (lowerLayer as DataLinkLayer).cable === undefined;
-				}
-				return false;
+				return i.dataLinkLayer.cable === undefined;
 			});
 		} else {
 			return false;

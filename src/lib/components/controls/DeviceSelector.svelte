@@ -37,12 +37,6 @@
 			nodes.push(switchDevice);
 		} else if (type === 'router') {
 			let routerDevice: Router = new Router('Router');
-			/*const networkConfig1: NetworkConfig = {
-				ipAddress: '192.168.0.10',
-				netmask: '255.255.255.0',
-				gateway: ''
-			};
-			routerDevice.addInterface();*/
 			nodes.push(routerDevice);
 		}
 	}

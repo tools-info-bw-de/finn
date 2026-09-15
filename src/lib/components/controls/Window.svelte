@@ -6,9 +6,12 @@
 	import Terminal from '$lib/components/controls/Window/Host/Terminal.svelte';
 	import { SwitchWifi } from '$lib/engine/SwitchWifi.svelte';
 	import SwitchSAT from '$lib/components/controls/Window/SwitchSAT.svelte';
+	import Sniffer from './Window/Sniffer.svelte';
 
 	let {
 		nodeUuid,
+		isSniffer,
+		sniffedNode,
 		x = $bindable(100),
 		y = $bindable(100),
 		width = $bindable(320),
@@ -18,6 +21,8 @@
 		onFocus
 	}: {
 		nodeUuid: string;
+		isSniffer: boolean;
+		sniffedNode?: string;
 		x: number;
 		y: number;
 		width: number;
@@ -126,7 +131,14 @@
 		onpointermove={handleHeaderPointerMove}
 		onpointerup={handleHeaderPointerUp}
 	>
-		<span class="title">{title}</span>
+		<span class="title">
+			{#if isSniffer}
+				{@const sniffedNodeData = nodes.find((n) => n.uuid === sniffedNode)}
+				Datenaustausch: {sniffedNodeData?.name} ({(sniffedNodeData as Host)?.config.ipAddress})
+			{:else}
+				{title}
+			{/if}
+		</span>
 		<button
 			class="close-btn"
 			onclick={(e) => {
@@ -138,7 +150,9 @@
 
 	<!-- Inhalt -->
 	<div class="window-content">
-		{#if type === 'notebook' || type === 'desktop'}
+		{#if isSniffer}
+			<Sniffer {nodeUuid} />
+		{:else if type === 'notebook' || type === 'desktop'}
 			<Terminal {host} />
 		{:else if type === 'switch'}
 			<SwitchSAT switch_wifi={nodes.find((n) => n.uuid === nodeUuid) as SwitchWifi} />

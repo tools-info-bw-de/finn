@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { nodes, editNode } from '$lib/states/nodes.svelte';
+	import { nodes, editNode, nodeToSniff } from '$lib/states/nodes.svelte';
 	import { cables, highlightedCable, newCable, removeCable } from '$lib/states/cables.svelte';
 	import cable from '$lib/assets/cable.png';
 	import notebook from '$lib/assets/laptop.png';
@@ -11,9 +11,12 @@
 	import Window from '$lib/components/controls/Window.svelte';
 	import ContextMenuEdit from './ContextMenuEdit.svelte';
 	import type { Router } from '$lib/engine/Router.svelte';
+	import ContextMenuPlay from './ContextMenuPlay.svelte';
 
 	interface WindowData {
 		nodeUuid: string;
+		type: 'apps' | 'sniffer';
+		sniffedNode?: string;
 		x: number;
 		y: number;
 		width: number;
@@ -237,6 +240,10 @@
 			closeContextMenu();
 			return;
 		}
+		if (contextMenuPlay.uuid) {
+			closeContextMenu();
+			return;
+		}
 		if (settings.mode === 'edit') {
 			editNode.uuid = '';
 		}
@@ -253,7 +260,7 @@
 			const node = nodes.find((n) => n.uuid === draggingNodeUuid);
 			if (node) {
 				// Prüfen, ob das Fenster bereits geöffnet ist
-				const existingWindow = windows.find((w) => w.nodeUuid === node.uuid);
+				const existingWindow = windows.find((w) => w.nodeUuid === node.uuid && w.type === 'apps');
 				if (existingWindow) {
 					// Fenster in den Vordergrund bringen
 					focusWindow(node.uuid);
@@ -261,6 +268,7 @@
 					// Neues Fenster öffnen
 					windows.push({
 						nodeUuid: node.uuid,
+						type: 'apps',
 						x: 100,
 						y: 100,
 						width: 400,
@@ -320,17 +328,45 @@
 	}
 
 	let contextMenuEdit = $state<{ x: number; y: number; uuid: string }>({ x: 0, y: 0, uuid: '' });
+	let contextMenuPlay = $state<{ x: number; y: number; uuid: string }>({ x: 0, y: 0, uuid: '' });
 	function handleContextMenuNode(e: MouseEvent, nodeUuid: string) {
 		e.preventDefault();
 		e.stopPropagation();
 		contextMenuEdit.uuid = nodeUuid;
+		contextMenuPlay.uuid = nodeUuid;
 		let { x, y } = screenToWorld(e.clientX, e.clientY);
 		contextMenuEdit.x = x;
 		contextMenuEdit.y = y;
+		contextMenuPlay.x = x;
+		contextMenuPlay.y = y;
 	}
 
 	function closeContextMenu() {
 		contextMenuEdit.uuid = '';
+		contextMenuPlay.uuid = '';
+	}
+
+	function openSniffer() {
+		const existingWindow = windows.find(
+			(w) => w.nodeUuid === nodeToSniff.dataLinkLayerUuid && w.type === 'sniffer'
+		);
+		if (existingWindow) {
+			focusWindow(nodeToSniff.dataLinkLayerUuid);
+		} else {
+			let n = nodes.find((n) => n.uuid === nodeToSniff.nodeUuid)!;
+
+			windows.push({
+				nodeUuid: nodeToSniff.dataLinkLayerUuid,
+				type: 'sniffer',
+				sniffedNode: n.uuid,
+				x: 150,
+				y: 150,
+				width: 500,
+				height: 400,
+				open: true,
+				zIndex: ++windowsMaxZIndex
+			});
+		}
 	}
 </script>
 
@@ -408,6 +444,14 @@
 		{#if settings.mode === 'edit' && contextMenuEdit.uuid !== ''}
 			<ContextMenuEdit uuid={contextMenuEdit.uuid} x={contextMenuEdit.x} y={contextMenuEdit.y} />
 		{/if}
+		{#if settings.mode === 'play' && contextMenuPlay.uuid !== ''}
+			<ContextMenuPlay
+				onOpenSniffer={openSniffer}
+				uuid={contextMenuPlay.uuid}
+				x={contextMenuPlay.x}
+				y={contextMenuPlay.y}
+			/>
+		{/if}
 	</div>
 
 	{#if newCable.adding}
@@ -420,6 +464,8 @@
 	{#each visibleWindows as win (win.nodeUuid)}
 		<Window
 			nodeUuid={win.nodeUuid}
+			isSniffer={win.type === 'sniffer'}
+			sniffedNode={win.sniffedNode}
 			bind:x={win.x}
 			bind:y={win.y}
 			bind:width={win.width}
@@ -434,11 +480,8 @@
 <style>
 	.cable-tooltip {
 		position: fixed;
-		/*background: #313244;*/
 		color: #cdd6f4;
 		margin: 6px 12px;
-		/*border: 1px solid #45475a;
-		border-radius: 6px;*/
 		font-size: 12px;
 		font-weight: bold;
 		z-index: 10;

@@ -3,6 +3,7 @@ import type { Cable } from './Cable.svelte';
 import { NetworkConfig } from './NetworkConfig.svelte';
 
 export class DataLinkLayer implements LayerInterface, CableEndpoint {
+	public uuid: string = crypto.randomUUID();
 	public config: NetworkConfig;
 	public cable?: Cable;
 	public upperLayer?: LayerInterface;

@@ -68,7 +68,7 @@ export class ICMPService {
 	}
 
 	// --- METHODEN ---
-	public sendPing(targetIp: string, timeoutMs = 2000): void {
+	public sendPing(targetIp: string, timeoutMs = 4000): void {
 		this.seqCounter++;
 		const seq = this.seqCounter;
 		const startTime = performance.now();

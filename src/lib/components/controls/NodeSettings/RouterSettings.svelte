@@ -3,6 +3,7 @@
 	import { Router } from '$lib/engine/Router.svelte';
 	import { RouterInterface } from '$lib/engine/RouterInterface.svelte';
 	import { highlightedCable } from '$lib/states/cables.svelte';
+	import { onDestroy } from 'svelte';
 
 	let n: Router | undefined = $derived(nodes.find((n) => n.uuid === editNode.uuid)) as
 		Router | undefined;
@@ -15,6 +16,10 @@
 		} else {
 			highlightedCable.uuid = '';
 		}
+	});
+
+	onDestroy(() => {
+		highlightedCable.uuid = '';
 	});
 
 	function highlightCable() {

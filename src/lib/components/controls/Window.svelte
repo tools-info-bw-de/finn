@@ -151,7 +151,7 @@
 	<!-- Inhalt -->
 	<div class="window-content">
 		{#if isSniffer}
-			<Sniffer {nodeUuid} />
+			<Sniffer nodeUuid={sniffedNode!} linkLayerUuid={nodeUuid} />
 		{:else if type === 'notebook' || type === 'desktop'}
 			<Terminal {host} />
 		{:else if type === 'switch'}

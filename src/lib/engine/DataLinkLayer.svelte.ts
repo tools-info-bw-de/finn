@@ -2,13 +2,19 @@ import type { LayerInterface, EthernetFrame, IPPacket, ARPPacket, CableEndpoint 
 import type { Cable } from './Cable.svelte';
 import { NetworkConfig } from './NetworkConfig.svelte';
 
+export type capturedPackage = {
+	number: number;
+	time: number;
+	frame: EthernetFrame;
+};
+
 export class DataLinkLayer implements LayerInterface, CableEndpoint {
 	public uuid: string = crypto.randomUUID();
 	public config: NetworkConfig;
 	public cable?: Cable;
 	public upperLayer?: LayerInterface;
 
-	public captureBuffer = $state<EthernetFrame[]>([]);
+	public captureBuffer = $state<capturedPackage[]>([]);
 
 	constructor(config: NetworkConfig) {
 		this.config = config;
@@ -25,7 +31,11 @@ export class DataLinkLayer implements LayerInterface, CableEndpoint {
 			payload: packet
 		};
 
-		this.captureBuffer.push(frame);
+		this.captureBuffer.push({
+			number: this.captureBuffer.length + 1,
+			time: Date.now(),
+			frame
+		});
 		if (this.captureBuffer.length > 100) {
 			this.captureBuffer.shift(); // Remove the oldest frame if buffer exceeds 100 frames
 		}
@@ -38,7 +48,11 @@ export class DataLinkLayer implements LayerInterface, CableEndpoint {
 	}
 
 	public receive(frame: EthernetFrame): void {
-		this.captureBuffer.push(frame);
+		this.captureBuffer.push({
+			number: this.captureBuffer.length + 1,
+			time: Date.now(),
+			frame
+		});
 		if (this.captureBuffer.length > 100) {
 			this.captureBuffer.shift(); // Remove the oldest frame if buffer exceeds 100 frames
 		}

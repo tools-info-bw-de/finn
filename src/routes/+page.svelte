@@ -1,5 +1,4 @@
 <script lang="ts">
-	import 'bootstrap';
 	import Navbar from '$lib/components/controls/Navbar.svelte';
 	import DeviceSelector from '$lib/components/controls/DeviceSelector.svelte';
 	import NetworkCanvas from '$lib/components/controls/NetworkCanvas.svelte';

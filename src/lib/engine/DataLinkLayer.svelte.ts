@@ -36,8 +36,8 @@ export class DataLinkLayer implements LayerInterface, CableEndpoint {
 			time: Date.now(),
 			frame
 		});
-		if (this.captureBuffer.length > 100) {
-			this.captureBuffer.shift(); // Remove the oldest frame if buffer exceeds 100 frames
+		if (this.captureBuffer.length > 200) {
+			this.captureBuffer.shift(); // Remove the oldest frame if buffer exceeds 200 frames
 		}
 
 		if (this.cable) {
@@ -53,8 +53,8 @@ export class DataLinkLayer implements LayerInterface, CableEndpoint {
 			time: Date.now(),
 			frame
 		});
-		if (this.captureBuffer.length > 100) {
-			this.captureBuffer.shift(); // Remove the oldest frame if buffer exceeds 100 frames
+		if (this.captureBuffer.length > 200) {
+			this.captureBuffer.shift(); // Remove the oldest frame if buffer exceeds 200 frames
 		}
 
 		if (

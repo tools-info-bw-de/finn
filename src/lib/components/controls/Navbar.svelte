@@ -2,6 +2,27 @@
 	import hammer from '$lib/assets/hammer.svg';
 	import play from '$lib/assets/play.svg';
 	import { settings } from '$lib/states/settings.svelte';
+	import { nodes } from '$lib/states/nodes.svelte';
+	import type { Host } from '$lib/engine/Host.svelte';
+	import type { Router } from '$lib/engine/Router.svelte';
+
+	$effect(() => {
+		if (settings.mode === 'play') {
+			emptyARPTables();
+		}
+	});
+
+	function emptyARPTables() {
+		for (const node of nodes) {
+			if (node.type === 'notebook' || node.type === 'desktop') {
+				(node as Host).networkLayer.arpService.emptyTable();
+			} else if (node.type === 'router') {
+				(node as Router).interfaces.forEach((iface) => {
+					iface.networkLayer.arpService.emptyTable();
+				});
+			}
+		}
+	}
 </script>
 
 <nav class="navbar navbar-expand-lg bg-light">

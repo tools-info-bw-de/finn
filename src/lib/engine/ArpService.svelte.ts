@@ -17,6 +17,11 @@ export class ArpService {
 		this.dataLink = dataLink;
 	}
 
+	public emptyTable(): void {
+		this.table = {};
+		this.pendingQueue = new SvelteMap();
+	}
+
 	public resolve(dstIp: string, ipPacket: IPPacket, onResolved: (mac: string) => void): void {
 		const cachedMac = this.table[dstIp];
 		if (cachedMac) {
@@ -24,11 +29,15 @@ export class ArpService {
 			return;
 		}
 
-		// Not in cache, send ARP request
-		if (!this.pendingQueue.has(dstIp)) {
+		// Not in cache
+		// check if there's already a pending request for this IP
+		if (this.pendingQueue.has(dstIp)) {
+			this.pendingQueue.get(dstIp)!.push(ipPacket);
+			return;
+		} else {
 			this.pendingQueue.set(dstIp, []);
+			this.pendingQueue.get(dstIp)!.push(ipPacket);
 		}
-		this.pendingQueue.get(dstIp)!.push(ipPacket);
 
 		this.sendRequest(dstIp);
 	}

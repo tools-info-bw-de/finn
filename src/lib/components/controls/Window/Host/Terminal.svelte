@@ -8,6 +8,10 @@
 
 	let { host }: { host: Host } = $props();
 
+	let history = $state<string[]>([]); // Befehlshistorie (chronologisch)
+	let historyIndex = $state<number>(-1); // -1 = Aktueller Entwurf, >= 0 = Index in history
+	let draftInput = $state<string>(''); // Zwischenspeicher für nicht abgesendeten Text
+
 	let containerEl: HTMLDivElement;
 	let term: Terminal;
 	let fitAddon: FitAddon;
@@ -16,6 +20,21 @@
 
 	function prompt(): string {
 		return `\x1b[1;32m${host.name}\x1b[0m:\x1b[1;34m~\x1b[0m$ `;
+	}
+
+	/**
+	 * Ersetzt die aktuelle Zeile im Terminal-Display durch einen neuen Text.
+	 */
+	function replaceLine(newText: string): void {
+		if (!term) return;
+
+		// Aktuelle Zeichen im Terminal via Backspace löschen
+		const backspaces = '\b \b'.repeat(inputBuffer.length);
+		term.write(backspaces);
+
+		// Neuen Text schreiben und Buffer aktualisieren
+		term.write(newText);
+		inputBuffer = newText;
 	}
 
 	onMount(() => {
@@ -30,6 +49,15 @@
 		term.loadAddon(fitAddon);
 		term.open(containerEl);
 		fitAddon.fit();
+
+		term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+			// Capture Ctrl+L to clear the terminal
+			if (e.key === 'l' && e.ctrlKey) {
+				e.preventDefault();
+			}
+
+			return true; // Allow other keys to be processed normally
+		});
 
 		// Startmeldung & Begrüßung
 		term.writeln(`Willkommen auf \x1b[1m${host.name}\x1b[0m (${host.config.ipAddress})`);
@@ -50,11 +78,60 @@
 				return;
 			}
 
+			// Pfeil hoch
+			if (data === '\x1b[A') {
+				if (historyIndex < history.length - 1) {
+					if (historyIndex === -1) {
+						draftInput = inputBuffer; // Zwischenspeichern des aktuellen Entwurfs
+					}
+					historyIndex++;
+					replaceLine(history[history.length - 1 - historyIndex]);
+				}
+				return;
+			}
+
+			// Pfeil runter
+			if (data === '\x1b[B') {
+				if (historyIndex > -1) {
+					historyIndex--;
+					if (historyIndex === -1) {
+						replaceLine(draftInput);
+					} else {
+						replaceLine(history[history.length - 1 - historyIndex]);
+					}
+				}
+				return;
+			}
+
+			// Ctrl+U (Zeile löschen)
+			if (data === '\x15') {
+				inputBuffer = '';
+				term.write('\x1b[2K\r'); // Löscht die aktuelle Zeile und setzt den Cursor an den Anfang
+				term.write(prompt());
+				historyIndex = -1; // Reset history index
+				return;
+			}
+
+			// Ctrl+L (Alles löschen)
+			if (data === '\x0c') {
+				term.clear();
+				inputBuffer = '';
+				term.write('\x1b[2K\r'); // Löscht die aktuelle Zeile und setzt den Cursor an den Anfang
+				term.write(prompt());
+				historyIndex = -1; // Reset history index
+				return;
+			}
+
 			// Enter (Befehl absenden)
 			if (data === '\r') {
 				term.writeln('');
 				const trimmed = inputBuffer.trim();
 				inputBuffer = '';
+
+				if (trimmed.length > 0) {
+					history.push(trimmed);
+				}
+				historyIndex = -1; // Reset history index
 
 				if (trimmed.length > 0) {
 					await dispatchCommand(trimmed);

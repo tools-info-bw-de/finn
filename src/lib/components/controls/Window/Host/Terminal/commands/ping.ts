@@ -9,7 +9,7 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 		return Promise.resolve();
 	}
 
-	//TODO Hier (!) prüfen, ob die Ziel-IP erreicht werden kann!
+	//Hier (!) prüfen, ob die Ziel-IP erreicht werden kann!
 	const isLocal = isSameSubnet(currentNode.config.ipAddress, targetIp, currentNode.config.netmask);
 	if (!isLocal && !currentNode.config.gateway) {
 		term.writeln(`\x1b[31mFehler: Ziel-adresse nicht erreichbar.\x1b[0m`);
@@ -21,23 +21,34 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 	return new Promise<void>((resolve) => {
 		let pingsSent = 0;
 		const MAX_PINGS = 4;
-		let timerId: ReturnType<typeof setInterval> | null = null;
 
 		// Event-Handler für Antworten
 		const handleReply = (data: { srcIp: string; seq: number; timeMs: number }) => {
 			term.writeln(
 				`Antwort von ${data.srcIp}: bytes=32 seq=${data.seq} Zeit=\x1b[32m${data.timeMs.toFixed(2)} ms\x1b[0m`
 			);
+
+			if (pingsSent >= MAX_PINGS || signal.aborted) {
+				cleanup();
+				resolve();
+				return;
+			}
+
+			currentNode.icmp.sendPing(targetIp);
+			pingsSent++;
 		};
 
 		// Event-Handler für Timeouts
 		const handleTimeout = (data: { seq: number }) => {
 			term.writeln(`Zeitüberschreitung der Anforderung (seq=${data.seq}).`);
+			cleanup();
+			resolve();
 		};
 
 		const handleMessage = (message: string) => {
 			let errorMsg = '';
 			if (message === 'ENETUNREACH') {
+				// TODO: Prüfen, ob diese Fehlercodes noch stimmen
 				errorMsg = 'Zieladresse nicht erreichbar.';
 			} else if (message === 'ERROR') {
 				errorMsg = 'Unbekannter Fehler beim Senden des Pakets.';
@@ -52,7 +63,6 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 		};
 
 		const cleanup = () => {
-			if (timerId) clearInterval(timerId);
 			currentNode.icmp.off('reply', handleReply);
 			currentNode.icmp.off('timeout', handleTimeout);
 		};
@@ -70,17 +80,5 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 		console.log('Sending first ping to', targetIp);
 		currentNode.icmp.sendPing(targetIp);
 		pingsSent++;
-
-		// Alle 1000ms weitere Pings senden
-		timerId = setInterval(() => {
-			if (pingsSent >= MAX_PINGS || signal.aborted) {
-				cleanup();
-				resolve();
-				return;
-			}
-
-			currentNode.icmp.sendPing(targetIp);
-			pingsSent++;
-		}, 1000);
 	});
 };

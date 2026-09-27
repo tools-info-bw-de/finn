@@ -36,7 +36,7 @@ export interface ICMPPacket {
 	type: 'echo-request' | 'echo-reply' | 'time-exceeded' | 'destination-unreachable';
 	seq?: number; // Only for echo-request and echo-reply
 	timestamp?: number; // Only for echo-request and echo-reply
-	originalPacket?: IPPacket; // Only for time-exceeded and destination-unreachable
+	timeoutUuid: string; // Only for time-exceeded and destination-unreachable
 }
 
 export interface UDPDatagram {
@@ -53,6 +53,7 @@ export interface TCPSegment {
 		dstPort: number;
 		seqNum: number;
 		ackNum: number;
+		timeoutUuid: string;
 		flags: {
 			SYN: boolean;
 			ACK: boolean;

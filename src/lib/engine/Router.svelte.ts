@@ -1,7 +1,8 @@
-import type { ICMPPacket, IPPacket } from './types';
+import type { ICMPPacket, IPPacket, TCPSegment } from './types';
 import type { NetworkNode } from './types';
 import { ipToInt } from './helpers';
 import { RouterInterface } from './RouterInterface.svelte';
+import { SimulationEventBus } from './SimulationEventBus';
 
 export interface RouteEntry {
 	subnet: string;
@@ -133,12 +134,24 @@ export class Router implements NetworkNode {
 	): void {
 		if (failedPacket.header.protocol === 'ICMP') {
 			const icmp = failedPacket.payload as ICMPPacket;
-			if (icmp.type === 'time-exceeded' || icmp.type === 'destination-unreachable') return;
+			if (icmp.type === 'time-exceeded' || icmp.type === 'destination-unreachable') {
+				SimulationEventBus.getInstance().emitExtinct(icmp.timeoutUuid);
+				return;
+			}
+		}
+
+		let timeoutUuid = '';
+		if (failedPacket.header.protocol === 'TCP') {
+			const tcp = failedPacket.payload as TCPSegment;
+			timeoutUuid = tcp.header.timeoutUuid;
+		} else if (failedPacket.header.protocol === 'ICMP') {
+			const icmp = failedPacket.payload as ICMPPacket;
+			timeoutUuid = icmp.timeoutUuid;
 		}
 
 		const errorIcmpPacket: ICMPPacket = {
 			type,
-			originalPacket: failedPacket
+			timeoutUuid
 		};
 
 		// Über das Eingangs-Interface direkt an Quell-IP zurücksenden

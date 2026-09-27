@@ -10,6 +10,7 @@ import type {
 import type { ArpService } from './ArpService.svelte';
 import { NetworkConfig } from './NetworkConfig.svelte';
 import { isValidIPv4, isSameSubnet } from './helpers';
+import { SimulationEventBus } from './SimulationEventBus';
 
 export class NetworkLayer implements LayerInterface {
 	public config: NetworkConfig;
@@ -49,8 +50,14 @@ export class NetworkLayer implements LayerInterface {
 
 		if (!nextHopIp) {
 			console.warn(
-				`[NetworkLayer] Kein Weg zu ${destinationIp} (Nicht lokal und kein Gateway gesetzt).`
+				`[NetworkLayer] Kein Weg zu ${destinationIp} von ${this.config.ipAddress} (Nicht lokal und kein Gateway gesetzt).`
 			);
+
+			// Melde Paket Abbruch (=Timeout), wenn das Paket bereits ein ICMP-Fehler ist
+			if (protocol === 'ICMP' && (payload as ICMPPacket).type !== 'echo-request') {
+				SimulationEventBus.getInstance().emitExtinct((payload as ICMPPacket).timeoutUuid);
+			}
+
 			return;
 		}
 
@@ -143,15 +150,25 @@ export class NetworkLayer implements LayerInterface {
 	): void {
 		// Schutz vor Endlosschleifen: Niemals ICMP-Fehler auf ICMP-Fehler senden!
 		if (failedPacket.header.protocol === 'ICMP') {
-			const icmpPayload = failedPacket.payload as ICMPPacket;
-			if (icmpPayload.type === 'time-exceeded' || icmpPayload.type === 'destination-unreachable') {
+			const failedPayload = failedPacket.payload as ICMPPacket;
+			if (
+				failedPayload.type === 'time-exceeded' ||
+				failedPayload.type === 'destination-unreachable'
+			) {
+				// Triggere direkt den Timout beim ursprünglichen Sender
+				SimulationEventBus.getInstance().emitExtinct(failedPayload.timeoutUuid);
 				return;
 			}
 		}
 
+		let timeoutUuid = '';
+		if (failedPacket.header.protocol === 'TCP') {
+			timeoutUuid = (failedPacket.payload as TCPSegment).header.timeoutUuid;
+		}
+
 		const icmpPacket: ICMPPacket = {
 			type,
-			originalPacket: failedPacket // Fehlerhaftes Paket als Kontext mitgeben
+			timeoutUuid
 		};
 
 		// Sendet die Fehlermeldung direkt zurück an die Quell-IP des gescheiterten Pakets

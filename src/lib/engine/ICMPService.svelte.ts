@@ -1,6 +1,7 @@
 import type { NetworkLayer } from './NetworkLayer';
 import type { ICMPPacket } from './types';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SimulationEventBus } from './SimulationEventBus';
 
 export interface PingResult {
 	seq: number;
@@ -39,7 +40,7 @@ export class ICMPService {
 
 	// Speichert Listener (z.B. vom Terminal) und offene Timeouts
 	private listeners = new SvelteMap<IcmpEventName, Set<StoredEventCallback>>();
-	private pendingTimeouts = new SvelteMap<number, ReturnType<typeof setTimeout>>();
+	//private pendingTimeouts = new SvelteMap<number, ReturnType<typeof setTimeout>>();
 
 	constructor(networkLayer: NetworkLayer) {
 		this.networkLayer = networkLayer;
@@ -68,7 +69,7 @@ export class ICMPService {
 	}
 
 	// --- METHODEN ---
-	public sendPing(targetIp: string, timeoutMs = 4000): void {
+	public sendPing(targetIp: string /*, timeoutMs = 4000*/): void {
 		this.seqCounter++;
 		const seq = this.seqCounter;
 		const startTime = performance.now();
@@ -76,20 +77,25 @@ export class ICMPService {
 		this.logs.push(`PING ${targetIp} mit 32 Bytes Daten (seq=${seq}):`);
 
 		// Timeout setzen: Falls nach timeoutMs keine Antwort über receive() kam
-		const timeoutTimer = setTimeout(() => {
+		/*const timeoutTimer = setTimeout(() => {
 			if (this.pendingTimeouts.has(seq)) {
 				this.pendingTimeouts.delete(seq);
 				this.emit('timeout', { seq, targetIp });
 			}
-		}, timeoutMs);
+		}, timeoutMs);*/
 
-		this.pendingTimeouts.set(seq, timeoutTimer);
+		//this.pendingTimeouts.set(seq, timeoutTimer);
 
 		const payload: ICMPPacket = {
 			type: 'echo-request',
 			seq: seq,
-			timestamp: startTime
+			timestamp: startTime,
+			timeoutUuid: crypto.randomUUID() // Generiere eine eindeutige UUID für diesen Ping
 		};
+
+		SimulationEventBus.getInstance().onExtinct(payload.timeoutUuid, () => {
+			this.emit('timeout', { seq, targetIp });
+		});
 
 		this.networkLayer.send(payload, targetIp, 'ICMP');
 	}
@@ -99,6 +105,7 @@ export class ICMPService {
 			const reply: ICMPPacket = {
 				type: 'echo-reply',
 				seq: packet.seq,
+				timeoutUuid: packet.timeoutUuid,
 				timestamp: packet.timestamp
 			};
 			this.networkLayer.send(reply, srcIp, 'ICMP');
@@ -111,11 +118,14 @@ export class ICMPService {
 			const seq = packet.seq || 0;
 
 			// Timeout-Timer für diese Sequenz abbrechen
-			const timer = this.pendingTimeouts.get(seq);
+			/*const timer = this.pendingTimeouts.get(seq);
 			if (timer) {
 				clearTimeout(timer);
 				this.pendingTimeouts.delete(seq);
-			}
+			}*/
+
+			// Entferne den Extinct-Listener für diese UUID
+			SimulationEventBus.getInstance().offExtinct(packet.timeoutUuid);
 
 			this.logs.push(`Antwort von ${srcIp}: bytes=32 seq=${seq} Zeit=${timeMs.toFixed(2)} ms`);
 			console.log(`Received ping reply from ${srcIp} in ${timeMs.toFixed(2)} ms`);

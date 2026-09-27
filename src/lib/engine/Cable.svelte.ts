@@ -18,6 +18,26 @@ export class Cable {
 		b.cable = this;
 	}
 
+	public getOtherEndpoint(endpoint: CableEndpoint): DataLinkLayer | SwitchPort | undefined {
+		let ce;
+		if (endpoint === this.endA) {
+			ce = this.endB;
+		} else if (endpoint === this.endB) {
+			ce = this.endA;
+		}
+
+		if (!ce) {
+			console.warn('Cable.getOtherEndpoint: Endpoint not found on this cable.', endpoint, this);
+		}
+
+		if (ce instanceof DataLinkLayer) {
+			return ce.upperLayer as DataLinkLayer;
+		} else if (ce instanceof SwitchPort) {
+			return ce as SwitchPort;
+		}
+		return undefined;
+	}
+
 	public remove(): void {
 		if (this.endA && this.endA instanceof DataLinkLayer) {
 			this.endA.cable = undefined;

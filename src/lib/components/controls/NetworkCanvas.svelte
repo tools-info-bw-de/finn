@@ -407,6 +407,19 @@
 						removeCable(c.cableuuid);
 					}}
 				/>
+				<circle
+					r="8"
+					fill="#f38ba8"
+					style="--path: path('{getCablePath(
+						start.x,
+						start.y,
+						end.x,
+						end.y
+					)}'); --duration: {c.cable.getTransmissionDelay()}ms;"
+					class="moving-dot"
+					class:fromB={c.cable.isTransmittingFromA === false}
+					class:active={c.cable.isTransmitting}
+				/>
 			{/each}
 			{#if newCable.adding && newCable.uuids.length === 1}
 				{@const start = getNodeCenter(newCable.uuids[0])}
@@ -478,6 +491,36 @@
 </div>
 
 <style>
+	.moving-dot {
+		offset-path: var(--path);
+	}
+
+	.moving-dot.active:not(.fromB) {
+		animation: move var(--duration) linear infinite;
+	}
+
+	.moving-dot.active.fromB {
+		animation: moveBack var(--duration) linear infinite;
+	}
+
+	@keyframes move {
+		from {
+			offset-distance: 0%;
+		}
+		to {
+			offset-distance: 100%;
+		}
+	}
+
+	@keyframes moveBack {
+		from {
+			offset-distance: 100%;
+		}
+		to {
+			offset-distance: 0%;
+		}
+	}
+
 	.cable-tooltip {
 		position: fixed;
 		color: #cdd6f4;

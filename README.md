@@ -2,7 +2,7 @@
 
 <ins>**F**</ins>reier <ins>**IN**</ins>teraktiver <ins>**N**</ins>etzwerkeditor
 
-Finn ist ein freier Netzwerkeditor, der es ermöglicht, Netzwerke zu erstellen und zu simulieren. Die Software ist in TypeScript geschrieben und nutzt SvelteKit als Framework. Die Anwedung läuft vollständig im Browser und benötigt keine Installation.
+Finn ist ein freier Netzwerkeditor, der es ermöglicht, Netzwerke zu erstellen und zu simulieren. Die Software ist in TypeScript geschrieben und nutzt SvelteKit als Framework. Die Anwendung läuft vollständig im Browser und benötigt keine Installation.
 
 Diese Implementation ist sehr stark an [Filius](https://www.lernsoftware-filius.de/) angelehnt. Es gibt allerdings keinerlei Verbindung zu Filius - die Entwicklung erfolgt vollständig unabhängig.
 

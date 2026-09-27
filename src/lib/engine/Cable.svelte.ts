@@ -1,6 +1,7 @@
 import { DataLinkLayer } from './DataLinkLayer.svelte';
 import type { CableEndpoint, EthernetFrame } from './types';
 import { SwitchPort } from './SwitchPort.ts';
+import { settings } from '../states/settings.svelte';
 
 export class Cable {
 	public uuid: string;
@@ -9,6 +10,7 @@ export class Cable {
 
 	public highlighted = $state<boolean>(false);
 	private currentlyTransmitting = $state<EthernetFrame[]>([]);
+	private transmittingFromA = $state<boolean>(false);
 
 	constructor(a: CableEndpoint, b: CableEndpoint) {
 		this.uuid = crypto.randomUUID();
@@ -59,6 +61,17 @@ export class Cable {
 		return this.currentlyTransmitting.length > 0;
 	}
 
+	public get isTransmittingFromA(): boolean {
+		return this.transmittingFromA;
+	}
+
+	public getTransmissionDelay(): number {
+		const baseDelay = 1000; // Base delay in milliseconds
+		const minDelay = 50; // Minimum delay in milliseconds
+		const speedFactor = settings.speed / 100.0; // Convert speed percentage to a factor (0.0 to 1.0)
+		return Math.max(baseDelay * (1 - speedFactor), minDelay); // Adjust delay based on speed setting
+	}
+
 	public transmit(sender: CableEndpoint, frame: EthernetFrame): void {
 		this.currentlyTransmitting.push(frame);
 
@@ -67,10 +80,11 @@ export class Cable {
 			console.warn('No receiver connected to the cable.', this.uuid, this.endA, this.endB);
 			return;
 		}
+		this.transmittingFromA = sender === this.endA;
 
 		setTimeout(() => {
 			this.currentlyTransmitting = this.currentlyTransmitting.filter((f) => f.uuid !== frame.uuid);
 			receiver.receive(frame);
-		}, 300); // Simulate transmission delay
+		}, this.getTransmissionDelay()); // Simulate transmission delay
 	}
 }

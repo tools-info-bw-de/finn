@@ -3,7 +3,6 @@
 	import { scale } from 'svelte/transition';
 	import { nodes, nodeToSniff } from '$lib/states/nodes.svelte';
 	import type { Host } from '$lib/engine/Host.svelte';
-	import { onMount } from 'svelte';
 
 	let { uuid, x, y, onOpenSniffer } = $props<{
 		uuid: string;
@@ -15,7 +14,8 @@
 	//let type = $derived(nodes.find((n) => n.uuid === uuid)!.type);
 	let type = $state<string>('');
 
-	onMount(() => {
+	// $effect statt onMount, da die Komponente bei aufeinanderfolgenden Rechtsklicks weiterlebt und uuid sich ändert
+	$effect(() => {
 		const node = nodes.find((n) => n.uuid === uuid);
 		if (!node) return;
 
@@ -24,6 +24,9 @@
 		if (node.type === 'desktop' || node.type === 'notebook') {
 			nodeToSniff.nodeUuid = node.uuid;
 			nodeToSniff.dataLinkLayerUuid = (node as Host).dataLinkLayer.uuid;
+		} else {
+			nodeToSniff.nodeUuid = '';
+			nodeToSniff.dataLinkLayerUuid = '';
 		}
 	});
 </script>
@@ -35,13 +38,7 @@
 	out:scale={{ duration: 100, start: 0.95, opacity: 0, easing: expoOut }}
 >
 	{#if type === 'desktop' || type === 'notebook'}
-		<button
-			onclick={(event) => {
-				event.stopPropagation();
-				onOpenSniffer();
-			}}
-			class="list-group-item list-group-item-action"
-		>
+		<button onclick={onOpenSniffer} class="list-group-item list-group-item-action">
 			<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"
 				><!--!Font Awesome Free v7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path
 					d="M560.3 301.2C570.7 313 588.6 315.6 602.1 306.7C616.8 296.9 620.8 277 611 262.3L563 190.3C560.2 186.1 556.4 182.6 551.9 180.1L351.4 68.7C332.1 58 308.6 58 289.2 68.7L88.8 180C83.4 183 79.1 187.4 76.2 192.8L27.7 282.7C15.1 306.1 23.9 335.2 47.3 347.8L80.3 365.5L80.3 418.8C80.3 441.8 92.7 463.1 112.7 474.5L288.7 574.2C308.3 585.3 332.2 585.3 351.8 574.2L527.8 474.5C547.9 463.1 560.2 441.9 560.2 418.8L560.2 301.3zM320.3 291.4L170.2 208L320.3 124.6L470.4 208L320.3 291.4zM278.8 341.6L257.5 387.8L91.7 299L117.1 251.8L278.8 341.6z"

@@ -5,15 +5,15 @@
 	import { removeCable } from '$lib/states/cables.svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { scale } from 'svelte/transition';
+	import type { Router } from '$lib/engine/Router.svelte';
 
 	let { uuid, x, y } = $props<{ uuid: string; x: number; y: number }>();
 
 	function deleteNode() {
+		const index = nodes.findIndex((n) => n.uuid === uuid);
+		if (index === -1) return; // uuid ungültig -> nichts löschen (sonst würde splice(-1,1) den letzten Node treffen)
 		deleteConnections();
-		nodes.splice(
-			nodes.findIndex((n) => n.uuid === uuid),
-			1
-		);
+		nodes.splice(index, 1);
 	}
 
 	function deleteConnections() {
@@ -30,6 +30,13 @@
 					removeCable(port.cable!.uuid);
 				}
 			});
+		} else if (type === 'router') {
+			let routerNode = nodes.find((n) => n.uuid === uuid) as Router;
+			routerNode?.interfaces.forEach((iface) => {
+				if (iface.dataLinkLayer.cable) {
+					removeCable(iface.dataLinkLayer.cable!.uuid);
+				}
+			});
 		}
 	}
 </script>
@@ -39,7 +46,7 @@
 	style="left:{x}px; top:{y}px;"
 	transition:scale={{ duration: 150, start: 0.95, opacity: 0, easing: cubicOut }}
 >
-	<button onclick={deleteNode} class="list-group-item list-group-item-action">
+	<button onclick={deleteNode} class="list-group-item list-group-item-action delete">
 		<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"
 			><!--!Font Awesome Free v7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path
 				d="M232.7 69.9L224 96L128 96C110.3 96 96 110.3 96 128C96 145.7 110.3 160 128 160L512 160C529.7 160 544 145.7 544 128C544 110.3 529.7 96 512 96L416 96L407.3 69.9C402.9 56.8 390.7 48 376.9 48L263.1 48C249.3 48 237.1 56.8 232.7 69.9zM512 208L128 208L149.1 531.1C150.7 556.4 171.7 576 197 576L443 576C468.3 576 489.3 556.4 490.9 531.1L512 208z"
@@ -58,9 +65,18 @@
 </div>
 
 <style>
+	.delete {
+		color: red;
+	}
+
+	.delete svg {
+		fill: red;
+	}
+
 	.list-group {
 		position: fixed;
 		z-index: 1000;
+		box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.65);
 	}
 
 	.list-group button {

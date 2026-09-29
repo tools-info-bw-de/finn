@@ -97,8 +97,8 @@
 
 	// 2. Klick auf den Hintergrund (Karten-Pan starten)
 	function handleViewportPointerDown(e: PointerEvent) {
-		// Sicherheits-Check: Falls e.stopPropagation am Knoten fehlschlägt
-		if ((e.target as HTMLElement).closest('.network-node')) return;
+		// Sicherheits-Check: Falls e.stopPropagation am Knoten/UI-Overlay fehlschlägt
+		if ((e.target as HTMLElement).closest('.network-node, .list-group, .window')) return;
 
 		isPanning = true;
 		startPointer = { x: e.clientX, y: e.clientY };
@@ -130,10 +130,9 @@
 		e.stopPropagation(); // Verhindert Karten-Pan
 		if (e.button !== 0) return; // Nur Linksklick erlauben (sonst wird dies auch beim Kontextmenü ausgeführt)
 
-		draggingNodeUuid = uuid;
-
 		if (settings.mode === 'play') {
 			// Im Play-Modus keine Dragging-Logik, nur Fenster öffnen
+			draggingNodeUuid = uuid;
 			handleNodeClick();
 			return;
 		}
@@ -149,9 +148,11 @@
 			if (!newCable.uuids.includes(uuid)) {
 				newCable.uuids.push(uuid);
 			}
-			return; // Kein Dragging, wenn wir gerade ein Kabel hinzufügen
+			// Kein Dragging, wenn wir gerade ein Kabel hinzufügen (sonst teleportiert der Node per Alt-Drag-State)
+			return;
 		}
 
+		draggingNodeUuid = uuid;
 		const node = nodes.find((n) => n.uuid === uuid);
 		if (node) {
 			startPointer = { x: e.clientX, y: e.clientY };
@@ -221,8 +222,10 @@
 			e.clientX <= viewportRect.right &&
 			e.clientY >= viewportRect.top &&
 			e.clientY <= viewportRect.bottom;
+		// Klicks auf Kontextmenüs/Fenster dürfen das Menü nicht vorzeitig schließen (sonst kommt der eigentliche Klick nie an)
+		const isOnOverlay = (e.target as HTMLElement).closest('.list-group, .window');
 
-		if (isWithinViewport && !isDraggingNode && !newCable.adding) {
+		if (isWithinViewport && !isDraggingNode && !newCable.adding && !isOnOverlay) {
 			if (draggingNodeUuid) {
 				handleNodeClick();
 			} else if (e.button === 0) {

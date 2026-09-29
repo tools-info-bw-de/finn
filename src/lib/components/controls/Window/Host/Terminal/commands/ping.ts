@@ -40,9 +40,11 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 
 		// Event-Handler für Timeouts
 		const handleTimeout = (data: { seq: number }) => {
-			term.writeln(`Zeitüberschreitung der Anforderung (seq=${data.seq}).`);
-			cleanup();
-			resolve();
+			setTimeout(() => {
+				term.writeln(`Zeitüberschreitung der Anforderung (seq=${data.seq}).`);
+				cleanup();
+				resolve();
+			}, 1000);
 		};
 
 		const handleMessage = (message: string) => {

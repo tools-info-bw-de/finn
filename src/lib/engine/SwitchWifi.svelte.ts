@@ -1,6 +1,7 @@
 import { SwitchPort } from './SwitchPort';
-import type { EthernetFrame, NetworkNode } from './types';
+import type { ARPPacket, EthernetFrame, NetworkNode } from './types';
 import { Cable } from './Cable.svelte';
+import { SimulationEventBus } from './SimulationEventBus';
 
 export interface MacTableEntry {
 	mac: string;
@@ -58,13 +59,23 @@ export class SwitchWifi implements NetworkNode {
 		const isBroadcast = frame.header.dstMac === 'FF:FF:FF:FF:FF:FF';
 		const destinationEntry = this.macTable[frame.header.dstMac];
 
+		// ARP-Requests werden immer per Broadcast verschickt und können hier auf mehrere Ports aufgesplittet werden
+		const arpRequestUuid =
+			frame.header.type === 'ARP' && (frame.payload as ARPPacket).type === 'request'
+				? (frame.payload as ARPPacket).uuid
+				: undefined;
+
 		if (isBroadcast || !destinationEntry) {
 			// Broadcast or unknown destination: send to all ports except the source port
-			this.ports.forEach((port) => {
-				if (port.portNumber !== portNumber) {
-					port.send(frame);
-				}
-			});
+			const targetPorts = this.ports.filter((port) => port.portNumber !== portNumber);
+
+			if (arpRequestUuid) {
+				// Erst die neuen Kopien registrieren, dann die eingehende Kopie als aufgelöst melden
+				SimulationEventBus.getInstance().registerBranch(arpRequestUuid, targetPorts.length);
+				SimulationEventBus.getInstance().resolveBranch(arpRequestUuid);
+			}
+
+			targetPorts.forEach((port) => port.send(frame));
 		} else {
 			// Known destination: send only to the specific port
 

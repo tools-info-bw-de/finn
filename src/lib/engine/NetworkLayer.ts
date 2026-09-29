@@ -72,9 +72,33 @@ export class NetworkLayer implements LayerInterface {
 		};
 
 		// ARP löst den Next-Hop (Gateway) auf
-		this.arpService.resolve(nextHopIp, ipPacket, (macAddress) => {
-			this.lowerLayer?.send(ipPacket, macAddress, 'IP');
-		});
+		this.arpService.resolve(
+			nextHopIp,
+			ipPacket,
+			(macAddress) => {
+				this.lowerLayer?.send(ipPacket, macAddress, 'IP');
+			},
+			(failedPacket) => {
+				// ARP-Anfrage lief ins Leere -> Pseudo-Timeout direkt an den ursprünglichen Absender melden
+				const timeoutUuid = this.getTimeoutUuid(failedPacket);
+				if (timeoutUuid) {
+					SimulationEventBus.getInstance().emitExtinct(timeoutUuid);
+				}
+			}
+		);
+	}
+
+	/**
+	 * Ermittelt die timeoutUuid eines Pakets, sofern das Protokoll eine kennt (ICMP/TCP)
+	 */
+	private getTimeoutUuid(packet: IPPacket): string {
+		if (packet.header.protocol === 'TCP') {
+			return (packet.payload as TCPSegment).header.timeoutUuid;
+		}
+		if (packet.header.protocol === 'ICMP') {
+			return (packet.payload as ICMPPacket).timeoutUuid;
+		}
+		return '';
 	}
 
 	public receive(packet: IPPacket | ARPPacket, type: 'IP' | 'ARP'): void {
@@ -136,9 +160,20 @@ export class NetworkLayer implements LayerInterface {
 		console.log(`[NetworkLayer] Leite Paket für ${destinationIp} weiter an Next-Hop ${nextHopIp}`);
 
 		// ARP-Auflösung für den Next-Hop durchführen und über Layer 2 aussenden
-		this.arpService.resolve(nextHopIp, ipPacket, (macAddress) => {
-			this.lowerLayer?.send(ipPacket, macAddress, 'IP');
-		});
+		this.arpService.resolve(
+			nextHopIp,
+			ipPacket,
+			(macAddress) => {
+				this.lowerLayer?.send(ipPacket, macAddress, 'IP');
+			},
+			(failedPacket) => {
+				// ARP-Auflösung lief ins Leere -> Pseudo-Timeout direkt melden (kein echtes Paket zurückschicken)
+				const timeoutUuid = this.getTimeoutUuid(failedPacket);
+				if (timeoutUuid) {
+					SimulationEventBus.getInstance().emitExtinct(timeoutUuid);
+				}
+			}
+		);
 	}
 
 	/**

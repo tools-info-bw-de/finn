@@ -18,6 +18,7 @@ export interface ARPPacket {
 	senderMac: string;
 	targetIP: string;
 	targetMac?: string; // Optional for ARP requests
+	uuid?: string; // Nur bei 'request' gesetzt: Kennung zur Verfolgung aller Broadcast-Kopien
 }
 
 export interface IPPacket {

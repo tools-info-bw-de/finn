@@ -40,7 +40,6 @@ export class ICMPService {
 
 	// Speichert Listener (z.B. vom Terminal) und offene Timeouts
 	private listeners = new SvelteMap<IcmpEventName, Set<StoredEventCallback>>();
-	//private pendingTimeouts = new SvelteMap<number, ReturnType<typeof setTimeout>>();
 
 	constructor(networkLayer: NetworkLayer) {
 		this.networkLayer = networkLayer;
@@ -75,16 +74,6 @@ export class ICMPService {
 		const startTime = performance.now();
 
 		this.logs.push(`PING ${targetIp} mit 32 Bytes Daten (seq=${seq}):`);
-
-		// Timeout setzen: Falls nach timeoutMs keine Antwort über receive() kam
-		/*const timeoutTimer = setTimeout(() => {
-			if (this.pendingTimeouts.has(seq)) {
-				this.pendingTimeouts.delete(seq);
-				this.emit('timeout', { seq, targetIp });
-			}
-		}, timeoutMs);*/
-
-		//this.pendingTimeouts.set(seq, timeoutTimer);
 
 		const payload: ICMPPacket = {
 			type: 'echo-request',

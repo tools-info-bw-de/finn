@@ -122,9 +122,33 @@ export class Router implements NetworkNode {
 		const nextHopIp = route.nextHop ?? ipPacket.header.dstIp;
 
 		// 4. Über das gefundene Ausgangs-Interface auflösen & senden
-		egressIface.arpService.resolve(nextHopIp, ipPacket, (macAddress) => {
-			egressIface.dataLinkLayer.send(ipPacket, macAddress, 'IP');
-		});
+		egressIface.arpService.resolve(
+			nextHopIp,
+			ipPacket,
+			(macAddress) => {
+				egressIface.dataLinkLayer.send(ipPacket, macAddress, 'IP');
+			},
+			(failedPacket) => {
+				// ARP-Auflösung lief ins Leere -> Pseudo-Timeout direkt melden (kein echtes Paket zurückschicken)
+				const timeoutUuid = this.getTimeoutUuid(failedPacket);
+				if (timeoutUuid) {
+					SimulationEventBus.getInstance().emitExtinct(timeoutUuid);
+				}
+			}
+		);
+	}
+
+	/**
+	 * Ermittelt die timeoutUuid eines Pakets, sofern das Protokoll eine kennt (ICMP/TCP)
+	 */
+	private getTimeoutUuid(packet: IPPacket): string {
+		if (packet.header.protocol === 'TCP') {
+			return (packet.payload as TCPSegment).header.timeoutUuid;
+		}
+		if (packet.header.protocol === 'ICMP') {
+			return (packet.payload as ICMPPacket).timeoutUuid;
+		}
+		return '';
 	}
 
 	private sendIcmpError(

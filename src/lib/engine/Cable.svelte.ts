@@ -66,8 +66,8 @@ export class Cable {
 	}
 
 	public getTransmissionDelay(): number {
-		const baseDelay = 1000; // Base delay in milliseconds
-		const minDelay = 50; // Minimum delay in milliseconds
+		const baseDelay = 600; // Base delay in milliseconds
+		const minDelay = 25; // Minimum delay in milliseconds
 		const speedFactor = settings.speed / 100.0; // Convert speed percentage to a factor (0.0 to 1.0)
 		return Math.max(baseDelay * (1 - speedFactor), minDelay); // Adjust delay based on speed setting
 	}

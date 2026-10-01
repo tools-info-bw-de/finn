@@ -371,6 +371,17 @@
 			});
 		}
 	}
+
+	function onContextMenuCanvas(e: MouseEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+
+		// stop adding cable if right click on canvas
+		if (newCable.adding) {
+			newCable.adding = false;
+			newCable.uuids = [];
+		}
+	}
 </script>
 
 <!-- Globale Event-Listener garantieren, dass Dragging nicht abbricht wenn man schnell zieht -->
@@ -394,22 +405,31 @@
 >
 	<button class="zoom-indicator" onclick={() => (zoom = 1)}>{Math.round(zoom * 100)}%</button>
 
-	<div class="world" style="transform: translate({pan.x}px, {pan.y}px) scale({zoom});">
+	<div
+		class="world"
+		style="transform: translate({pan.x}px, {pan.y}px) scale({zoom}); "
+		oncontextmenu={onContextMenuCanvas}
+	>
 		<svg class="svg-layer">
 			{#each cables as c (c.cableuuid)}
 				{@const start = getNodeCenter(c.from)}
 				{@const end = getNodeCenter(c.to)}
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
-				<path
-					class:transmitting={c.cable.isTransmitting}
-					class:highlight={c.cable.uuid === highlightedCable.uuid}
-					class:cableEdit={settings.mode === 'edit' && !newCable.adding}
-					d={getCablePath(start.x, start.y, end.x, end.y)}
-					class="cable"
+				<g
+					class="path-group"
 					onclick={() => {
 						removeCable(c.cableuuid);
 					}}
-				/>
+				>
+					<path class="hitbox" d={getCablePath(start.x, start.y, end.x, end.y)} />
+					<path
+						class:transmitting={c.cable.isTransmitting}
+						class:highlight={c.cable.uuid === highlightedCable.uuid}
+						class:cableEdit={settings.mode === 'edit' && !newCable.adding}
+						d={getCablePath(start.x, start.y, end.x, end.y)}
+						class="cable"
+					/>
+				</g>
 				<circle
 					r="8"
 					fill="#f38ba8"
@@ -599,21 +619,29 @@
 		pointer-events: none;
 	}
 
+	.hitbox {
+		fill: none;
+		stroke: transparent;
+		stroke-width: 20px;
+		pointer-events: stroke;
+	}
+
+	.path-group:has(.cableEdit) {
+		cursor: pointer;
+	}
+
 	.cable {
 		stroke: #89b4fa;
 		stroke-width: 3px;
 		fill: none;
-	}
-
-	.cableEdit {
+		pointer-events: none;
 		cursor: pointer;
-		pointer-events: all; /* Ermöglicht Klicks auf die Kabel */
 	}
 
-	.cableEdit:hover {
+	.path-group:hover .cableEdit {
 		stroke: #f38ba8;
 		stroke-width: 5px;
-		stroke-dasharray: 10, 10;
+		stroke-dasharray: 10, 15;
 	}
 
 	.cable.transmitting {

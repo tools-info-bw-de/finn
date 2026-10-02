@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { nodes, editNode, nodeToSniff } from '$lib/states/nodes.svelte';
+	import { nodes, editNode, nodeToSniff, nodeSpawn } from '$lib/states/nodes.svelte';
 	import { cables, highlightedCable, newCable, removeCable } from '$lib/states/cables.svelte';
 	import cable from '$lib/assets/cable.png';
 	import notebook from '$lib/assets/laptop.png';
@@ -12,6 +12,8 @@
 	import ContextMenuEdit from './ContextMenuEdit.svelte';
 	import type { Router } from '$lib/engine/Router.svelte';
 	import ContextMenuPlay from './ContextMenuPlay.svelte';
+	import { onMount } from 'svelte';
+	import { scale } from 'svelte/transition';
 
 	interface WindowData {
 		nodeUuid: string;
@@ -44,6 +46,15 @@
 
 	const MIN_ZOOM = 0.3;
 	const MAX_ZOOM = 2.0;
+
+	function updateNodeSpawn() {
+		nodeSpawn.x = (viewportEl.clientWidth / 6 - pan.x) / zoom;
+		nodeSpawn.y = (viewportEl.clientHeight / 5 - pan.y) / zoom;
+	}
+
+	onMount(() => {
+		updateNodeSpawn();
+	});
 
 	let isPanning = $state(false);
 	let draggingNodeUuid = $state<string | null>(null);
@@ -93,6 +104,7 @@
 		pan.y = mouseY - (mouseY - pan.y) * scaleChange;
 
 		zoom = newZoom;
+		updateNodeSpawn();
 	}
 
 	// 2. Klick auf den Hintergrund (Karten-Pan starten)
@@ -190,6 +202,7 @@
 		if (isPanning) {
 			pan.x = startPan.x + dx;
 			pan.y = startPan.y + dy;
+			updateNodeSpawn();
 		} else if (draggingNodeUuid && settings.mode === 'edit') {
 			// Prüfen, ob große Entfernung bewegt wird, oder nur geklickt wird
 			if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
@@ -453,6 +466,14 @@
 
 		{#each nodes as node (node.uuid)}
 			<div
+				in:scale={{
+					duration: 200,
+					start: 1.3
+				}}
+				out:scale={{
+					duration: 200,
+					start: 0.5
+				}}
 				class="network-node"
 				style="left: {node.x}px; top: {node.y}px; width: 64px; height: 64px;"
 				onpointerdown={(e) => handleNodePointerDown(e, node.uuid)}

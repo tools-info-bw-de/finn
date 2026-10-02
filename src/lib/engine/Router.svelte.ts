@@ -3,6 +3,7 @@ import type { NetworkNode } from './types';
 import { ipToInt } from './helpers';
 import { RouterInterface } from './RouterInterface.svelte';
 import { SimulationEventBus } from './SimulationEventBus';
+import { nodeSpawn } from '$lib/states/nodes.svelte';
 
 export interface RouteEntry {
 	subnet: string;
@@ -25,6 +26,8 @@ export class Router implements NetworkNode {
 		this.uuid = crypto.randomUUID();
 		this.name = name;
 		this.type = 'router';
+		this.x = nodeSpawn.x;
+		this.y = nodeSpawn.y;
 
 		this.addInterface();
 		this.addInterface();

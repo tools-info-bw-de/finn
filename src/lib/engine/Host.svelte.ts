@@ -4,6 +4,7 @@ import { ArpService } from './ArpService.svelte';
 import type { NetworkNode } from './types';
 import { NetworkConfig } from './NetworkConfig.svelte';
 import { ICMPService } from './ICMPService.svelte';
+import { nodeSpawn } from '$lib/states/nodes.svelte';
 
 // Ist entweder ein Notebook oder ein Rechner - wird nur durch den "type" unterschieden!
 export class Host implements NetworkNode {
@@ -31,8 +32,8 @@ export class Host implements NetworkNode {
 		this.name = name;
 		this.config = new NetworkConfig(macAddress, ipAddress, netmask);
 		this.type = type;
-		this.x = 0;
-		this.y = 0;
+		this.x = nodeSpawn.x;
+		this.y = nodeSpawn.y;
 
 		this.dataLinkLayer = new DataLinkLayer(this.config);
 		this.arpService = new ArpService(this.config, this.dataLinkLayer);

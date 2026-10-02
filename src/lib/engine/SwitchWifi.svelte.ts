@@ -2,6 +2,7 @@ import { SwitchPort } from './SwitchPort';
 import type { ARPPacket, EthernetFrame, NetworkNode } from './types';
 import { Cable } from './Cable.svelte';
 import { SimulationEventBus } from './SimulationEventBus';
+import { nodeSpawn } from '$lib/states/nodes.svelte';
 
 export interface MacTableEntry {
 	mac: string;
@@ -23,8 +24,8 @@ export class SwitchWifi implements NetworkNode {
 	constructor(name: string) {
 		this.name = name;
 		this.type = 'switch';
-		this.x = 0;
-		this.y = 0;
+		this.x = nodeSpawn.x;
+		this.y = nodeSpawn.y;
 	}
 
 	// Method to add a port to the switch

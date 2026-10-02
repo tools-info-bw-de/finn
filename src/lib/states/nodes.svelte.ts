@@ -7,3 +7,5 @@ export const nodeToSniff = $state<{ nodeUuid: string; dataLinkLayerUuid: string 
 	nodeUuid: '',
 	dataLinkLayerUuid: ''
 });
+
+export const nodeSpawn = $state<{ x: number; y: number }>({ x: 0, y: 0 });

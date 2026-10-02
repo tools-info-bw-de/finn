@@ -350,11 +350,10 @@
 		e.stopPropagation();
 		contextMenuEdit.uuid = nodeUuid;
 		contextMenuPlay.uuid = nodeUuid;
-		let { x, y } = screenToWorld(e.clientX, e.clientY);
-		contextMenuEdit.x = x;
-		contextMenuEdit.y = y;
-		contextMenuPlay.x = x;
-		contextMenuPlay.y = y;
+		contextMenuEdit.x = e.clientX;
+		contextMenuEdit.y = e.clientY;
+		contextMenuPlay.x = e.clientX;
+		contextMenuPlay.y = e.clientY;
 	}
 
 	function closeContextMenu() {
@@ -498,18 +497,18 @@
 				{/if}
 			</div>
 		{/each}
-		{#if settings.mode === 'edit' && contextMenuEdit.uuid !== ''}
-			<ContextMenuEdit uuid={contextMenuEdit.uuid} x={contextMenuEdit.x} y={contextMenuEdit.y} />
-		{/if}
-		{#if settings.mode === 'play' && contextMenuPlay.uuid !== ''}
-			<ContextMenuPlay
-				onOpenSniffer={openSniffer}
-				uuid={contextMenuPlay.uuid}
-				x={contextMenuPlay.x}
-				y={contextMenuPlay.y}
-			/>
-		{/if}
 	</div>
+	{#if settings.mode === 'edit' && contextMenuEdit.uuid !== ''}
+		<ContextMenuEdit uuid={contextMenuEdit.uuid} x={contextMenuEdit.x} y={contextMenuEdit.y} />
+	{/if}
+	{#if settings.mode === 'play' && contextMenuPlay.uuid !== ''}
+		<ContextMenuPlay
+			onOpenSniffer={openSniffer}
+			uuid={contextMenuPlay.uuid}
+			x={contextMenuPlay.x}
+			y={contextMenuPlay.y}
+		/>
+	{/if}
 
 	{#if newCable.adding}
 		<div class="cable-tooltip">

@@ -73,9 +73,10 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 
 			term.writeln(`\n--- ${targetIp} ping statistics ---`);
 			term.writeln(
-				`${pingsSent} packets transmitted, ${replies.length} received, ${
-					((pingsSent - replies.length) * 100) / pingsSent
-				}% lost`
+				`${pingsSent} packets transmitted, ${replies.length} received, ${(
+					((pingsSent - replies.length) * 100) /
+					pingsSent
+				).toFixed(2)}% lost`
 			);
 			term.writeln(
 				`rtt min/avg/max = ${replies.length > 0 ? Math.min(...replies.map((r) => r.timeMs)).toFixed(2) : 0}/${replies.length > 0 ? (replies.reduce((sum, r) => sum + r.timeMs, 0) / replies.length).toFixed(2) : 0}/${replies.length > 0 ? Math.max(...replies.map((r) => r.timeMs)).toFixed(2) : 0} ms`

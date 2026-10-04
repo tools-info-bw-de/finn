@@ -1,10 +1,11 @@
 import type { NetworkLayer } from './NetworkLayer';
-import type { ICMPPacket } from './types';
+import type { ICMPPacket, IPPacket } from './types';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { SimulationEventBus } from './SimulationEventBus';
 
 export interface PingResult {
 	seq: number;
+	ttl: number;
 	targetIp: string;
 	timeMs: number;
 	success: boolean;
@@ -14,6 +15,7 @@ type PingReplyEvent = {
 	srcIp: string;
 	seq: number;
 	timeMs: number;
+	ttl: number;
 };
 
 type PingTimeoutEvent = {
@@ -34,7 +36,6 @@ type StoredEventCallback = (data: unknown) => void;
 export class ICMPService {
 	private networkLayer: NetworkLayer;
 
-	public logs = $state<string[]>([]);
 	public results = $state<PingResult[]>([]);
 
 	// Speichert Listener (z.B. vom Terminal) und offene Timeouts
@@ -70,8 +71,6 @@ export class ICMPService {
 	public sendPing(targetIp: string, seq: number): void {
 		const startTime = performance.now();
 
-		this.logs.push(`PING ${targetIp} mit 32 Bytes Daten (seq=${seq}):`);
-
 		const payload: ICMPPacket = {
 			type: 'echo-request',
 			seq: seq,
@@ -86,7 +85,9 @@ export class ICMPService {
 		this.networkLayer.send(payload, targetIp, 'ICMP');
 	}
 
-	public receive(packet: ICMPPacket, srcIp: string): void {
+	public receive(ippacket: IPPacket, srcIp: string): void {
+		const packet: ICMPPacket = ippacket.payload as ICMPPacket;
+
 		if (packet.type === 'echo-request') {
 			const reply: ICMPPacket = {
 				type: 'echo-reply',
@@ -106,11 +107,9 @@ export class ICMPService {
 			// Entferne den Extinct-Listener für diese UUID
 			SimulationEventBus.getInstance().offExtinct(packet.timeoutUuid);
 
-			this.logs.push(`Antwort von ${srcIp}: bytes=32 seq=${seq} Zeit=${timeMs.toFixed(2)} ms`);
-			console.log(`Received ping reply from ${srcIp} in ${timeMs.toFixed(2)} ms`);
-
 			this.results.push({
 				seq: seq,
+				ttl: ippacket.header.ttl,
 				targetIp: srcIp,
 				timeMs: timeMs,
 				success: true
@@ -120,6 +119,7 @@ export class ICMPService {
 			this.emit('reply', {
 				srcIp,
 				seq,
+				ttl: ippacket.header.ttl,
 				timeMs
 			});
 		}

@@ -112,9 +112,6 @@ export class NetworkLayer implements LayerInterface {
 		// otherwise it's an IP packet
 		const ipPacket = packet as IPPacket;
 
-		// reduce ttl
-		ipPacket.header.ttl--;
-
 		const isForMe =
 			ipPacket.header.dstIp === this.config.ipAddress ||
 			ipPacket.header.dstIp === '255.255.255.255';
@@ -122,9 +119,9 @@ export class NetworkLayer implements LayerInterface {
 		if (isForMe) {
 			const handler = this.protocolHandlers.get(ipPacket.header.protocol);
 			if (handler) {
-				handler.receive(ipPacket.payload, ipPacket.header.srcIp);
+				handler.receive(ipPacket, ipPacket.header.srcIp);
 			}
-		} else if (ipPacket.header.ttl <= 0) {
+		} else if (--ipPacket.header.ttl <= 0) {
 			// TTL abgelaufen -> ICMP Time-Exceeded senden
 			this.sendIcmpError(ipPacket, 'time-exceeded');
 			console.warn(

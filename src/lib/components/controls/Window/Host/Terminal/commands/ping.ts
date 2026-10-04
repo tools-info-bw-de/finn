@@ -16,16 +16,19 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 		return Promise.resolve();
 	}
 
-	term.writeln(`PING ${targetIp} mit 32 Bytes Daten:`);
+	term.writeln(`PING ${targetIp}:`);
 
 	return new Promise<void>((resolve) => {
 		let pingsSent = 0;
 		const MAX_PINGS = 4;
 
+		const replies: { srcIp: string; seq: number; timeMs: number; ttl: number }[] = [];
+
 		// Event-Handler für Antworten
-		const handleReply = (data: { srcIp: string; seq: number; timeMs: number }) => {
+		const handleReply = (data: { srcIp: string; seq: number; timeMs: number; ttl: number }) => {
+			replies.push(data);
 			term.writeln(
-				`Antwort von ${data.srcIp}: bytes=32 seq=${data.seq} Zeit=\x1b[32m${data.timeMs.toFixed(2)} ms\x1b[0m`
+				`From ${data.srcIp}: icmp_seq=${data.seq} ttl=${data.ttl} time=\x1b[32m${data.timeMs.toFixed(2)} ms\x1b[0m`
 			);
 
 			if (pingsSent >= MAX_PINGS || signal.aborted) {
@@ -67,6 +70,16 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 		const cleanup = () => {
 			currentNode.icmp.off('reply', handleReply);
 			currentNode.icmp.off('timeout', handleTimeout);
+
+			term.writeln(`\n--- ${targetIp} ping statistics ---`);
+			term.writeln(
+				`${pingsSent} packets transmitted, ${replies.length} received, ${
+					((pingsSent - replies.length) * 100) / pingsSent
+				}% lost`
+			);
+			term.writeln(
+				`rtt min/avg/max = ${replies.length > 0 ? Math.min(...replies.map((r) => r.timeMs)).toFixed(2) : 0}/${replies.length > 0 ? (replies.reduce((sum, r) => sum + r.timeMs, 0) / replies.length).toFixed(2) : 0}/${replies.length > 0 ? Math.max(...replies.map((r) => r.timeMs)).toFixed(2) : 0} ms`
+			);
 		};
 
 		signal.addEventListener('abort', () => {
@@ -79,7 +92,6 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 		currentNode.icmp.on('message', handleMessage);
 
 		// Erstes Paket sofort senden
-		console.log('Sending first ping to', targetIp);
 		currentNode.icmp.sendPing(targetIp, 1);
 		pingsSent++;
 	});

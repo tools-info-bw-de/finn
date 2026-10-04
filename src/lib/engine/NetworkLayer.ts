@@ -101,6 +101,19 @@ export class NetworkLayer implements LayerInterface {
 		return '';
 	}
 
+	private describeOriginal(packet: IPPacket): ICMPPacket['original'] {
+		const protocol = packet.header.protocol;
+		if (protocol === 'ICMP') {
+			return { protocol, seq: (packet.payload as ICMPPacket).seq };
+		}
+		if (protocol === 'TCP') {
+			const { srcPort, dstPort } = (packet.payload as TCPSegment).header;
+			return { protocol, srcPort, dstPort };
+		}
+		const { srcPort, dstPort } = (packet.payload as UDPDatagram).header;
+		return { protocol, srcPort, dstPort };
+	}
+
 	public receive(packet: IPPacket | ARPPacket, type: 'IP' | 'ARP'): void {
 		if (type === 'ARP') {
 			this.arpService.handlePacket(packet as ARPPacket, (pendingPacket, mac) => {
@@ -193,14 +206,10 @@ export class NetworkLayer implements LayerInterface {
 			}
 		}
 
-		let timeoutUuid = '';
-		if (failedPacket.header.protocol === 'TCP') {
-			timeoutUuid = (failedPacket.payload as TCPSegment).header.timeoutUuid;
-		}
-
 		const icmpPacket: ICMPPacket = {
 			type,
-			timeoutUuid
+			timeoutUuid: this.getTimeoutUuid(failedPacket),
+			original: this.describeOriginal(failedPacket)
 		};
 
 		// Sendet die Fehlermeldung direkt zurück an die Quell-IP des gescheiterten Pakets

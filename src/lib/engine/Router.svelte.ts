@@ -1,4 +1,4 @@
-import type { ICMPPacket, IPPacket, TCPSegment } from './types';
+import type { ICMPPacket, IPPacket, TCPSegment, UDPDatagram } from './types';
 import type { NetworkNode } from './types';
 import { ipToInt } from './helpers';
 import { RouterInterface } from './RouterInterface.svelte';
@@ -167,18 +167,22 @@ export class Router implements NetworkNode {
 			}
 		}
 
-		let timeoutUuid = '';
-		if (failedPacket.header.protocol === 'TCP') {
-			const tcp = failedPacket.payload as TCPSegment;
-			timeoutUuid = tcp.header.timeoutUuid;
-		} else if (failedPacket.header.protocol === 'ICMP') {
-			const icmp = failedPacket.payload as ICMPPacket;
-			timeoutUuid = icmp.timeoutUuid;
+		const protocol = failedPacket.header.protocol;
+		let original: ICMPPacket['original'];
+		if (protocol === 'ICMP') {
+			original = { protocol, seq: (failedPacket.payload as ICMPPacket).seq };
+		} else if (protocol === 'TCP') {
+			const { srcPort, dstPort } = (failedPacket.payload as TCPSegment).header;
+			original = { protocol, srcPort, dstPort };
+		} else {
+			const { srcPort, dstPort } = (failedPacket.payload as UDPDatagram).header;
+			original = { protocol, srcPort, dstPort };
 		}
 
 		const errorIcmpPacket: ICMPPacket = {
 			type,
-			timeoutUuid
+			timeoutUuid: this.getTimeoutUuid(failedPacket),
+			original
 		};
 
 		// Über das Eingangs-Interface direkt an Quell-IP zurücksenden

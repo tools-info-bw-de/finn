@@ -23,11 +23,21 @@ type PingTimeoutEvent = {
 	targetIp: string;
 };
 
+type PingErrorEvent = {
+	srcIp: string;
+	seq: number;
+	type: 'time-exceeded' | 'destination-unreachable';
+};
+
 type IcmpEventPayloads = {
 	reply: PingReplyEvent;
 	timeout: PingTimeoutEvent;
+	error: PingErrorEvent;
 	message: string;
 };
+
+// Andere Protokolle (TCP/UDP) registrieren sich hier für Fehler ihrer eigenen Pakete
+export type IcmpErrorHandler = (packet: ICMPPacket, srcIp: string) => void;
 
 type IcmpEventName = keyof IcmpEventPayloads;
 type EventCallback<EventName extends IcmpEventName> = (data: IcmpEventPayloads[EventName]) => void;
@@ -37,6 +47,8 @@ export class ICMPService {
 	private networkLayer: NetworkLayer;
 
 	public results = $state<PingResult[]>([]);
+
+	private errorHandlers = new SvelteMap<string, IcmpErrorHandler>();
 
 	// Speichert Listener (z.B. vom Terminal) und offene Timeouts
 	private listeners = new SvelteMap<IcmpEventName, Set<StoredEventCallback>>();
@@ -68,6 +80,10 @@ export class ICMPService {
 	}
 
 	// --- METHODEN ---
+	public registerErrorHandler(protocol: 'UDP' | 'TCP', handler: IcmpErrorHandler): void {
+		this.errorHandlers.set(protocol, handler);
+	}
+
 	public sendPing(targetIp: string, seq: number): void {
 		const startTime = performance.now();
 
@@ -87,6 +103,17 @@ export class ICMPService {
 
 	public receive(ippacket: IPPacket, srcIp: string): void {
 		const packet: ICMPPacket = ippacket.payload as ICMPPacket;
+
+		if (packet.type === 'time-exceeded' || packet.type === 'destination-unreachable') {
+			const protocol = packet.original?.protocol;
+			if (protocol === 'ICMP') {
+				SimulationEventBus.getInstance().offExtinct(packet.timeoutUuid);
+				this.emit('error', { srcIp, seq: packet.original?.seq ?? 0, type: packet.type });
+			} else if (protocol) {
+				this.errorHandlers.get(protocol)?.(packet, srcIp);
+			}
+			return;
+		}
 
 		if (packet.type === 'echo-request') {
 			const reply: ICMPPacket = {

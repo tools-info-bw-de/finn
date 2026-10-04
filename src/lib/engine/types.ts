@@ -38,6 +38,13 @@ export interface ICMPPacket {
 	seq?: number; // Only for echo-request and echo-reply
 	timestamp?: number; // Only for echo-request and echo-reply
 	timeoutUuid: string; // Only for time-exceeded and destination-unreachable
+	// Only for errors: Kontext des Pakets, das den Fehler ausgelöst hat (Demux wie bei echtem ICMP)
+	original?: {
+		protocol: 'ICMP' | 'UDP' | 'TCP';
+		seq?: number;
+		srcPort?: number;
+		dstPort?: number;
+	};
 }
 
 export interface UDPDatagram {

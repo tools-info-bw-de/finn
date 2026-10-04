@@ -41,6 +41,26 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 			pingsSent++;
 		};
 
+		// ICMP-Fehler (TTL abgelaufen / Ziel nicht erreichbar): wie Linux-ping weiterzählen
+		const handleError = (data: {
+			srcIp: string;
+			seq: number;
+			type: 'time-exceeded' | 'destination-unreachable';
+		}) => {
+			const text =
+				data.type === 'time-exceeded' ? 'Time to live exceeded' : 'Destination Host Unreachable';
+			term.writeln(`\x1b[31mFrom ${data.srcIp}: icmp_seq=${data.seq} ${text}\x1b[0m`);
+
+			if (pingsSent >= MAX_PINGS || signal.aborted) {
+				cleanup();
+				resolve();
+				return;
+			}
+
+			currentNode.icmp.sendPing(targetIp, pingsSent + 1);
+			pingsSent++;
+		};
+
 		// Event-Handler für Timeouts
 		const handleTimeout = (data: { seq: number }) => {
 			setTimeout(() => {
@@ -70,6 +90,7 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 		const cleanup = () => {
 			currentNode.icmp.off('reply', handleReply);
 			currentNode.icmp.off('timeout', handleTimeout);
+			currentNode.icmp.off('error', handleError);
 
 			term.writeln(`\n--- ${targetIp} ping statistics ---`);
 			term.writeln(
@@ -90,6 +111,7 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 
 		currentNode.icmp.on('reply', handleReply);
 		currentNode.icmp.on('timeout', handleTimeout);
+		currentNode.icmp.on('error', handleError);
 		currentNode.icmp.on('message', handleMessage);
 
 		// Erstes Paket sofort senden

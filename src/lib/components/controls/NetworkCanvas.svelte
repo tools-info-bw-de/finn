@@ -89,6 +89,9 @@
 
 	// 1. Zoom per Mausrad
 	function handleWheel(e: WheelEvent) {
+		// Wheel über Fenstern/Menüs darf nie die Karte zoomen
+		if ((e.target as HTMLElement).closest('.window, .list-group')) return;
+
 		e.preventDefault();
 		const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
 		const newZoom = Math.min(Math.max(zoom * zoomFactor, MIN_ZOOM), MAX_ZOOM);

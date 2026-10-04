@@ -102,8 +102,6 @@ export class Router implements NetworkNode {
 	}
 
 	public routePacket(ipPacket: IPPacket, ingressIface: RouterInterface): void {
-		console.log('routePacket', ipPacket);
-
 		// 1. TTL prüfen
 		ipPacket.header.ttl--;
 		if (ipPacket.header.ttl <= 0) {
@@ -113,7 +111,6 @@ export class Router implements NetworkNode {
 
 		// 2. Ziel-Route suchen
 		const route = this.findBestRoute(ipPacket.header.dstIp);
-		console.log(route);
 		if (!route) {
 			this.sendIcmpError(ipPacket, ingressIface, 'destination-unreachable');
 			return;

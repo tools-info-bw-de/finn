@@ -2,6 +2,7 @@ import { DataLinkLayer } from './DataLinkLayer.svelte';
 import type { CableEndpoint, EthernetFrame, ICMPPacket, IPPacket } from './types';
 import { SwitchPort } from './SwitchPort.ts';
 import { settings } from '../states/settings.svelte';
+import { getColorForProtocol } from './helpers.ts';
 
 export class Cable {
 	public uuid: string;
@@ -72,21 +73,21 @@ export class Cable {
 
 		const ethernet = this.currentlyTransmitting[this.currentlyTransmitting.length - 1];
 		if (ethernet.header.type === 'ARP') {
-			return '#523e3a'; // Green for ARP packets
+			return getColorForProtocol('ARP');
 		}
 
 		const ippacket = ethernet.payload as IPPacket;
 		if (ippacket.header.protocol === 'ICMP') {
 			const t = (ippacket.payload as ICMPPacket).type;
 			if (t === 'time-exceeded' || t === 'destination-unreachable') {
-				return '#bb0000'; // Red for ICMP error packets
+				return getColorForProtocol('ERROR');
 			}
-			return '#3ca500'; // Green for ICMP packets
+			return getColorForProtocol('ICMP');
 		} else {
 			if (ippacket.header.protocol === 'UDP') {
-				return '#ffe600'; // Yellow for UDP packets
+				return getColorForProtocol('UDP');
 			} else {
-				return '#0000ff'; // Blue for TCP packets
+				return getColorForProtocol('TCP');
 			}
 		}
 	}

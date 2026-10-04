@@ -40,3 +40,20 @@ export function getSubnetAddress(ip: string, mask: string): string {
 		'.'
 	);
 }
+
+export function getColorForProtocol(protocol: string | undefined): string {
+	switch (protocol) {
+		case 'ARP':
+			return '#523e3a';
+		case 'ICMP':
+			return '#3ca500';
+		case 'ERROR':
+			return '#bb0000';
+		case 'UDP':
+			return '#ffe600';
+		case 'TCP':
+			return '#0000ff';
+		default:
+			return '#89b4fa'; // Default color for unknown protocols
+	}
+}

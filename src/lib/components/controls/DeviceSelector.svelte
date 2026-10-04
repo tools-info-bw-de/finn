@@ -13,7 +13,6 @@
 	import { Cable } from '$lib/engine/Cable.svelte';
 
 	function createNode(type: 'notebook' | 'desktop' | 'switch' | 'router') {
-		console.log(type);
 		if (type === 'notebook') {
 			let host: Host = new Host(
 				`Notebook`,

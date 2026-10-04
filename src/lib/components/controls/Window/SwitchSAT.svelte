@@ -23,3 +23,10 @@
 		{/each}
 	</tbody>
 </table>
+
+<style>
+	td,
+	th {
+		text-wrap: nowrap;
+	}
+</style>

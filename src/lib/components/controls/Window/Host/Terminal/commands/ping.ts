@@ -34,7 +34,7 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 				return;
 			}
 
-			currentNode.icmp.sendPing(targetIp);
+			currentNode.icmp.sendPing(targetIp, pingsSent + 1);
 			pingsSent++;
 		};
 
@@ -80,7 +80,7 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 
 		// Erstes Paket sofort senden
 		console.log('Sending first ping to', targetIp);
-		currentNode.icmp.sendPing(targetIp);
+		currentNode.icmp.sendPing(targetIp, 1);
 		pingsSent++;
 	});
 };

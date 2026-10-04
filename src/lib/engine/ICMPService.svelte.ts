@@ -36,7 +36,6 @@ export class ICMPService {
 
 	public logs = $state<string[]>([]);
 	public results = $state<PingResult[]>([]);
-	private seqCounter = 0;
 
 	// Speichert Listener (z.B. vom Terminal) und offene Timeouts
 	private listeners = new SvelteMap<IcmpEventName, Set<StoredEventCallback>>();
@@ -68,9 +67,7 @@ export class ICMPService {
 	}
 
 	// --- METHODEN ---
-	public sendPing(targetIp: string /*, timeoutMs = 4000*/): void {
-		this.seqCounter++;
-		const seq = this.seqCounter;
+	public sendPing(targetIp: string, seq: number): void {
 		const startTime = performance.now();
 
 		this.logs.push(`PING ${targetIp} mit 32 Bytes Daten (seq=${seq}):`);
@@ -105,13 +102,6 @@ export class ICMPService {
 			const endTime = performance.now();
 			const timeMs = endTime - (packet.timestamp || endTime);
 			const seq = packet.seq || 0;
-
-			// Timeout-Timer für diese Sequenz abbrechen
-			/*const timer = this.pendingTimeouts.get(seq);
-			if (timer) {
-				clearTimeout(timer);
-				this.pendingTimeouts.delete(seq);
-			}*/
 
 			// Entferne den Extinct-Listener für diese UUID
 			SimulationEventBus.getInstance().offExtinct(packet.timeoutUuid);

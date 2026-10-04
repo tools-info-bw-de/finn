@@ -436,15 +436,17 @@
 					<path class="hitbox" d={getCablePath(start.x, start.y, end.x, end.y)} />
 					<path
 						class:transmitting={c.cable.isTransmitting}
+						style="stroke: {c.cable.transmissionColor};"
 						class:highlight={c.cable.uuid === highlightedCable.uuid}
 						class:cableEdit={settings.mode === 'edit' && !newCable.adding}
 						d={getCablePath(start.x, start.y, end.x, end.y)}
 						class="cable"
 					/>
 				</g>
+				<!-- fill="#f38ba8" -->
 				<circle
 					r="8"
-					fill="#f38ba8"
+					fill={c.cable.transmissionColor}
 					style="--path: path('{getCablePath(
 						start.x,
 						start.y,
@@ -459,7 +461,11 @@
 			{#if newCable.adding && newCable.uuids.length === 1}
 				{@const start = getNodeCenter(newCable.uuids[0])}
 				{@const end = { x: mouse.x, y: mouse.y }}
-				<path d={getCablePath(start.x, start.y, end.x, end.y)} class="cable" />
+				<path
+					d={getCablePath(start.x, start.y, end.x, end.y)}
+					class="cable"
+					style="stroke: #89b4fa;"
+				/>
 			{/if}
 		</svg>
 
@@ -651,7 +657,6 @@
 	}
 
 	.cable {
-		stroke: #89b4fa;
 		stroke-width: 3px;
 		fill: none;
 		pointer-events: none;
@@ -659,19 +664,31 @@
 	}
 
 	.path-group:hover .cableEdit {
-		stroke: #f38ba8;
+		stroke: #f38ba8 !important;
 		stroke-width: 5px;
 		stroke-dasharray: 10, 15;
 	}
 
 	.cable.transmitting {
-		stroke: #f38ba8 !important;
 		stroke-width: 4px;
 	}
 
 	.cable.highlight {
-		stroke: #74e997;
-		stroke-width: 4px;
+		stroke: #2ac759 !important;
+		stroke-width: 5px;
+		animation: highlight-pulse 0.6s ease-out 1;
+	}
+
+	@keyframes highlight-pulse {
+		0% {
+			stroke-width: 3px;
+		}
+		40% {
+			stroke-width: 14px;
+		}
+		100% {
+			stroke-width: 5px;
+		}
 	}
 
 	.network-node {

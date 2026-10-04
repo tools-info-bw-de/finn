@@ -1,5 +1,5 @@
 import { DataLinkLayer } from './DataLinkLayer.svelte';
-import type { CableEndpoint, EthernetFrame } from './types';
+import type { CableEndpoint, EthernetFrame, ICMPPacket, IPPacket } from './types';
 import { SwitchPort } from './SwitchPort.ts';
 import { settings } from '../states/settings.svelte';
 
@@ -63,6 +63,32 @@ export class Cable {
 
 	public get isTransmittingFromA(): boolean {
 		return this.transmittingFromA;
+	}
+
+	public get transmissionColor(): string {
+		if (this.currentlyTransmitting.length === 0) {
+			return '#89b4fa'; // Black when not transmitting
+		}
+
+		const ethernet = this.currentlyTransmitting[this.currentlyTransmitting.length - 1];
+		if (ethernet.header.type === 'ARP') {
+			return '#523e3a'; // Green for ARP packets
+		}
+
+		const ippacket = ethernet.payload as IPPacket;
+		if (ippacket.header.protocol === 'ICMP') {
+			const t = (ippacket.payload as ICMPPacket).type;
+			if (t === 'time-exceeded' || t === 'destination-unreachable') {
+				return '#bb0000'; // Red for ICMP error packets
+			}
+			return '#3ca500'; // Green for ICMP packets
+		} else {
+			if (ippacket.header.protocol === 'UDP') {
+				return '#ffe600'; // Yellow for UDP packets
+			} else {
+				return '#0000ff'; // Blue for TCP packets
+			}
+		}
 	}
 
 	public getTransmissionDelay(): number {

@@ -7,6 +7,7 @@
 	import { SwitchWifi } from '$lib/engine/SwitchWifi.svelte';
 	import SwitchSAT from '$lib/components/controls/Window/SwitchSAT.svelte';
 	import Sniffer from './Window/Sniffer.svelte';
+	import { Router } from '$lib/engine/Router.svelte';
 
 	let {
 		nodeUuid,
@@ -134,7 +135,13 @@
 		<span class="title">
 			{#if isSniffer}
 				{@const sniffedNodeData = nodes.find((n) => n.uuid === sniffedNode)}
-				Datenaustausch: {sniffedNodeData?.name} ({(sniffedNodeData as Host)?.config.ipAddress})
+				{@const sniffedNodeType = sniffedNodeData?.type}
+				{@const ip =
+					sniffedNodeType === 'router'
+						? (sniffedNodeData as Router)?.interfaces.find((i) => i.dataLinkLayer.uuid === nodeUuid)
+								?.config.ipAddress
+						: (sniffedNodeData as Host)?.config.ipAddress}
+				Datenaustausch: {sniffedNodeData?.name} ({ip})
 			{:else}
 				{title}
 			{/if}

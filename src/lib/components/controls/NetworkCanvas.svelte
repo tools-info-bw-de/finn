@@ -365,6 +365,7 @@
 	}
 
 	function openSniffer() {
+		console.log(nodeToSniff);
 		const existingWindow = windows.find(
 			(w) => w.nodeUuid === nodeToSniff.dataLinkLayerUuid && w.type === 'sniffer'
 		);

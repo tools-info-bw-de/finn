@@ -16,6 +16,7 @@
 	let term: Terminal;
 	let fitAddon: FitAddon;
 	let inputBuffer = '';
+	let cursorPos = 0; // Position des Cursors innerhalb von inputBuffer
 	let activeController: AbortController | null = null;
 
 	function prompt(): string {
@@ -23,18 +24,26 @@
 	}
 
 	/**
-	 * Ersetzt die aktuelle Zeile im Terminal-Display durch einen neuen Text.
+	 * Ersetzt die aktuelle Eingabe im Terminal-Display und setzt den Cursor.
 	 */
-	function replaceLine(newText: string): void {
+	function setBuffer(newText: string, newCursor: number = newText.length): void {
 		if (!term) return;
 
-		// Aktuelle Zeichen im Terminal via Backspace löschen
-		const backspaces = '\b \b'.repeat(inputBuffer.length);
-		term.write(backspaces);
-
-		// Neuen Text schreiben und Buffer aktualisieren
-		term.write(newText);
+		moveCursor(-cursorPos);
+		term.write(newText + '\x1b[K');
+		moveCursor(newCursor - newText.length);
 		inputBuffer = newText;
+		cursorPos = newCursor;
+	}
+
+	// Relative Cursorbewegung (negativ = links)
+	function moveCursor(delta: number): void {
+		if (delta < 0) term.write(`\x1b[${-delta}D`);
+		else if (delta > 0) term.write(`\x1b[${delta}C`);
+	}
+
+	function replaceLine(newText: string): void {
+		setBuffer(newText);
 	}
 
 	onMount(() => {
@@ -73,7 +82,48 @@
 				} else {
 					term.writeln('^C');
 					inputBuffer = '';
+					cursorPos = 0;
 					term.write(prompt());
+				}
+				return;
+			}
+
+			// Pfeil links
+			if (data === '\x1b[D' || data === '\x1bOD') {
+				if (cursorPos > 0) {
+					cursorPos--;
+					moveCursor(-1);
+				}
+				return;
+			}
+
+			// Pfeil rechts
+			if (data === '\x1b[C' || data === '\x1bOC') {
+				if (cursorPos < inputBuffer.length) {
+					cursorPos++;
+					moveCursor(1);
+				}
+				return;
+			}
+
+			// Pos1
+			if (data === '\x1b[H' || data === '\x1bOH' || data === '\x1b[1~') {
+				moveCursor(-cursorPos);
+				cursorPos = 0;
+				return;
+			}
+
+			// Ende
+			if (data === '\x1b[F' || data === '\x1bOF' || data === '\x1b[4~') {
+				moveCursor(inputBuffer.length - cursorPos);
+				cursorPos = inputBuffer.length;
+				return;
+			}
+
+			// Entf
+			if (data === '\x1b[3~') {
+				if (cursorPos < inputBuffer.length) {
+					setBuffer(inputBuffer.slice(0, cursorPos) + inputBuffer.slice(cursorPos + 1), cursorPos);
 				}
 				return;
 			}
@@ -106,6 +156,7 @@
 			// Ctrl+U (Zeile löschen)
 			if (data === '\x15') {
 				inputBuffer = '';
+				cursorPos = 0;
 				term.write('\x1b[2K\r'); // Löscht die aktuelle Zeile und setzt den Cursor an den Anfang
 				term.write(prompt());
 				historyIndex = -1; // Reset history index
@@ -116,6 +167,7 @@
 			if (data === '\x0c') {
 				term.clear();
 				inputBuffer = '';
+				cursorPos = 0;
 				term.write('\x1b[2K\r'); // Löscht die aktuelle Zeile und setzt den Cursor an den Anfang
 				term.write(prompt());
 				historyIndex = -1; // Reset history index
@@ -127,6 +179,7 @@
 				term.writeln('');
 				const trimmed = inputBuffer.trim();
 				inputBuffer = '';
+				cursorPos = 0;
 
 				if (trimmed.length > 0) {
 					history.push(trimmed);
@@ -143,17 +196,27 @@
 
 			// Backspace
 			if (data === '\x7f') {
-				if (inputBuffer.length > 0) {
-					inputBuffer = inputBuffer.slice(0, -1);
-					term.write('\b \b');
+				if (cursorPos > 0) {
+					setBuffer(
+						inputBuffer.slice(0, cursorPos - 1) + inputBuffer.slice(cursorPos),
+						cursorPos - 1
+					);
 				}
 				return;
 			}
 
-			// Eingabe puffern
+			// Eingabe an Cursorposition einfügen
 			if (data >= ' ') {
-				inputBuffer += data;
-				term.write(data);
+				if (cursorPos === inputBuffer.length) {
+					inputBuffer += data;
+					cursorPos += data.length;
+					term.write(data);
+				} else {
+					setBuffer(
+						inputBuffer.slice(0, cursorPos) + data + inputBuffer.slice(cursorPos),
+						cursorPos + data.length
+					);
+				}
 			}
 		});
 

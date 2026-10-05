@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { nodes } from '$lib/states/nodes.svelte';
-	import type { Host } from '$lib/engine/Host.svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { scale } from 'svelte/transition';
-	import Terminal from '$lib/components/controls/Window/Host/Terminal.svelte';
 	import { SwitchWifi } from '$lib/engine/SwitchWifi.svelte';
 	import SwitchSAT from '$lib/components/controls/Window/SwitchSAT.svelte';
 	import Sniffer from './Window/Sniffer.svelte';
 	import { Router } from '$lib/engine/Router.svelte';
+	import HostContent from './Window/HostContent.svelte';
+	import { Host } from '$lib/engine/Host.svelte';
 
 	let {
 		nodeUuid,
@@ -160,7 +160,7 @@
 		{#if isSniffer}
 			<Sniffer nodeUuid={sniffedNode!} linkLayerUuid={nodeUuid} />
 		{:else if type === 'notebook' || type === 'desktop'}
-			<Terminal {host} />
+			<HostContent {host} />
 		{:else if type === 'switch'}
 			<SwitchSAT switch_wifi={nodes.find((n) => n.uuid === nodeUuid) as SwitchWifi} />
 		{/if}

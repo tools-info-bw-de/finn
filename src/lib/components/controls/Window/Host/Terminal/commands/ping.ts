@@ -1,10 +1,10 @@
-import { isSameSubnet } from '$lib/engine/helpers';
+import { isSameSubnet, isValidIPv4 } from '$lib/engine/helpers';
 import type { CommandHandler } from '../types';
 
 export const pingCommand: CommandHandler = ({ term, args, currentNode, signal }) => {
 	const targetIp = args[0];
 
-	if (!targetIp) {
+	if (!targetIp || !isValidIPv4(targetIp)) {
 		term.writeln('\x1b[31mFehler: IP-Adresse angeben (z.B. ping 192.168.1.10)\x1b[0m');
 		return Promise.resolve();
 	}

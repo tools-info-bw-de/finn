@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { nodes, editNode, nodeToSniff, nodeSpawn } from '$lib/states/nodes.svelte';
+	import { nodes, editNode, nodeToSniff, nodeSpawn, windows } from '$lib/states/nodes.svelte';
 	import { cables, highlightedCable, newCable, removeCable } from '$lib/states/cables.svelte';
 	import cable from '$lib/assets/cable.png';
 	import notebook from '$lib/assets/laptop.png';
@@ -15,19 +15,7 @@
 	import { onMount } from 'svelte';
 	import { scale } from 'svelte/transition';
 
-	interface WindowData {
-		nodeUuid: string;
-		isSniffer: boolean;
-		sniffedNode?: string;
-		x: number;
-		y: number;
-		width: number;
-		height: number;
-		zIndex: number;
-		open: boolean;
-	}
-
-	let windows = $state<WindowData[]>([]);
+	//let windows = $state<WindowData[]>([]);
 	let visibleWindows = $derived.by(() => {
 		if (settings.mode === 'edit') {
 			return [];

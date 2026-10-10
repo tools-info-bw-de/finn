@@ -1,4 +1,4 @@
-import type { NetworkNode } from '$lib/engine/types';
+import type { NetworkNode, WindowData } from '$lib/engine/types';
 
 export const nodes = $state<NetworkNode[]>([]);
 
@@ -9,3 +9,5 @@ export const nodeToSniff = $state<{ nodeUuid: string; dataLinkLayerUuid: string 
 });
 
 export const nodeSpawn = $state<{ x: number; y: number }>({ x: 0, y: 0 });
+
+export const windows = $state<WindowData[]>([]);

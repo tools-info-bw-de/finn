@@ -99,6 +99,18 @@ export interface CableEndpoint {
 
 //------------------------
 
+export interface WindowData {
+	nodeUuid: string;
+	isSniffer: boolean;
+	sniffedNode?: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	zIndex: number;
+	open: boolean;
+}
+
 export interface TerminalState {
 	history: string[];
 	historyIndex: number; // -1 = aktueller Entwurf, >= 0 = Index in history (rückwärts)

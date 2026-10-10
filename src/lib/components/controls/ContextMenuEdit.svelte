@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { nodes } from '$lib/states/nodes.svelte';
+	import { nodes, windows } from '$lib/states/nodes.svelte';
 	import { Host } from '$lib/engine/Host.svelte';
 	import type { SwitchWifi } from '$lib/engine/SwitchWifi.svelte';
 	import { removeCable } from '$lib/states/cables.svelte';
@@ -14,6 +14,15 @@
 		if (index === -1) return; // uuid ungültig -> nichts löschen (sonst würde splice(-1,1) den letzten Node treffen)
 		deleteConnections();
 		nodes.splice(index, 1);
+
+		// delete windows if existing
+		let windowIndex = 1;
+		while (windowIndex !== -1) {
+			windowIndex = windows.findIndex((w) => w.nodeUuid === uuid || w.sniffedNode === uuid);
+			if (windowIndex !== -1) {
+				windows.splice(windowIndex, 1);
+			}
+		}
 	}
 
 	function deleteConnections() {

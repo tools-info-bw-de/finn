@@ -4,8 +4,13 @@ import type { CommandHandler } from '../types';
 export const pingCommand: CommandHandler = ({ term, args, currentNode, signal }) => {
 	const targetIp = args[0];
 
-	if (!targetIp || !isValidIPv4(targetIp)) {
+	if (!targetIp) {
 		term.writeln('\x1b[31mFehler: IP-Adresse angeben (z.B. ping 192.168.1.10)\x1b[0m');
+		return Promise.resolve();
+	}
+
+	if (!isValidIPv4(targetIp)) {
+		term.writeln(`\x1b[31mFehler: Ungültige IP-Adresse: ${targetIp}\x1b[0m`);
 		return Promise.resolve();
 	}
 

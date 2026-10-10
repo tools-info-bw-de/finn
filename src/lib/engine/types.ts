@@ -96,3 +96,20 @@ export interface CableEndpoint {
 	cable?: Cable;
 	receive(frame: EthernetFrame): void;
 }
+
+//------------------------
+
+export interface TerminalState {
+	history: string[];
+	historyIndex: number; // -1 = aktueller Entwurf, >= 0 = Index in history (rückwärts)
+	draftInput: string;
+	inputBuffer: string;
+	cursorPos: number;
+	screen: string | null; // null = noch nie geöffnet
+	running: boolean; // Befehl lief beim letzten Speichern
+}
+
+export type AppType = 'terminal' | 'dns';
+export type AppName = AppType | '';
+
+export type App = { type: 'terminal'; content: TerminalState } | { type: 'dns'; content: null };

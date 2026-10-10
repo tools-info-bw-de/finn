@@ -1,10 +1,28 @@
 import { DataLinkLayer } from './DataLinkLayer.svelte';
 import { NetworkLayer } from './NetworkLayer';
 import { ArpService } from './ArpService.svelte';
-import type { NetworkNode } from './types';
+import type { App, AppName, AppType, NetworkNode, TerminalState } from './types';
 import { NetworkConfig } from './NetworkConfig.svelte';
 import { ICMPService } from './ICMPService.svelte';
 import { nodeSpawn } from '$lib/states/nodes.svelte';
+
+function createApp(type: AppType): App {
+	if (type === 'terminal') {
+		return {
+			type,
+			content: {
+				history: [],
+				historyIndex: -1,
+				draftInput: '',
+				inputBuffer: '',
+				cursorPos: 0,
+				screen: null,
+				running: false
+			}
+		};
+	}
+	return { type, content: null };
+}
 
 // Ist entweder ein Notebook oder ein Rechner - wird nur durch den "type" unterschieden!
 export class Host implements NetworkNode {
@@ -15,6 +33,9 @@ export class Host implements NetworkNode {
 	public type: 'notebook' | 'desktop';
 	public x = $state<number>(0);
 	public y = $state<number>(0);
+
+	public apps = $state<App[]>([]);
+	public currentApp = $state<AppName>('');
 
 	public dataLinkLayer: DataLinkLayer;
 	public arpService: ArpService;
@@ -44,5 +65,26 @@ export class Host implements NetworkNode {
 
 		this.dataLinkLayer.upperLayer = this.networkLayer;
 		this.networkLayer.lowerLayer = this.dataLinkLayer;
+	}
+
+	public openApp(type: AppType): void {
+		if (!this.apps.some((app) => app.type === type)) {
+			this.apps.push(createApp(type));
+		}
+		this.currentApp = type;
+	}
+
+	// Entfernt die aktuelle App samt ihrem Zustand
+	public closeCurrentApp(): void {
+		this.apps = this.apps.filter((app) => app.type !== this.currentApp);
+		this.currentApp = '';
+	}
+
+	public terminalState(): TerminalState {
+		const app = this.apps.find(
+			(a): a is Extract<App, { type: 'terminal' }> => a.type === 'terminal'
+		);
+		if (!app) throw new Error('Terminal-App ist nicht geöffnet');
+		return app.content;
 	}
 }

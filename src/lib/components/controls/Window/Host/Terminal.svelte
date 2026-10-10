@@ -2,22 +2,32 @@
 	import { onMount } from 'svelte';
 	import { Terminal } from '@xterm/xterm';
 	import { FitAddon } from '@xterm/addon-fit';
+	import { SerializeAddon } from '@xterm/addon-serialize';
 	import { commandRegistry } from './Terminal/commands';
 	import { Host } from '$lib/engine/Host.svelte';
 	import '@xterm/xterm/css/xterm.css';
 
 	let { host }: { host: Host } = $props();
 
-	let history = $state<string[]>([]); // Befehlshistorie (chronologisch)
-	let historyIndex = $state<number>(-1); // -1 = Aktueller Entwurf, >= 0 = Index in history
-	let draftInput = $state<string>(''); // Zwischenspeicher für nicht abgesendeten Text
+	// muss auch nach Entfernen der App während der Outro-Animation gültig bleiben:
+	// svelte-ignore state_referenced_locally
+	const session = host.terminalState();
 
 	let containerEl: HTMLDivElement;
 	let term: Terminal;
 	let fitAddon: FitAddon;
+	let serializeAddon: SerializeAddon;
+	let disposed = false;
 	let inputBuffer = '';
 	let cursorPos = 0; // Position des Cursors innerhalb von inputBuffer
 	let activeController: AbortController | null = null;
+
+	function save(): void {
+		session.screen = serializeAddon.serialize();
+		session.inputBuffer = inputBuffer;
+		session.cursorPos = cursorPos;
+		session.running = activeController !== null;
+	}
 
 	function prompt(): string {
 		return `\x1b[1;32m${host.name}\x1b[0m:\x1b[1;34m~\x1b[0m$ `;
@@ -55,7 +65,9 @@
 		});
 
 		fitAddon = new FitAddon();
+		serializeAddon = new SerializeAddon();
 		term.loadAddon(fitAddon);
+		term.loadAddon(serializeAddon);
 		term.open(containerEl);
 		fitAddon.fit();
 
@@ -68,10 +80,28 @@
 			return true; // Allow other keys to be processed normally
 		});
 
-		// Startmeldung & Begrüßung
-		term.writeln(`Willkommen auf \x1b[1m${host.name}\x1b[0m (${host.config.ipAddress})`);
-		term.writeln('Verfügbare Befehle: ' + Object.keys(commandRegistry).join(', ') + ', clear\r\n');
-		term.write(prompt());
+		// Erst nach dem Parsen ist der Puffer aktuell
+		term.onWriteParsed(save);
+
+		if (session.screen !== null) {
+			const wasRunning = session.running;
+			inputBuffer = session.inputBuffer;
+			cursorPos = session.cursorPos;
+			term.write(session.screen);
+			if (wasRunning) {
+				// Laufende Befehle lassen sich nicht wiederherstellen
+				inputBuffer = '';
+				cursorPos = 0;
+				term.write('\r\n^C\r\n' + prompt());
+			}
+		} else {
+			// Startmeldung & Begrüßung
+			term.writeln(`Willkommen auf \x1b[1m${host.name}\x1b[0m (${host.config.ipAddress})`);
+			term.writeln(
+				'Verfügbare Befehle: ' + Object.keys(commandRegistry).join(', ') + ', clear\r\n'
+			);
+			term.write(prompt());
+		}
 
 		term.onData(async (data) => {
 			// Strg + C (Laufenden Befehl abbrechen)
@@ -130,24 +160,24 @@
 
 			// Pfeil hoch
 			if (data === '\x1b[A') {
-				if (historyIndex < history.length - 1) {
-					if (historyIndex === -1) {
-						draftInput = inputBuffer; // Zwischenspeichern des aktuellen Entwurfs
+				if (session.historyIndex < session.history.length - 1) {
+					if (session.historyIndex === -1) {
+						session.draftInput = inputBuffer; // Zwischenspeichern des aktuellen Entwurfs
 					}
-					historyIndex++;
-					replaceLine(history[history.length - 1 - historyIndex]);
+					session.historyIndex++;
+					replaceLine(session.history[session.history.length - 1 - session.historyIndex]);
 				}
 				return;
 			}
 
 			// Pfeil runter
 			if (data === '\x1b[B') {
-				if (historyIndex > -1) {
-					historyIndex--;
-					if (historyIndex === -1) {
-						replaceLine(draftInput);
+				if (session.historyIndex > -1) {
+					session.historyIndex--;
+					if (session.historyIndex === -1) {
+						replaceLine(session.draftInput);
 					} else {
-						replaceLine(history[history.length - 1 - historyIndex]);
+						replaceLine(session.history[session.history.length - 1 - session.historyIndex]);
 					}
 				}
 				return;
@@ -159,7 +189,7 @@
 				cursorPos = 0;
 				term.write('\x1b[2K\r'); // Löscht die aktuelle Zeile und setzt den Cursor an den Anfang
 				term.write(prompt());
-				historyIndex = -1; // Reset history index
+				session.historyIndex = -1; // Reset history index
 				return;
 			}
 
@@ -170,7 +200,7 @@
 				cursorPos = 0;
 				term.write('\x1b[2K\r'); // Löscht die aktuelle Zeile und setzt den Cursor an den Anfang
 				term.write(prompt());
-				historyIndex = -1; // Reset history index
+				session.historyIndex = -1; // Reset history index
 				return;
 			}
 
@@ -182,9 +212,9 @@
 				cursorPos = 0;
 
 				if (trimmed.length > 0) {
-					history.push(trimmed);
+					session.history.push(trimmed);
 				}
-				historyIndex = -1; // Reset history index
+				session.historyIndex = -1; // Reset history index
 
 				if (trimmed.length > 0) {
 					await dispatchCommand(trimmed);
@@ -225,6 +255,9 @@
 
 		return () => {
 			resizeObserver.disconnect();
+			save(); // vor abort(), damit running erhalten bleibt
+			activeController?.abort();
+			disposed = true;
 			term.dispose();
 		};
 	});
@@ -261,7 +294,7 @@
 			term.writeln(`Befehl nicht gefunden: ${cmdName}`);
 		}
 
-		term.write(prompt());
+		if (!disposed) term.write(prompt());
 	}
 </script>
 
@@ -270,7 +303,8 @@
 <style>
 	.terminal-container {
 		width: 100%;
-		height: 100%;
+		/*height: 100%;*/
+		overflow: hidden;
 		background: #181825;
 		padding: 8px;
 		box-sizing: border-box;

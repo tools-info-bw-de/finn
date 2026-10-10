@@ -17,7 +17,7 @@
 
 	interface WindowData {
 		nodeUuid: string;
-		type: 'apps' | 'sniffer';
+		isSniffer: boolean;
 		sniffedNode?: string;
 		x: number;
 		y: number;
@@ -277,25 +277,29 @@
 		// Zum Öffnen des Fensters im Play-Modus
 		if (settings.mode === 'play' && draggingNodeUuid) {
 			const node = nodes.find((n) => n.uuid === draggingNodeUuid);
-			if (node) {
-				// Prüfen, ob das Fenster bereits geöffnet ist
-				const existingWindow = windows.find((w) => w.nodeUuid === node.uuid && w.type === 'apps');
-				if (existingWindow) {
-					// Fenster in den Vordergrund bringen
-					focusWindow(node.uuid);
-				} else {
-					// Neues Fenster öffnen
-					windows.push({
-						nodeUuid: node.uuid,
-						type: 'apps',
-						x: 100,
-						y: 100,
-						width: 400,
-						height: 300,
-						open: true,
-						zIndex: ++windowsMaxZIndex
-					});
-				}
+
+			// beim Router gibts nichts zu öffnen
+			if (!node || (node && node.type === 'router')) {
+				return;
+			}
+
+			// Prüfen, ob das Fenster bereits geöffnet ist
+			const existingWindow = windows.find((w) => w.nodeUuid === node.uuid && w.isSniffer === false);
+			if (existingWindow) {
+				// Fenster in den Vordergrund bringen
+				focusWindow(node.uuid);
+			} else {
+				// Neues Fenster öffnen
+				windows.push({
+					nodeUuid: node.uuid,
+					isSniffer: false,
+					x: 100,
+					y: 100,
+					width: 400,
+					height: 300,
+					open: true,
+					zIndex: ++windowsMaxZIndex
+				});
 			}
 		}
 	}
@@ -366,7 +370,7 @@
 
 	function openSniffer() {
 		const existingWindow = windows.find(
-			(w) => w.nodeUuid === nodeToSniff.dataLinkLayerUuid && w.type === 'sniffer'
+			(w) => w.nodeUuid === nodeToSniff.dataLinkLayerUuid && w.isSniffer === true
 		);
 		if (existingWindow) {
 			focusWindow(nodeToSniff.dataLinkLayerUuid);
@@ -375,7 +379,7 @@
 
 			windows.push({
 				nodeUuid: nodeToSniff.dataLinkLayerUuid,
-				type: 'sniffer',
+				isSniffer: true,
 				sniffedNode: n.uuid,
 				x: 150,
 				y: 150,
@@ -529,7 +533,7 @@
 	{#each visibleWindows as win (win.nodeUuid)}
 		<Window
 			nodeUuid={win.nodeUuid}
-			isSniffer={win.type === 'sniffer'}
+			isSniffer={win.isSniffer}
 			sniffedNode={win.sniffedNode}
 			bind:x={win.x}
 			bind:y={win.y}

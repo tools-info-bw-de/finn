@@ -16,6 +16,8 @@ Die Seite verwendet Bilder von Flaticon.com:
 - Switch: <a href="https://www.flaticon.com/de/kostenlose-icons/modem" title="modem Icons">Modem Icons erstellt von vectorsmarket15 - Flaticon</a>
 - Router: <a href="https://www.flaticon.com/free-icons/isometric" title="isometric icons">Isometric icons created by Ylivdesign - Flaticon</a>
 - Host Menu <a href="https://www.flaticon.com/free-icons/menu" title="menu icons">Menu icons created by feen - Flaticon</a>
+- Terminal: <a href="https://www.flaticon.com/free-icons/terminal" title="terminal icons">Terminal icons created by Bharat Icons - Flaticon</a>
+- DNS: <a href="https://www.flaticon.com/free-icons/dns" title="dns icons">Dns icons created by Abbasi - Flaticon</a>
 
 ## Developing
 

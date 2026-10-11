@@ -283,8 +283,8 @@
 					isSniffer: false,
 					x: 100,
 					y: 100,
-					width: 400,
-					height: 300,
+					width: 500,
+					height: 400,
 					open: true,
 					zIndex: ++windowsMaxZIndex
 				});

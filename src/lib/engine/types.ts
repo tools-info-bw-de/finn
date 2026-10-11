@@ -125,4 +125,4 @@ export type AppType =
 	'terminal' | 'dns' | 'echo-server' | 'simple-client' | 'web-server' | 'web-browser' | 'editor';
 export type AppName = AppType | '';
 
-export type App = { type: 'terminal'; content: TerminalState } | { type: 'dns'; content: null };
+export type App = { type: AppType; content: TerminalState };

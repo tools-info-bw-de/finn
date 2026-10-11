@@ -2,8 +2,11 @@
 	import type { Host } from '$lib/engine/Host.svelte';
 	import startMenu from '$lib/assets/start-menu.png';
 	import Terminal from './Host/Terminal.svelte';
+	import terminal from '$lib/assets/terminal.png';
+	import dns from '$lib/assets/dns.png';
 	import { fly, scale } from 'svelte/transition';
 	import type { AppType } from '$lib/engine/types';
+	import HostAppDock from './Host/HostAppDock.svelte';
 
 	let { host }: { host: Host } = $props();
 
@@ -56,10 +59,16 @@
 				out:scale={{ start: 0.9, duration: switchingApp ? 0 : 400 }}
 			>
 				{#if host.currentApp === 'terminal'}
-					<div class="appTitle">Terminal</div>
+					<div class="appTitle">
+						<img src={terminal} alt="Terminal" />
+						Terminal
+					</div>
 					<Terminal {host} />
 				{:else if host.currentApp === 'dns'}
-					<div class="appTitle">DNS</div>
+					<div class="appTitle">
+						<img src={dns} alt="DNS" />
+						DNS
+					</div>
 					<!-- DNS App Content Here -->
 				{/if}
 			</div>
@@ -89,7 +98,10 @@
 							href="#"
 							onclick={() => {
 								openApp('terminal');
-							}}>Terminal</a
+							}}
+						>
+							<img src={terminal} alt="Terminal" />
+							Terminal</a
 						>
 					</li>
 					<li>
@@ -98,7 +110,10 @@
 							href="#"
 							onclick={() => {
 								openApp('dns');
-							}}>DNS-Server</a
+							}}
+						>
+							<img src={dns} alt="DNS" />
+							DNS-Server</a
 						>
 					</li>
 					<li class="dropend">
@@ -188,27 +203,19 @@
 				</ul>
 			{/if}
 		</div>
-		<div class="flex-grow-1 app-dock">
-			{#each host.apps as app (app.type)}
-				<button
-					class="startMenuButton"
-					onclick={() => {
-						openApp(app.type);
-					}}
-				>
-					{app.type}
-				</button>
-			{/each}
-		</div>
+		<HostAppDock apps={host.apps} {openApp} />
 	</div>
 </div>
 
 <style>
-	.app-dock {
-		border: 1px solid #45475a7c;
-		margin: 2px 4px;
-		border-radius: 8px;
-		backdrop-filter: blur(5px) saturate(0.7);
+	.appTitle img {
+		width: 24px;
+		height: 24px;
+	}
+
+	li a img {
+		width: 24px;
+		height: 24px;
 	}
 
 	.startMenuContent,

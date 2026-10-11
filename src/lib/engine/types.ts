@@ -121,7 +121,8 @@ export interface TerminalState {
 	running: boolean; // Befehl lief beim letzten Speichern
 }
 
-export type AppType = 'terminal' | 'dns';
+export type AppType =
+	'terminal' | 'dns' | 'echo-server' | 'simple-client' | 'web-server' | 'web-browser' | 'editor';
 export type AppName = AppType | '';
 
 export type App = { type: 'terminal'; content: TerminalState } | { type: 'dns'; content: null };

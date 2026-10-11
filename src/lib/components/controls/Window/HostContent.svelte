@@ -7,13 +7,14 @@
 
 	let { host }: { host: Host } = $props();
 
+	let subMenuOpen = $state(0);
 	let startMenuOpen = $state(false);
 
 	function windowClick(event: MouseEvent) {
 		if (startMenuOpen) {
 			const target = event.target as HTMLElement;
 			if (!target.closest('.dropup')) {
-				startMenuOpen = false;
+				closeMenus();
 			}
 		}
 	}
@@ -22,11 +23,17 @@
 	let switchingApp = $state(false);
 
 	function openApp(appType: AppType) {
-		startMenuOpen = false;
+		closeMenus();
+
 		if (host.currentApp === appType) return;
 
 		switchingApp = true;
 		host.openApp(appType);
+	}
+
+	function closeMenus() {
+		subMenuOpen = 0;
+		startMenuOpen = false;
 	}
 
 	// Call to close the current app; its window plays the out animation
@@ -63,13 +70,19 @@
 		<div class="dropup">
 			<button
 				class="startMenuButton dropdown-toggle"
-				onclick={() => (startMenuOpen = !startMenuOpen)}
-				><img src={startMenu} alt="Icon" />Start</button
+				data-bs-auto-close="outside"
+				onclick={() => {
+					if (startMenuOpen) {
+						closeMenus();
+					} else {
+						startMenuOpen = true;
+					}
+				}}><img src={startMenu} alt="Icon" />Start</button
 			>
 
 			{#if startMenuOpen}
 				<!-- svelte-ignore a11y_invalid_attribute -->
-				<ul class="startMenuContent dropdown-menu show" transition:fly={{ y: 10, duration: 200 }}>
+				<ul class="startMenuContent dropdown-menu show" transition:fly={{ y: 10, duration: 150 }}>
 					<li>
 						<a
 							class="dropdown-item"
@@ -87,6 +100,87 @@
 								openApp('dns');
 							}}>DNS-Server</a
 						>
+					</li>
+					<li class="dropend">
+						<a
+							class="dropdown-item dropdown-toggle"
+							data-bs-auto-close="outside"
+							href="#"
+							onclick={() => {
+								if (subMenuOpen === 1) {
+									subMenuOpen = 0;
+								} else {
+									subMenuOpen = 1;
+								}
+							}}>Echo-Server</a
+						>
+						{#if subMenuOpen === 1}
+							<ul class="subMenu dropdown-menu show" transition:fly={{ x: -10, duration: 150 }}>
+								<li>
+									<a
+										class="dropdown-item"
+										href="#"
+										onclick={() => {
+											openApp('echo-server');
+										}}>Echo-Server</a
+									>
+								</li>
+								<li>
+									<a
+										class="dropdown-item"
+										href="#"
+										onclick={() => {
+											openApp('simple-client');
+										}}>Einfacher Client</a
+									>
+								</li>
+							</ul>
+						{/if}
+					</li>
+					<li class="dropend">
+						<a
+							class="dropdown-item dropdown-toggle"
+							data-bs-auto-close="outside"
+							href="#"
+							onclick={() => {
+								if (subMenuOpen === 2) {
+									subMenuOpen = 0;
+								} else {
+									subMenuOpen = 2;
+								}
+							}}>WWW</a
+						>
+						{#if subMenuOpen === 2}
+							<ul class="subMenu dropdown-menu show" transition:fly={{ x: -10, duration: 150 }}>
+								<li>
+									<a
+										class="dropdown-item"
+										href="#"
+										onclick={() => {
+											openApp('web-server');
+										}}>Web-Server</a
+									>
+								</li>
+								<li>
+									<a
+										class="dropdown-item"
+										href="#"
+										onclick={() => {
+											openApp('web-browser');
+										}}>Web-Browser</a
+									>
+								</li>
+								<li>
+									<a
+										class="dropdown-item"
+										href="#"
+										onclick={() => {
+											openApp('editor');
+										}}>Editor</a
+									>
+								</li>
+							</ul>
+						{/if}
 					</li>
 					<li>
 						<a class="dropdown-item" href="#" onclick={() => closeApp()}>Close current app</a>
@@ -117,9 +211,41 @@
 		backdrop-filter: blur(5px) saturate(0.7);
 	}
 
+	.startMenuContent,
+	.subMenu {
+		background-color: transparent;
+	}
+
 	.startMenuContent {
 		bottom: 100%;
 		top: auto;
+	}
+
+	/* Blur on a pseudo-element: a nested backdrop-filter would otherwise not see the window behind */
+	.startMenuContent::before,
+	.subMenu::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		border-radius: inherit;
+		backdrop-filter: blur(5px);
+		background-color: #ffffff94;
+	}
+
+	.dropdown-item {
+		color: black !important;
+	}
+
+	.dropdown-item::after {
+		margin-left: 0.5rem;
+	}
+
+	.subMenu {
+		top: auto;
+		bottom: calc(-1 * var(--bs-dropdown-padding-y));
+		left: 100%;
+		right: auto;
 	}
 
 	.windowArea {

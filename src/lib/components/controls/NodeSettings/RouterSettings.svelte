@@ -4,6 +4,7 @@
 	import { RouterInterface } from '$lib/engine/RouterInterface.svelte';
 	import { highlightedCable } from '$lib/states/cables.svelte';
 	import { onDestroy } from 'svelte';
+	import { IPv4Pattern, isValidNetmask } from '$lib/engine/helpers';
 
 	let n: Router | undefined = $derived(nodes.find((n) => n.uuid === editNode.uuid)) as
 		Router | undefined;
@@ -84,22 +85,20 @@
 		</div>
 	</div>
 {:else if selectedTab.startsWith('interface-')}
+	{@const iface = n?.interfaces[parseInt(selectedTab.split('-')[1])] as RouterInterface}
 	<div class="row mb-3">
 		<label for="ip" class="col-sm-2 col-form-label">IP-Adresse</label>
-		<div class="col-sm-10">
+		<div class="col-sm-10 was-validated">
 			{#if n}
 				<input
-					bind:value={
-						(n.interfaces[parseInt(selectedTab.split('-')[1])] as RouterInterface).networkLayer
-							.config.ipAddress
-					}
+					bind:value={iface.networkLayer.config.ipAddress}
 					type="text"
 					onchange={() => {
-						n.updateConnectedRoute(
-							n.interfaces[parseInt(selectedTab.split('-')[1])] as RouterInterface
-						);
+						n.updateConnectedRoute(iface);
 					}}
 					class="form-control"
+					pattern={IPv4Pattern}
+					required
 					id="ip"
 				/>
 			{/if}
@@ -110,18 +109,17 @@
 		<div class="col-sm-10">
 			{#if n}
 				<input
-					bind:value={
-						(n.interfaces[parseInt(selectedTab.split('-')[1])] as RouterInterface).networkLayer
-							.config.netmask
-					}
+					bind:value={iface.networkLayer.config.netmask}
 					type="text"
 					onchange={() => {
-						n.updateConnectedRoute(
-							n.interfaces[parseInt(selectedTab.split('-')[1])] as RouterInterface
-						);
+						n.updateConnectedRoute(iface);
 					}}
-					class="form-control"
+					class="form-control {iface.networkLayer.config.netmask &&
+					!isValidNetmask(iface.networkLayer.config.netmask)
+						? 'is-invalid'
+						: 'is-valid'}"
 					id="netmask"
+					required
 				/>
 			{/if}
 		</div>
@@ -131,8 +129,7 @@
 		<div class="col-sm-10">
 			{#if n}
 				<input
-					value={(n.interfaces[parseInt(selectedTab.split('-')[1])] as RouterInterface).networkLayer
-						.config.macAddress}
+					value={iface.networkLayer.config.macAddress}
 					disabled
 					type="text"
 					class="form-control"

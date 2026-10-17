@@ -15,6 +15,21 @@ export function generateRandomMac(): string {
 export const IPv4Pattern: string =
 	'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$';
 
+export const NetmaskPattern: string =
+	'^((255|254|252|248|240|224|192|128|0)\\.){3}(255|254|252|248|240|224|192|128|0)$';
+
+export function isValidNetmask(mask: string): boolean {
+	const regex = new RegExp(NetmaskPattern);
+	if (!regex.test(mask)) {
+		return false;
+	}
+
+	const maskInt = ipToInt(mask);
+	// Prüfen, ob die Maske eine gültige Subnetzmaske ist (nur zusammenhängende 1er-Bits)
+	const inverseMask = ~maskInt >>> 0;
+	return (inverseMask & (inverseMask + 1)) === 0;
+}
+
 export function isValidIPv4(ip: string): boolean {
 	const regex = new RegExp(IPv4Pattern);
 	return regex.test(ip);

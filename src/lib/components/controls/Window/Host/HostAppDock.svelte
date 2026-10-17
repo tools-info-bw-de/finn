@@ -2,6 +2,7 @@
 	import type { App, AppType } from '$lib/engine/types';
 	import terminal from '$lib/assets/terminal.png';
 	import dns from '$lib/assets/dns.png';
+	import { slide } from 'svelte/transition';
 
 	let { apps, openApp }: { apps: App[]; openApp: (appType: AppType) => void } = $props();
 </script>
@@ -9,7 +10,7 @@
 <div class="flex-grow-1 app-dock">
 	{#each apps as app (app.type)}
 		<button
-			class=""
+			transition:slide={{ axis: 'x' }}
 			onclick={() => {
 				openApp(app.type);
 			}}
@@ -38,7 +39,6 @@
 	img {
 		width: 30px;
 		height: 30px;
-		/* background-color: white; */
 	}
 
 	.app-dock {

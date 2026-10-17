@@ -405,7 +405,7 @@
 	class="viewport"
 	class:panning={isPanning}
 	style="background-size: {24 * zoom}px {24 *
-		zoom}px; background-position: {pan.x}px {pan.y}px; background-image: radial-gradient(#45475a {1 *
+		zoom}px; background-position: {pan.x}px {pan.y}px; background-image: radial-gradient(#353749 {1 *
 		zoom}px, transparent {1 * zoom}px);"
 	onwheel={handleWheel}
 	onpointerdown={handleViewportPointerDown}
@@ -594,7 +594,7 @@
 		position: relative;
 		width: 100%;
 		height: 100%;
-		background-color: #1e1e2e;
+		background-color: #161622;
 		overflow: hidden;
 		user-select: none;
 		cursor: grab;
@@ -704,9 +704,5 @@
 
 	.network-node:active {
 		cursor: grabbing !important;
-	}
-
-	.network-node > img {
-		filter: drop-shadow(4px 4px 6px rgba(148, 148, 148, 0.4));
 	}
 </style>

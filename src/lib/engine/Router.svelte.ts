@@ -22,15 +22,56 @@ export class Router implements NetworkNode {
 	public interfaces = $state<RouterInterface[]>([]);
 	public routingTable = $state<RouteEntry[]>([]);
 
-	constructor(name: string) {
+	/**
+	 * Erzeugt einen neuen Router mit dem angegebenen Namen. Optionaler Parameter gibt an, wie viele Interfaces aus Datei geladen werden (sofern vorhanden).
+	 * @param name
+	 * @param loadInterfaces Gibt an, wie viele Interfaces aus der Datei geladen werden (falls es eine gibt). Entsprechend weniger Interfaces vom Default 2 werden erzeugt.
+	 */
+	constructor(name: string, loadInterfaces: number = 0) {
 		this.uuid = crypto.randomUUID();
 		this.name = name;
 		this.type = 'router';
 		this.x = nodeSpawn.x;
 		this.y = nodeSpawn.y;
 
-		this.addInterface();
-		this.addInterface();
+		// Der Parameter loadInterfaces gibt an, wie viele Interfaces aus der Datei geladen werden sollen.
+		// Wenn er 0 ist, werden 2 leere Default-Interfaces erzeugt (Standard).
+		// Wenn er 1 ist, wird 1 Default-Interface erzeugt (das andere wird aus der Datei direkt mit Werten bestückt).
+		// Wenn er größer als 1 ist, werden keine Interfaces erzeugt (da sie aus der Datei geladen werden und direkt mit Werten bestückt werden).
+		if (loadInterfaces == 1) {
+			this.addInterface();
+		} else if (loadInterfaces == 0) {
+			this.addInterface();
+			this.addInterface();
+		}
+	}
+
+	public addInterfaceFromFile(
+		uuid: string,
+		dataLinkLayerUuid: string,
+		ipAddress: string,
+		netmask: string,
+		macAddress: string,
+		gateway: string
+	): RouterInterface {
+		const iface = new RouterInterface(
+			uuid,
+			dataLinkLayerUuid,
+			macAddress,
+			ipAddress,
+			netmask,
+			gateway
+		);
+
+		this.interfaces.push(iface);
+
+		// Automatische Subnetz-Route eintragen
+		this.updateConnectedRoute(iface);
+
+		// Paket-Empfang an dieses Interface koppeln
+		this.attachPacketListener(iface);
+
+		return iface;
 	}
 
 	/**

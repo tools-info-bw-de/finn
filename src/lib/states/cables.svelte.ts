@@ -58,3 +58,37 @@ export function getCableEndpoint(nodeUuid: string): CableEndpoint {
 		throw new Error(`Unknown node type: ${node.type}`);
 	}
 }
+
+/**
+ * Returns a specific cable endpoint by its node and endpoint UUIDs. Needed for loading saved state.
+ * @param nodeUuid The UUID of the node to which the endpoint belongs.
+ * @param endpointUuid The UUID of the endpoint.
+ * @returns The cable endpoint, or undefined if not found.
+ */
+export function getCableEndpointByUuid(
+	nodeUuid: string,
+	endpointUuid: string
+): CableEndpoint | undefined {
+	if (!endpointUuid) return getCableEndpoint(nodeUuid);
+
+	const node = nodes.find((n) => n.uuid === nodeUuid);
+	if (!node) return undefined;
+
+	if (node.type === 'notebook' || node.type === 'desktop') {
+		const host = node as Host;
+		if (host.dataLinkLayer.uuid === endpointUuid) {
+			return host.dataLinkLayer;
+		}
+	} else if (node.type === 'switch') {
+		const switchDevice = node as SwitchWifi;
+		return switchDevice.getPort();
+	} else if (node.type === 'router') {
+		const router = node as Router;
+		const iface = router.interfaces.find((i) => i.dataLinkLayer.uuid === endpointUuid);
+		if (iface) {
+			return iface.dataLinkLayer;
+		}
+	}
+
+	return undefined;
+}

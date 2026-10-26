@@ -48,15 +48,21 @@ export class Host implements NetworkNode {
 		macAddress: string,
 		ipAddress: string,
 		netmask: string,
-		type: 'notebook' | 'desktop'
+		type: 'notebook' | 'desktop',
+		gateway?: string,
+		dataLinkLayerUuid?: string
 	) {
-		this.name = name;
 		this.config = new NetworkConfig(macAddress, ipAddress, netmask);
+		if (gateway) this.config.gateway = gateway;
+
+		this.name = name;
 		this.type = type;
 		this.x = nodeSpawn.x;
 		this.y = nodeSpawn.y;
 
 		this.dataLinkLayer = new DataLinkLayer(this.config);
+		if (dataLinkLayerUuid) this.dataLinkLayer.uuid = dataLinkLayerUuid;
+
 		this.arpService = new ArpService(this.config, this.dataLinkLayer);
 		this.networkLayer = new NetworkLayer(this.config, this.arpService);
 

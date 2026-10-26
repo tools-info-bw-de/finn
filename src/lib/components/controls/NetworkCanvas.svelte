@@ -14,6 +14,7 @@
 	import ContextMenuPlay from './ContextMenuPlay.svelte';
 	import { onMount } from 'svelte';
 	import { scale } from 'svelte/transition';
+	import { pan, zoom } from '$lib/states/canvas.svelte';
 
 	//let windows = $state<WindowData[]>([]);
 	let visibleWindows = $derived.by(() => {
@@ -29,15 +30,12 @@
 	let windowsMaxZIndex = $state(100);
 	let viewportEl: HTMLDivElement;
 
-	let pan = $state({ x: 0, y: 0 });
-	let zoom = $state(1);
-
 	const MIN_ZOOM = 0.3;
 	const MAX_ZOOM = 2.0;
 
 	function updateNodeSpawn() {
-		nodeSpawn.x = (viewportEl.clientWidth / 6 - pan.x) / zoom;
-		nodeSpawn.y = (viewportEl.clientHeight / 5 - pan.y) / zoom;
+		nodeSpawn.x = (viewportEl.clientWidth / 6 - pan.x) / zoom.value;
+		nodeSpawn.y = (viewportEl.clientHeight / 5 - pan.y) / zoom.value;
 	}
 
 	onMount(() => {
@@ -82,19 +80,19 @@
 
 		e.preventDefault();
 		const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-		const newZoom = Math.min(Math.max(zoom * zoomFactor, MIN_ZOOM), MAX_ZOOM);
+		const newZoom = Math.min(Math.max(zoom.value * zoomFactor, MIN_ZOOM), MAX_ZOOM);
 
-		if (newZoom === zoom) return;
+		if (newZoom === zoom.value) return;
 
 		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 		const mouseX = e.clientX - rect.left;
 		const mouseY = e.clientY - rect.top;
 
-		const scaleChange = newZoom / zoom;
+		const scaleChange = newZoom / zoom.value;
 		pan.x = mouseX - (mouseX - pan.x) * scaleChange;
 		pan.y = mouseY - (mouseY - pan.y) * scaleChange;
 
-		zoom = newZoom;
+		zoom.value = newZoom;
 		updateNodeSpawn();
 	}
 
@@ -175,8 +173,8 @@
 		if (!rect) return { x: 0, y: 0 };
 
 		return {
-			x: (clientX - rect.left - pan.x) / zoom,
-			y: (clientY - rect.top - pan.y) / zoom
+			x: (clientX - rect.left - pan.x) / zoom.value,
+			y: (clientY - rect.top - pan.y) / zoom.value
 		};
 	}
 
@@ -203,8 +201,8 @@
 			const node = nodes.find((n) => n.uuid === draggingNodeUuid);
 			if (node) {
 				// WICHTIG: Distanz durch Zoom teilen!
-				node.x = startNodePos.x + dx / zoom;
-				node.y = startNodePos.y + dy / zoom;
+				node.x = startNodePos.x + dx / zoom.value;
+				node.y = startNodePos.y + dy / zoom.value;
 			}
 		}
 
@@ -404,17 +402,19 @@
 	bind:this={viewportEl}
 	class="viewport"
 	class:panning={isPanning}
-	style="background-size: {24 * zoom}px {24 *
-		zoom}px; background-position: {pan.x}px {pan.y}px; background-image: radial-gradient(#353749 {1 *
-		zoom}px, transparent {1 * zoom}px);"
+	style="background-size: {24 * zoom.value}px {24 *
+		zoom.value}px; background-position: {pan.x}px {pan.y}px; background-image: radial-gradient(#353749 {1 *
+		zoom.value}px, transparent {1 * zoom.value}px);"
 	onwheel={handleWheel}
 	onpointerdown={handleViewportPointerDown}
 >
-	<button class="zoom-indicator" onclick={() => (zoom = 1)}>{Math.round(zoom * 100)}%</button>
+	<button class="zoom-indicator" onclick={() => (zoom.value = 1)}
+		>{Math.round(zoom.value * 100)}%</button
+	>
 
 	<div
 		class="world"
-		style="transform: translate({pan.x}px, {pan.y}px) scale({zoom}); "
+		style="transform: translate({pan.x}px, {pan.y}px) scale({zoom.value}); "
 		oncontextmenu={onContextMenuCanvas}
 	>
 		<svg class="svg-layer">

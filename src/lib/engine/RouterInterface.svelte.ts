@@ -13,9 +13,25 @@ export class RouterInterface {
 	public networkLayer: NetworkLayer;
 	public icmp: ICMPService;
 
-	constructor() {
-		this.config = new NetworkConfig(generateRandomMac(), '192.168.0.10', '255.255.255.0');
+	constructor(
+		uuid?: string,
+		dataLinkLayerUuid?: string,
+		macAddress?: string,
+		ipAddress?: string,
+		netmask?: string,
+		gateway?: string
+	) {
+		if (uuid) this.uuid = uuid;
+
+		this.config = new NetworkConfig(
+			macAddress || generateRandomMac(),
+			ipAddress || '192.168.0.10',
+			netmask || '255.255.255.0'
+		);
+		if (gateway) this.config.gateway = gateway;
 		this.dataLinkLayer = new DataLinkLayer(this.config);
+		if (dataLinkLayerUuid) this.dataLinkLayer.uuid = dataLinkLayerUuid;
+
 		this.arpService = new ArpService(this.config, this.dataLinkLayer);
 		this.networkLayer = new NetworkLayer(this.config, this.arpService, true);
 		this.icmp = new ICMPService(this.networkLayer);

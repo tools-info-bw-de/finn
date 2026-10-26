@@ -6,8 +6,8 @@ import { getColorForProtocol } from './helpers.ts';
 
 export class Cable {
 	public uuid: string;
-	private endA?: CableEndpoint;
-	private endB?: CableEndpoint;
+	public endA?: CableEndpoint;
+	public endB?: CableEndpoint;
 
 	public highlighted = $state<boolean>(false);
 	private currentlyTransmitting = $state<EthernetFrame[]>([]);

@@ -13,6 +13,11 @@ export class SimulationEventBus {
 		return SimulationEventBus.instance;
 	}
 
+	public clear(): void {
+		this.listeners.clear();
+		this.branchCounts.clear();
+	}
+
 	public onExtinct(timeoutUuid: string, callback: ExtinctListener): void {
 		const current = this.listeners.get(timeoutUuid) || [];
 		this.listeners.set(timeoutUuid, [...current, callback]);

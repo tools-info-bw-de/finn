@@ -425,7 +425,9 @@
 				<g
 					class="path-group"
 					onclick={() => {
-						removeCable(c.cableuuid);
+						if (settings.mode === 'edit') {
+							removeCable(c.cableuuid);
+						}
 					}}
 				>
 					<path class="hitbox" d={getCablePath(start.x, start.y, end.x, end.y)} />

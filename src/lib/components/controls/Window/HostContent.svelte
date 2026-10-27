@@ -7,6 +7,7 @@
 	import { fly, scale } from 'svelte/transition';
 	import type { AppType } from '$lib/engine/types';
 	import HostAppDock from './Host/HostAppDock.svelte';
+	import DNS from './Host/DNS.svelte';
 
 	let { host }: { host: Host } = $props();
 
@@ -69,7 +70,7 @@
 						<img src={dns} alt="DNS" />
 						DNS
 					</div>
-					<!-- DNS App Content Here -->
+					<DNS {host} />
 				{/if}
 			</div>
 		{/key}

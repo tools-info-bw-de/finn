@@ -121,8 +121,36 @@ export interface TerminalState {
 	running: boolean; // Befehl lief beim letzten Speichern
 }
 
+export interface DNSState {
+	serverRunning: boolean;
+	records: (NSRecord | MXRecord | ARecord)[]; // value = IP für A, NS-Domain für NS, MX-Domain für MX
+}
+
 export type AppType =
 	'terminal' | 'dns' | 'echo-server' | 'simple-client' | 'web-server' | 'web-browser' | 'editor';
 export type AppName = AppType | '';
 
-export type App = { type: AppType; content: TerminalState };
+export type App = { type: AppType; content: TerminalState | DNSState };
+
+//------------------------
+
+export interface ARecord {
+	uuid: string;
+	type: 'A';
+	domain: string;
+	ip: string;
+}
+
+export interface NSRecord {
+	uuid: string;
+	type: 'NS';
+	domain: string;
+	nsDomain: string;
+}
+
+export interface MXRecord {
+	uuid: string;
+	type: 'MX';
+	domain: string;
+	mxDomain: string;
+}

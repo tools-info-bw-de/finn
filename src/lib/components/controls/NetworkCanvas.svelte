@@ -440,7 +440,6 @@
 						class="cable"
 					/>
 				</g>
-				<!-- fill="#f38ba8" -->
 				<circle
 					r="8"
 					fill={c.cable.transmissionColor}

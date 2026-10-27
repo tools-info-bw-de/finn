@@ -1,7 +1,7 @@
 import { DataLinkLayer } from './DataLinkLayer.svelte';
 import { NetworkLayer } from './NetworkLayer';
 import { ArpService } from './ArpService.svelte';
-import type { App, AppName, AppType, NetworkNode, TerminalState } from './types';
+import type { App, AppName, AppType, DNSState, NetworkNode, TerminalState } from './types';
 import { NetworkConfig } from './NetworkConfig.svelte';
 import { ICMPService } from './ICMPService.svelte';
 import { nodeSpawn } from '$lib/states/nodes.svelte';
@@ -18,6 +18,14 @@ function createApp(type: AppType): App {
 				cursorPos: 0,
 				screen: null,
 				running: false
+			}
+		};
+	} else if (type === 'dns') {
+		return {
+			type,
+			content: {
+				serverRunning: false,
+				records: []
 			}
 		};
 	}
@@ -91,6 +99,12 @@ export class Host implements NetworkNode {
 			(a): a is Extract<App, { type: 'terminal' }> => a.type === 'terminal'
 		);
 		if (!app) throw new Error('Terminal-App ist nicht geöffnet');
+		return app.content;
+	}
+
+	public dnsState(): DNSState {
+		const app = this.apps.find((a): a is Extract<App, { type: 'dns' }> => a.type === 'dns');
+		if (!app) throw new Error('DNS-App ist nicht geöffnet');
 		return app.content;
 	}
 }

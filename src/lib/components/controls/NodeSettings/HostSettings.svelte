@@ -73,6 +73,19 @@
 				/>
 			{/if}
 		</div>
+
+		<label for="dns" class="col-sm col-form-label">Domain Name Server</label>
+		<div class="col-sm-10 was-validated">
+			{#if n}
+				<input
+					bind:value={n.config.dns}
+					type="text"
+					class="form-control"
+					id="dns"
+					pattern={IPv4Pattern}
+				/>
+			{/if}
+		</div>
 	</div>
 
 	<form>

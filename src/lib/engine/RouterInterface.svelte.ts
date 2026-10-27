@@ -29,6 +29,7 @@ export class RouterInterface {
 			netmask || '255.255.255.0'
 		);
 		if (gateway) this.config.gateway = gateway;
+
 		this.dataLinkLayer = new DataLinkLayer(this.config);
 		if (dataLinkLayerUuid) this.dataLinkLayer.uuid = dataLinkLayerUuid;
 

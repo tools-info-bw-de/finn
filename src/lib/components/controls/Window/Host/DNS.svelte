@@ -56,25 +56,6 @@
 			if (event.currentTarget instanceof HTMLElement) event.currentTarget.blur();
 		}
 	}
-
-	function handleBlur(event: FocusEvent) {
-		const target = event.target as HTMLElement;
-		const newValue = target.innerText.trim();
-		const row = target.closest('tr');
-		if (!row) return;
-		const recordUuid = row.getAttribute('data-uuid');
-		if (!recordUuid) return;
-		const record = session.records.find((r) => r.uuid === recordUuid);
-		if (!record) return;
-
-		if (record.type === 'A') {
-			record.ip = newValue;
-		} else if (record.type === 'NS') {
-			record.nsDomain = newValue;
-		} else if (record.type === 'MX') {
-			record.mxDomain = newValue;
-		}
-	}
 </script>
 
 <div class="background p-2 flex-fill d-flex flex-column">
@@ -184,66 +165,52 @@
 
 	<hr class="my-2" />
 
-	<div class="records-scroll">
-		<table class="table table-sm table-hover mb-0 table-bordered">
-			<thead>
-				<tr>
-					<th scope="col">Typ</th>
-					<th scope="col">Domain</th>
-					<th scope="col">Wert</th>
-					<th></th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each session.records as record (record.uuid)}
+	{#if session.records.length === 0}
+		<div class="text-center">Noch keine Einträge vorhanden</div>
+	{:else}
+		<div class="records-scroll">
+			<table class="table table-sm table-hover mb-0 table-bordered">
+				<thead>
 					<tr>
-						<td>{record.type}</td>
-						<td
-							bind:textContent={record.domain}
-							contenteditable
-							onkeydown={handleKeyDown}
-							onblur={handleBlur}
-						></td>
-						{#if record.type === 'A'}
-							<td
-								bind:textContent={record.ip}
-								contenteditable
-								onkeydown={handleKeyDown}
-								onblur={handleBlur}
-							></td>
-						{:else if record.type === 'NS'}
-							<td
-								bind:textContent={record.nsDomain}
-								contenteditable
-								onkeydown={handleKeyDown}
-								onblur={handleBlur}
-							></td>
-						{:else if record.type === 'MX'}
-							<td
-								bind:textContent={record.mxDomain}
-								contenteditable
-								onkeydown={handleKeyDown}
-								onblur={handleBlur}
-							></td>
-						{/if}
-						<td class="d-flex flex-column align-items-center mx-auto">
-							<button
-								class="btn btn-danger btn-sm"
-								onclick={() =>
-									(session.records = session.records.filter((r) => r.uuid !== record.uuid))}
-							>
-								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"
-									><!--!Font Awesome Free v7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path
-										d="M232.7 69.9L224 96L128 96C110.3 96 96 110.3 96 128C96 145.7 110.3 160 128 160L512 160C529.7 160 544 145.7 544 128C544 110.3 529.7 96 512 96L416 96L407.3 69.9C402.9 56.8 390.7 48 376.9 48L263.1 48C249.3 48 237.1 56.8 232.7 69.9zM512 208L128 208L149.1 531.1C150.7 556.4 171.7 576 197 576L443 576C468.3 576 489.3 556.4 490.9 531.1L512 208z"
-									/></svg
-								></button
-							>
-						</td>
+						<th scope="col">Typ</th>
+						<th scope="col">Domain</th>
+						<th scope="col">Wert</th>
+						<th></th>
 					</tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
+				</thead>
+				<tbody>
+					{#each session.records as record (record.uuid)}
+						<tr>
+							<td>{record.type}</td>
+							<td bind:textContent={record.domain} contenteditable onkeydown={handleKeyDown}></td>
+							{#if record.type === 'A'}
+								<td bind:textContent={record.ip} contenteditable onkeydown={handleKeyDown}></td>
+							{:else if record.type === 'NS'}
+								<td bind:textContent={record.nsDomain} contenteditable onkeydown={handleKeyDown}
+								></td>
+							{:else if record.type === 'MX'}
+								<td bind:textContent={record.mxDomain} contenteditable onkeydown={handleKeyDown}
+								></td>
+							{/if}
+							<td class="d-flex flex-column align-items-center mx-auto">
+								<button
+									class="btn btn-danger btn-sm"
+									onclick={() =>
+										(session.records = session.records.filter((r) => r.uuid !== record.uuid))}
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"
+										><!--!Font Awesome Free v7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path
+											d="M232.7 69.9L224 96L128 96C110.3 96 96 110.3 96 128C96 145.7 110.3 160 128 160L512 160C529.7 160 544 145.7 544 128C544 110.3 529.7 96 512 96L416 96L407.3 69.9C402.9 56.8 390.7 48 376.9 48L263.1 48C249.3 48 237.1 56.8 232.7 69.9zM512 208L128 208L149.1 531.1C150.7 556.4 171.7 576 197 576L443 576C468.3 576 489.3 556.4 490.9 531.1L512 208z"
+										/></svg
+									></button
+								>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{/if}
 </div>
 
 <style>

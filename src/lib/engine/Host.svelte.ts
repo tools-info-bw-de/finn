@@ -58,10 +58,12 @@ export class Host implements NetworkNode {
 		netmask: string,
 		type: 'notebook' | 'desktop',
 		gateway?: string,
+		dns?: string,
 		dataLinkLayerUuid?: string
 	) {
 		this.config = new NetworkConfig(macAddress, ipAddress, netmask);
 		if (gateway) this.config.gateway = gateway;
+		if (dns) this.config.dns = dns;
 
 		this.name = name;
 		this.type = type;

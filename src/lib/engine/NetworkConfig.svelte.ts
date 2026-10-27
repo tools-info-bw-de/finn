@@ -3,6 +3,7 @@ export class NetworkConfig {
 	public ipAddress = $state<string>('');
 	public netmask = $state<string>('');
 	public gateway = $state<string>('');
+	public dns = $state<string>('');
 
 	constructor(macAddress: string, ipAddress: string, netmask: string) {
 		this.macAddress = macAddress;

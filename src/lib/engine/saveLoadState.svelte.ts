@@ -56,6 +56,7 @@ export function saveState(): string {
 				ip: n.config.ipAddress,
 				netmask: n.config.netmask,
 				gateway: n.config.gateway,
+				dns: n.config.dns,
 				dataLinkLayerUuid: n.dataLinkLayer.uuid,
 				apps: n.apps.map((app) => ({
 					type: app.type,
@@ -185,6 +186,7 @@ export function loadState(stateString: string): void {
 					nodeData.netmask,
 					nodeData.type,
 					nodeData.gateway,
+					nodeData.dns,
 					nodeData.dataLinkLayerUuid
 				);
 				node.apps = nodeData.apps.map((appData: App) => ({
@@ -230,47 +232,6 @@ export function loadState(stateString: string): void {
 				to: cableData.toNodeUuid,
 				cable: c
 			});
-
-			/*const fromNode = nodes.find((n) => n.uuid === cableData.fromNodeUuid);
-			const toNode = nodes.find((n) => n.uuid === cableData.toNodeUuid);
-
-			if (!fromNode || !toNode) {
-				console.warn(`Could not find nodes for cable ${cableData.cableuuid}`);
-				continue;
-			}
-
-			let fromEndpoint: DataLinkLayer | undefined;
-			let toEndpoint: DataLinkLayer | undefined;
-			
-			if (fromNode instanceof Host) {
-				fromEndpoint = fromNode.dataLinkLayer;
-			} else if (fromNode instanceof Router) {
-				fromEndpoint = fromNode.interfaces.find(
-					(i) => i.dataLinkLayer.uuid === cableData.fromEndpointUuid
-				)?.dataLinkLayer;
-			}
-
-			if (toNode instanceof Host) {
-				toEndpoint = toNode.dataLinkLayer;
-			} else if (toNode instanceof Router) {
-				toEndpoint = toNode.interfaces.find(
-					(i) => i.dataLinkLayer.uuid === cableData.toEndpointUuid
-				)?.dataLinkLayer;
-			}
-
-			if (!fromEndpoint || !toEndpoint) {
-				console.warn(`Could not find endpoints for cable ${cableData.cableuuid}`);
-				continue;
-			}
-
-			const cable = new Cable(fromEndpoint, toEndpoint);
-			cable.cableuuid = cableData.cableuuid; // Setze die UUID auf den gespeicherten Wert
-			cables.push({
-				cableuuid: cable.cableuuid,
-				from: fromNode.uuid,
-				to: toNode.uuid,
-				cable: cable
-			});*/
 		}
 	} catch (error) {
 		// TODO Fehlermeldung anzeigen

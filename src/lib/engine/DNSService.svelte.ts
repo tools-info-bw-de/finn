@@ -7,14 +7,14 @@ import { SimulationEventBus } from './SimulationEventBus';
 import type { ICMPService } from './ICMPService.svelte';
 import type { ICMPPacket } from './types';
 
-type DNSQuery = {
+export type DNSQuery = {
 	id: string;
 	kind: 'query';
 	recordType: 'A';
 	name: string;
 };
 
-type DNSResponse = {
+export type DNSResponse = {
 	id: string;
 	kind: 'response';
 	recordType: 'A';

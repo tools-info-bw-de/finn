@@ -1,13 +1,14 @@
 <script lang="ts">
 	import type { Host } from '$lib/engine/Host.svelte';
 	import type { Router } from '$lib/engine/Router.svelte';
-	import type { ARPPacket, ICMPPacket, IPPacket } from '$lib/engine/types';
+	import type { ARPPacket, ICMPPacket, IPPacket, TCPSegment, UDPDatagram } from '$lib/engine/types';
 	import type { capturedPackage } from '$lib/engine/DataLinkLayer.svelte';
 	import { nodes } from '$lib/states/nodes.svelte';
 	import { getColorForProtocol } from '$lib/engine/helpers';
 	import { tick } from 'svelte';
+	import type { DNSQuery, DNSResponse } from '$lib/engine/DNSService.svelte';
 
-	let { nodeUuid, linkLayerUuid } = $props<{ nodeUuid: string; linkLayerUuid: string }>();
+	let { nodeUuid, linkLayerUuid }: { nodeUuid: string; linkLayerUuid: string } = $props();
 
 	let node = $derived.by(() => {
 		return nodes.find((n) => n.uuid === nodeUuid);
@@ -40,6 +41,10 @@
 		}
 	});
 
+	/**
+	 * Erstellt eine kurze Zusammenfassung des Pakets FÜR DIE TABELLE.
+	 * @param packet
+	 */
 	function spyPacket(packet: capturedPackage) {
 		let frame = packet.frame;
 		let number = packet.number;
@@ -114,6 +119,48 @@
 					detail = `ICMP Type ${icmpPacket.type}`;
 					protocolColor = 'ERROR'; // Fehlerhafte ICMP-Pakete (z.B. Time Exceeded, Destination Unreachable) werden rot markiert
 				}
+			} else if (ipPacket.header.protocol === 'UDP') {
+				const udpDatagram = ipPacket.payload as UDPDatagram;
+				srcIp = ipPacket.header.srcIp + ':' + udpDatagram.header.srcPort;
+				dstIp = ipPacket.header.dstIp + ':' + udpDatagram.header.dstPort;
+				protocol = 'UDP';
+				layer = 'Transport';
+				protocolColor = 'UDP';
+
+				// Lies den Payload
+				const payload = new TextDecoder().decode(udpDatagram.payload);
+				const payloadObject = JSON.parse(payload);
+				// Prüfe, ob der Payload vom Typ DNSRequest oder DNSResponse ist, und passe die Detailbeschreibung entsprechend an
+				if (
+					(udpDatagram.header.srcPort === 53 || udpDatagram.header.dstPort === 53) &&
+					payloadObject.kind === 'query'
+				) {
+					const p = payloadObject as DNSQuery;
+					if (p.recordType === 'A') {
+						detail = `DNS: Suche IP-Adresse für ${p.name}`;
+					}
+				} else if (
+					(udpDatagram.header.srcPort === 53 || udpDatagram.header.dstPort === 53) &&
+					payloadObject.kind === 'response'
+				) {
+					const p = payloadObject as DNSResponse;
+					if (p.recordType === 'A' && p.address) {
+						detail = `DNS:  IP-Adresse für ${p.name} -> ${p.address}`;
+					}
+				} else detail = `UDP Datagram, ${udpDatagram.payload.length} Bytes: ${payload}`;
+			} else if (ipPacket.header.protocol === 'TCP') {
+				const tcpSegment = ipPacket.payload as TCPSegment;
+				srcIp = ipPacket.header.srcIp + ':' + tcpSegment.header.srcPort;
+				dstIp = ipPacket.header.dstIp + ':' + tcpSegment.header.dstPort;
+				protocol = 'TCP';
+				layer = 'Transportschicht';
+				protocolColor = 'TCP';
+				detail =
+					`TCP Segment, ${tcpSegment.payload.length} Bytes` +
+					(tcpSegment.header.flags.SYN ? ', SYN' : '') +
+					(tcpSegment.header.flags.ACK ? ', ACK' : '') +
+					(tcpSegment.header.flags.FIN ? ', FIN' : '') +
+					(tcpSegment.header.flags.RST ? ', RST' : '');
 			}
 		}
 

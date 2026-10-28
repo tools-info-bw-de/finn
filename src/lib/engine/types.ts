@@ -67,6 +67,7 @@ export interface TCPSegment {
 			SYN: boolean;
 			ACK: boolean;
 			FIN: boolean;
+			RST: boolean;
 		};
 	};
 	payload: Uint8Array;

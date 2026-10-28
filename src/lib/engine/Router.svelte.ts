@@ -1,6 +1,6 @@
 import type { ICMPPacket, IPPacket, TCPSegment, UDPDatagram } from './types';
 import type { NetworkNode } from './types';
-import { ipToInt } from './helpers';
+import { getPacketTrackingId, ipToInt } from './helpers';
 import { RouterInterface } from './RouterInterface.svelte';
 import { SimulationEventBus } from './SimulationEventBus';
 import { nodeSpawn } from '$lib/states/nodes.svelte';
@@ -171,25 +171,12 @@ export class Router implements NetworkNode {
 			},
 			(failedPacket) => {
 				// ARP-Auflösung lief ins Leere -> Pseudo-Timeout direkt melden (kein echtes Paket zurückschicken)
-				const timeoutUuid = this.getTimeoutUuid(failedPacket);
+				const timeoutUuid = getPacketTrackingId(failedPacket);
 				if (timeoutUuid) {
 					SimulationEventBus.getInstance().emitExtinct(timeoutUuid);
 				}
 			}
 		);
-	}
-
-	/**
-	 * Ermittelt die timeoutUuid eines Pakets, sofern das Protokoll eine kennt (ICMP/TCP)
-	 */
-	private getTimeoutUuid(packet: IPPacket): string {
-		if (packet.header.protocol === 'TCP') {
-			return (packet.payload as TCPSegment).header.timeoutUuid;
-		}
-		if (packet.header.protocol === 'ICMP') {
-			return (packet.payload as ICMPPacket).timeoutUuid;
-		}
-		return '';
 	}
 
 	private sendIcmpError(
@@ -219,7 +206,7 @@ export class Router implements NetworkNode {
 
 		const errorIcmpPacket: ICMPPacket = {
 			type,
-			timeoutUuid: this.getTimeoutUuid(failedPacket),
+			timeoutUuid: getPacketTrackingId(failedPacket) ?? '',
 			original
 		};
 

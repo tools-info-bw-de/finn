@@ -4,6 +4,8 @@ import { ArpService } from './ArpService.svelte';
 import type { App, AppName, AppType, DNSState, NetworkNode, TerminalState } from './types';
 import { NetworkConfig } from './NetworkConfig.svelte';
 import { ICMPService } from './ICMPService.svelte';
+import { DNSService } from './DNSService.svelte';
+import { UDPService } from './UDPService';
 import { nodeSpawn } from '$lib/states/nodes.svelte';
 
 function createApp(type: AppType): App {
@@ -50,6 +52,8 @@ export class Host implements NetworkNode {
 	public networkLayer: NetworkLayer;
 
 	public icmp: ICMPService;
+	public udp: UDPService;
+	public dns: DNSService;
 
 	constructor(
 		name: string,
@@ -78,6 +82,18 @@ export class Host implements NetworkNode {
 
 		this.icmp = new ICMPService(this.networkLayer);
 		this.networkLayer.registerProtocolHandler('ICMP', this.icmp);
+		this.udp = new UDPService(this.networkLayer);
+		this.networkLayer.registerProtocolHandler('UDP', this.udp);
+
+		this.dns = new DNSService(
+			this.udp,
+			this.config,
+			() => {
+				const dnsApp = this.apps.find((app) => app.type === 'dns');
+				return dnsApp?.content;
+			},
+			this.icmp
+		);
 
 		this.dataLinkLayer.upperLayer = this.networkLayer;
 		this.networkLayer.lowerLayer = this.dataLinkLayer;

@@ -1,3 +1,5 @@
+import type { ICMPPacket, IPPacket, TCPSegment, UDPDatagram } from './types';
+
 export function generateRandomMac(): string {
 	const bytes = new Uint8Array(6);
 
@@ -33,6 +35,16 @@ export function isValidNetmask(mask: string): boolean {
 export function isValidIPv4(ip: string): boolean {
 	const regex = new RegExp(IPv4Pattern);
 	return regex.test(ip);
+}
+
+export function getPacketTrackingId(packet: IPPacket): string | undefined {
+	if (packet.header.protocol === 'UDP') {
+		return (packet.payload as UDPDatagram).header.timeoutUuid;
+	}
+	if (packet.header.protocol === 'TCP') {
+		return (packet.payload as TCPSegment).header.timeoutUuid;
+	}
+	return (packet.payload as ICMPPacket).timeoutUuid;
 }
 
 // Konvertiert IP-Adresse in eine 32-Bit-Zahl

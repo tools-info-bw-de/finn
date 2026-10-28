@@ -101,6 +101,21 @@ export class ICMPService {
 		this.networkLayer.send(payload, targetIp, 'ICMP');
 	}
 
+	public sendUdpDestinationUnreachable(
+		targetIp: string,
+		timeoutUuid: string,
+		srcPort: number,
+		dstPort: number
+	): void {
+		const packet: ICMPPacket = {
+			type: 'destination-unreachable',
+			timeoutUuid,
+			original: { protocol: 'UDP', srcPort, dstPort }
+		};
+
+		this.networkLayer.send(packet, targetIp, 'ICMP');
+	}
+
 	public receive(ippacket: IPPacket, srcIp: string): void {
 		const packet: ICMPPacket = ippacket.payload as ICMPPacket;
 

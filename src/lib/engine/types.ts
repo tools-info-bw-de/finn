@@ -51,6 +51,7 @@ export interface UDPDatagram {
 	header: {
 		srcPort: number;
 		dstPort: number;
+		timeoutUuid?: string;
 	};
 	payload: Uint8Array;
 }
@@ -130,7 +131,10 @@ export type AppType =
 	'terminal' | 'dns' | 'echo-server' | 'simple-client' | 'web-server' | 'web-browser' | 'editor';
 export type AppName = AppType | '';
 
-export type App = { type: AppType; content: TerminalState | DNSState };
+export type App =
+	| { type: 'terminal'; content: TerminalState }
+	| { type: 'dns'; content: DNSState }
+	| { type: Exclude<AppType, 'terminal' | 'dns'>; content: null };
 
 //------------------------
 

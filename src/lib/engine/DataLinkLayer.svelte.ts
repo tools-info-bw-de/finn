@@ -2,6 +2,7 @@ import type { LayerInterface, EthernetFrame, IPPacket, ARPPacket, CableEndpoint 
 import type { Cable } from './Cable.svelte';
 import { NetworkConfig } from './NetworkConfig.svelte';
 import { SimulationEventBus } from './SimulationEventBus';
+import { getPacketTrackingId } from './helpers';
 
 export type capturedPackage = {
 	number: number;
@@ -44,9 +45,12 @@ export class DataLinkLayer implements LayerInterface, CableEndpoint {
 		if (this.cable) {
 			this.cable.transmit(this, frame);
 		} else {
-			// Fehlermeldung senden!
 			if (type === 'ARP') {
-				SimulationEventBus.getInstance().resolveBranch((packet as ARPPacket).uuid!);
+				const uuid = (packet as ARPPacket).uuid;
+				if (uuid) SimulationEventBus.getInstance().resolveBranch(uuid);
+			} else {
+				const trackingId = getPacketTrackingId(packet as IPPacket);
+				if (trackingId) SimulationEventBus.getInstance().emitExtinct(trackingId);
 			}
 			console.warn('No cable connected to the DataLinkLayer.', this.config.macAddress);
 		}

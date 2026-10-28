@@ -1,8 +1,9 @@
 import { DataLinkLayer } from './DataLinkLayer.svelte';
-import type { CableEndpoint, EthernetFrame, ICMPPacket, IPPacket } from './types';
+import type { ARPPacket, CableEndpoint, EthernetFrame, ICMPPacket, IPPacket } from './types';
 import { SwitchPort } from './SwitchPort.ts';
 import { settings } from '../states/settings.svelte';
-import { getColorForProtocol } from './helpers.ts';
+import { getColorForProtocol, getPacketTrackingId } from './helpers.ts';
+import { SimulationEventBus } from './SimulationEventBus';
 
 export class Cable {
 	public uuid: string;
@@ -104,6 +105,8 @@ export class Cable {
 
 		const receiver = sender === this.endA ? this.endB : this.endA;
 		if (!receiver) {
+			this.currentlyTransmitting = this.currentlyTransmitting.filter((f) => f.uuid !== frame.uuid);
+			this.reportDroppedFrame(frame);
 			console.warn('No receiver connected to the cable.', this.uuid, this.endA, this.endB);
 			return;
 		}
@@ -113,5 +116,16 @@ export class Cable {
 			this.currentlyTransmitting = this.currentlyTransmitting.filter((f) => f.uuid !== frame.uuid);
 			receiver.receive(frame);
 		}, this.getTransmissionDelay()); // Simulate transmission delay
+	}
+
+	private reportDroppedFrame(frame: EthernetFrame): void {
+		if (frame.header.type === 'ARP') {
+			const uuid = (frame.payload as ARPPacket).uuid;
+			if (uuid) SimulationEventBus.getInstance().resolveBranch(uuid);
+			return;
+		}
+
+		const trackingId = getPacketTrackingId(frame.payload as IPPacket);
+		if (trackingId) SimulationEventBus.getInstance().emitExtinct(trackingId);
 	}
 }

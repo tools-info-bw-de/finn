@@ -9,7 +9,7 @@ import type {
 } from './types';
 import type { ArpService } from './ArpService.svelte';
 import { NetworkConfig } from './NetworkConfig.svelte';
-import { isValidIPv4, isSameSubnet } from './helpers';
+import { getPacketTrackingId, isValidIPv4, isSameSubnet } from './helpers';
 import { SimulationEventBus } from './SimulationEventBus';
 
 export class NetworkLayer implements LayerInterface {
@@ -39,9 +39,21 @@ export class NetworkLayer implements LayerInterface {
 		destinationIp: string,
 		protocol: 'ICMP' | 'UDP' | 'TCP'
 	): void {
-		if (!this.lowerLayer) return;
+		const ipPacket: IPPacket = {
+			header: {
+				srcIp: this.config.ipAddress,
+				dstIp: destinationIp,
+				protocol,
+				ttl: 64
+			},
+			payload
+		};
 
-		if (!isValidIPv4(destinationIp)) return;
+		if (!this.lowerLayer || !isValidIPv4(destinationIp)) {
+			const trackingId = getPacketTrackingId(ipPacket);
+			if (trackingId) SimulationEventBus.getInstance().emitExtinct(trackingId);
+			return;
+		}
 
 		const isLocal = isSameSubnet(this.config.ipAddress, destinationIp, this.config.netmask);
 
@@ -53,23 +65,11 @@ export class NetworkLayer implements LayerInterface {
 				`[NetworkLayer] Kein Weg zu ${destinationIp} von ${this.config.ipAddress} (Nicht lokal und kein Gateway gesetzt).`
 			);
 
-			// Melde Paket Abbruch (=Timeout), wenn das Paket bereits ein ICMP-Fehler ist
-			if (protocol === 'ICMP' && (payload as ICMPPacket).type !== 'echo-request') {
-				SimulationEventBus.getInstance().emitExtinct((payload as ICMPPacket).timeoutUuid);
-			}
+			const trackingId = getPacketTrackingId(ipPacket);
+			if (trackingId) SimulationEventBus.getInstance().emitExtinct(trackingId);
 
 			return;
 		}
-
-		const ipPacket: IPPacket = {
-			header: {
-				srcIp: this.config.ipAddress,
-				dstIp: destinationIp,
-				protocol,
-				ttl: 64 // Default TTL value
-			},
-			payload
-		};
 
 		// ARP löst den Next-Hop (Gateway) auf
 		this.arpService.resolve(
@@ -80,25 +80,12 @@ export class NetworkLayer implements LayerInterface {
 			},
 			(failedPacket) => {
 				// ARP-Anfrage lief ins Leere -> Pseudo-Timeout direkt an den ursprünglichen Absender melden
-				const timeoutUuid = this.getTimeoutUuid(failedPacket);
+				const timeoutUuid = getPacketTrackingId(failedPacket);
 				if (timeoutUuid) {
 					SimulationEventBus.getInstance().emitExtinct(timeoutUuid);
 				}
 			}
 		);
-	}
-
-	/**
-	 * Ermittelt die timeoutUuid eines Pakets, sofern das Protokoll eine kennt (ICMP/TCP)
-	 */
-	private getTimeoutUuid(packet: IPPacket): string {
-		if (packet.header.protocol === 'TCP') {
-			return (packet.payload as TCPSegment).header.timeoutUuid;
-		}
-		if (packet.header.protocol === 'ICMP') {
-			return (packet.payload as ICMPPacket).timeoutUuid;
-		}
-		return '';
 	}
 
 	private describeOriginal(packet: IPPacket): ICMPPacket['original'] {
@@ -133,6 +120,9 @@ export class NetworkLayer implements LayerInterface {
 			const handler = this.protocolHandlers.get(ipPacket.header.protocol);
 			if (handler) {
 				handler.receive(ipPacket, ipPacket.header.srcIp);
+			} else {
+				const trackingId = getPacketTrackingId(ipPacket);
+				if (trackingId) SimulationEventBus.getInstance().emitExtinct(trackingId);
 			}
 		} else if (--ipPacket.header.ttl <= 0) {
 			// TTL abgelaufen -> ICMP Time-Exceeded senden
@@ -147,6 +137,8 @@ export class NetworkLayer implements LayerInterface {
 			console.warn(
 				`IP packet not for this device. Expected ${this.config.ipAddress}, got ${ipPacket.header.dstIp}`
 			);
+			const trackingId = getPacketTrackingId(ipPacket);
+			if (trackingId) SimulationEventBus.getInstance().emitExtinct(trackingId);
 		}
 	}
 
@@ -154,7 +146,11 @@ export class NetworkLayer implements LayerInterface {
 	 * Weiterleitungslogik für Router
 	 */
 	private forward(ipPacket: IPPacket): void {
-		if (!this.lowerLayer) return;
+		if (!this.lowerLayer) {
+			const trackingId = getPacketTrackingId(ipPacket);
+			if (trackingId) SimulationEventBus.getInstance().emitExtinct(trackingId);
+			return;
+		}
 
 		const destinationIp = ipPacket.header.dstIp;
 		const isLocal = isSameSubnet(this.config.ipAddress, destinationIp, this.config.netmask);
@@ -178,7 +174,7 @@ export class NetworkLayer implements LayerInterface {
 			},
 			(failedPacket) => {
 				// ARP-Auflösung lief ins Leere -> Pseudo-Timeout direkt melden (kein echtes Paket zurückschicken)
-				const timeoutUuid = this.getTimeoutUuid(failedPacket);
+				const timeoutUuid = getPacketTrackingId(failedPacket);
 				if (timeoutUuid) {
 					SimulationEventBus.getInstance().emitExtinct(timeoutUuid);
 				}
@@ -208,7 +204,7 @@ export class NetworkLayer implements LayerInterface {
 
 		const icmpPacket: ICMPPacket = {
 			type,
-			timeoutUuid: this.getTimeoutUuid(failedPacket),
+			timeoutUuid: getPacketTrackingId(failedPacket) ?? '',
 			original: this.describeOriginal(failedPacket)
 		};
 

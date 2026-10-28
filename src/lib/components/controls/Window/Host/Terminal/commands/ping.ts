@@ -1,27 +1,40 @@
 import { isSameSubnet, isValidIPv4 } from '$lib/engine/helpers';
+import { DNSLookupError } from '$lib/engine/DNSService.svelte';
 import type { CommandHandler } from '../types';
 
-export const pingCommand: CommandHandler = ({ term, args, currentNode, signal }) => {
-	const targetIp = args[0];
+export const pingCommand: CommandHandler = async ({ term, args, currentNode, signal }) => {
+	const target = args[0];
 
-	if (!targetIp) {
-		term.writeln('\x1b[31mFehler: IP-Adresse angeben (z.B. ping 192.168.1.10)\x1b[0m');
+	if (!target) {
+		term.writeln('\x1b[31mFehler: IP-Adresse oder Domain angeben (z.B. ping 192.168.1.10)\x1b[0m');
 		return Promise.resolve();
 	}
 
-	if (!isValidIPv4(targetIp)) {
-		term.writeln(`\x1b[31mFehler: Ungültige IP-Adresse: ${targetIp}\x1b[0m`);
-		return Promise.resolve();
+	let targetIp: string;
+	try {
+		targetIp = await currentNode.dns.resolveAddress(target);
+	} catch (error) {
+		if (error instanceof DNSLookupError && error.kind === 'icmp-unreachable') {
+			term.writeln(`\x1b[31mDNS-Server nicht erreichbar: ${error.message}\x1b[0m`);
+		} else if (error instanceof DNSLookupError && error.kind === 'packet-lost') {
+			term.writeln(`\x1b[31mDNS-Anfrage ohne Antwort verloren gegangen: ${error.message}\x1b[0m`);
+		} else {
+			const message = error instanceof Error ? error.message : String(error);
+			term.writeln(`\x1b[31mDNS-Auflösung fehlgeschlagen: ${message}\x1b[0m`);
+		}
+		return;
 	}
 
 	//Hier (!) prüfen, ob die Ziel-IP erreicht werden kann!
-	const isLocal = isSameSubnet(currentNode.config.ipAddress, targetIp, currentNode.config.netmask);
+	const isLocal =
+		isValidIPv4(targetIp) &&
+		isSameSubnet(currentNode.config.ipAddress, targetIp, currentNode.config.netmask);
 	if (!isLocal && !currentNode.config.gateway) {
 		term.writeln(`\x1b[31mFehler: Ziel-adresse nicht erreichbar.\x1b[0m`);
 		return Promise.resolve();
 	}
 
-	term.writeln(`PING ${targetIp}:`);
+	term.writeln(`PING ${target} (${targetIp}):`);
 
 	return new Promise<void>((resolve) => {
 		let pingsSent = 0;
@@ -42,8 +55,8 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 				return;
 			}
 
-			currentNode.icmp.sendPing(targetIp, pingsSent + 1);
 			pingsSent++;
+			currentNode.icmp.sendPing(targetIp, pingsSent);
 		};
 
 		// ICMP-Fehler (TTL abgelaufen / Ziel nicht erreichbar): wie Linux-ping weiterzählen
@@ -62,8 +75,8 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 				return;
 			}
 
-			currentNode.icmp.sendPing(targetIp, pingsSent + 1);
 			pingsSent++;
+			currentNode.icmp.sendPing(targetIp, pingsSent);
 		};
 
 		// Event-Handler für Timeouts
@@ -97,7 +110,7 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 			currentNode.icmp.off('timeout', handleTimeout);
 			currentNode.icmp.off('error', handleError);
 
-			term.writeln(`\n--- ${targetIp} ping statistics ---`);
+			term.writeln(`\n--- ${target} ping statistics ---`);
 			term.writeln(
 				`${pingsSent} packets transmitted, ${replies.length} received, ${(
 					((pingsSent - replies.length) * 100) /
@@ -120,7 +133,7 @@ export const pingCommand: CommandHandler = ({ term, args, currentNode, signal })
 		currentNode.icmp.on('message', handleMessage);
 
 		// Erstes Paket sofort senden
-		currentNode.icmp.sendPing(targetIp, 1);
 		pingsSent++;
+		currentNode.icmp.sendPing(targetIp, pingsSent);
 	});
 };

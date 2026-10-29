@@ -29,6 +29,8 @@
 	});
 
 	let windowsMaxZIndex = $state(100);
+	// nodeUuid des fokussierten Fensters (bei Sniffern die UUID des DataLinkLayers), null = keins
+	let focusedWindowUuid = $state<string | null>(null);
 	let viewportEl: HTMLDivElement;
 
 	const MIN_ZOOM = 0.3;
@@ -242,6 +244,7 @@
 	}
 
 	function handleViewportClick() {
+		focusedWindowUuid = null;
 		if (contextMenuEdit.uuid) {
 			closeContextMenu();
 			return;
@@ -287,6 +290,7 @@
 					open: true,
 					zIndex: ++windowsMaxZIndex
 				});
+				focusedWindowUuid = node.uuid;
 			}
 		}
 	}
@@ -295,6 +299,13 @@
 		const win = windows.find((w) => w.nodeUuid === nodeUuid);
 		if (win) {
 			win.open = true;
+			if (win.sniffedNode) {
+				// Sniffer-Fenster: Fokus auf das Sniffer-Fenster, nicht auf den gesniffeten Node
+				focusedWindowUuid = win.sniffedNode;
+			} else {
+				focusedWindowUuid = nodeUuid;
+			}
+
 			if (win.zIndex !== windowsMaxZIndex) {
 				windowsMaxZIndex++;
 				win.zIndex = windowsMaxZIndex;
@@ -306,6 +317,7 @@
 		const win = windows.find((w) => w.nodeUuid === nodeUuid);
 		if (win) {
 			win.open = false;
+			if (focusedWindowUuid === nodeUuid) focusedWindowUuid = null;
 		}
 	}
 
@@ -375,6 +387,7 @@
 				open: true,
 				zIndex: ++windowsMaxZIndex
 			});
+			focusedWindowUuid = nodeToSniff.dataLinkLayerUuid;
 		}
 	}
 
@@ -397,6 +410,23 @@
 	onkeydown={handleKeyDown}
 	onclick={closeContextMenu}
 />
+
+<svg width="0" height="0" style="position: absolute;" aria-hidden="true">
+	<defs>
+		<filter id="outline">
+			<!-- 1. Bildbereich vergrößern/aufblähen -->
+			<feMorphology in="SourceAlpha" result="expanded" operator="dilate" radius="2" />
+			<!-- 2. Farbe der Umrandung festlegen -->
+			<feFlood flood-color="#2ac759" result="color" />
+			<feComposite in="color" in2="expanded" operator="in" result="outline" />
+			<!-- 3. Originalbild über die Umrandung legen -->
+			<feMerge>
+				<feMergeNode in="outline" />
+				<feMergeNode in="SourceGraphic" />
+			</feMerge>
+		</filter>
+	</defs>
+</svg>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
@@ -494,6 +524,9 @@
 					width="64"
 					height="64"
 					draggable={false}
+					style:filter={node.uuid === editNode.uuid || node.uuid === focusedWindowUuid
+						? 'url(#outline)'
+						: ''}
 				/>
 				<div>
 					{node.name}

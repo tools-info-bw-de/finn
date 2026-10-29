@@ -15,6 +15,10 @@
 	let newMXDomain = $state('');
 	let newMXMailServer = $state('');
 
+	function makeValidDomainName(domain: string): string {
+		return domain.trim().toLowerCase() + (domain.trim().endsWith('.') ? '' : '.');
+	}
+
 	function addEntry(event: SubmitEvent) {
 		event.preventDefault();
 		if (newEntryType === 'A') {
@@ -22,7 +26,7 @@
 			session.records.push({
 				uuid: crypto.randomUUID(),
 				type: 'A',
-				domain: newADomain.trim(),
+				domain: makeValidDomainName(newADomain),
 				ip: newAIP.trim()
 			});
 			newADomain = '';
@@ -32,8 +36,8 @@
 			session.records.push({
 				uuid: crypto.randomUUID(),
 				type: 'NS',
-				domain: newNSDomain.trim(),
-				nsDomain: newNSServer.trim()
+				domain: makeValidDomainName(newNSDomain),
+				nsDomain: makeValidDomainName(newNSServer)
 			});
 			newNSDomain = '';
 			newNSServer = '';
@@ -42,8 +46,8 @@
 			session.records.push({
 				uuid: crypto.randomUUID(),
 				type: 'MX',
-				domain: newMXDomain.trim(),
-				mxDomain: newMXMailServer.trim()
+				domain: makeValidDomainName(newMXDomain),
+				mxDomain: makeValidDomainName(newMXMailServer)
 			});
 			newMXDomain = '';
 			newMXMailServer = '';

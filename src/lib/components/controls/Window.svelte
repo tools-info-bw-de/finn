@@ -186,6 +186,7 @@
 		flex-direction: column;
 		overflow: hidden;
 		user-select: none;
+		cursor: default;
 	}
 
 	.window-header {

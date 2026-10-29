@@ -15,6 +15,7 @@
 	import { onMount } from 'svelte';
 	import { scale } from 'svelte/transition';
 	import { pan, zoom } from '$lib/states/canvas.svelte';
+	import HostServices from './HostServices.svelte';
 
 	//let windows = $state<WindowData[]>([]);
 	let visibleWindows = $derived.by(() => {
@@ -482,6 +483,11 @@
 					handleContextMenuNode(e, node.uuid);
 				}}
 			>
+				{#if node.type === 'notebook' || node.type === 'desktop'}
+					<div class="host-services">
+						<HostServices host={node as Host} />
+					</div>
+				{/if}
 				<img
 					src={getImageForNodeType(node.type)}
 					alt={node.type}
@@ -536,6 +542,13 @@
 </div>
 
 <style>
+	.host-services {
+		position: absolute;
+		top: 0;
+		right: 0;
+		pointer-events: none;
+	}
+
 	.moving-dot {
 		offset-path: var(--path);
 	}

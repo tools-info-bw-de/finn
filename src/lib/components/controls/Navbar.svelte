@@ -36,8 +36,6 @@
 		a.download = 'Netzwerk.finn';
 		a.click();
 		URL.revokeObjectURL(url);
-
-		console.log('hu');
 	}
 
 	function clickOpen() {

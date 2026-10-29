@@ -6,7 +6,7 @@
 	import { nodes } from '$lib/states/nodes.svelte';
 	import { getColorForProtocol } from '$lib/engine/helpers';
 	import { tick } from 'svelte';
-	import type { DNSQuery, DNSResponse } from '$lib/engine/DNSService.svelte';
+	import type { DNSRecordType } from '$lib/engine/DNSService.svelte';
 
 	let { nodeUuid, linkLayerUuid }: { nodeUuid: string; linkLayerUuid: string } = $props();
 
@@ -26,6 +26,14 @@
 			}
 		}
 	});
+
+	function isDNSRecordType(value: unknown): value is DNSRecordType {
+		return value === 'A' || value === 'NS' || value === 'MX';
+	}
+
+	function isObject(value: unknown): value is Record<string, unknown> {
+		return typeof value === 'object' && value !== null;
+	}
 
 	let tableBody = $state<HTMLTableSectionElement | null>(null);
 	$effect(() => {
@@ -129,25 +137,46 @@
 
 				// Lies den Payload
 				const payload = new TextDecoder().decode(udpDatagram.payload);
-				const payloadObject = JSON.parse(payload);
-				// Prüfe, ob der Payload vom Typ DNSRequest oder DNSResponse ist, und passe die Detailbeschreibung entsprechend an
-				if (
-					(udpDatagram.header.srcPort === 53 || udpDatagram.header.dstPort === 53) &&
-					payloadObject.kind === 'query'
-				) {
-					const p = payloadObject as DNSQuery;
-					if (p.recordType === 'A') {
-						detail = `DNS: Suche IP-Adresse für ${p.name}`;
+				const isDnsPacket = udpDatagram.header.srcPort === 53 || udpDatagram.header.dstPort === 53;
+				let payloadObject: unknown;
+				try {
+					payloadObject = JSON.parse(payload);
+				} catch {
+					payloadObject = undefined;
+				}
+
+				if (isDnsPacket && isObject(payloadObject) && typeof payloadObject.name === 'string') {
+					const name = payloadObject.name;
+					if (payloadObject.kind === 'query' && isDNSRecordType(payloadObject.recordType)) {
+						const labels = { A: 'IP-Adresse', NS: 'Nameserver', MX: 'Mailserver' };
+						detail = `DNS: Suche ${labels[payloadObject.recordType]} für ${name}`;
+					} else if (
+						payloadObject.kind === 'response' &&
+						isDNSRecordType(payloadObject.recordType)
+					) {
+						if (typeof payloadObject.error === 'string') {
+							detail = `DNS: ${payloadObject.error}`;
+						} else if (
+							payloadObject.recordType === 'A' &&
+							typeof payloadObject.address === 'string'
+						) {
+							detail = `DNS: IP-Adresse für ${name} -> ${payloadObject.address}`;
+						} else if (
+							payloadObject.recordType === 'NS' &&
+							typeof payloadObject.nsDomain === 'string'
+						) {
+							detail =
+								`DNS: Nameserver für ${name} -> ${payloadObject.nsDomain}` +
+								(payloadObject.glueIp ? ` (${payloadObject.glueIp})` : '');
+						} else if (
+							payloadObject.recordType === 'MX' &&
+							typeof payloadObject.mxDomain === 'string'
+						) {
+							detail = `DNS: Mailserver für ${name} -> ${payloadObject.mxDomain}`;
+						}
 					}
-				} else if (
-					(udpDatagram.header.srcPort === 53 || udpDatagram.header.dstPort === 53) &&
-					payloadObject.kind === 'response'
-				) {
-					const p = payloadObject as DNSResponse;
-					if (p.recordType === 'A' && p.address) {
-						detail = `DNS:  IP-Adresse für ${p.name} -> ${p.address}`;
-					}
-				} else detail = `UDP Datagram, ${udpDatagram.payload.length} Bytes: ${payload}`;
+				}
+				detail ??= `UDP Datagram, ${udpDatagram.payload.length} Bytes: ${payload}`;
 			} else if (ipPacket.header.protocol === 'TCP') {
 				const tcpSegment = ipPacket.payload as TCPSegment;
 				srcIp = ipPacket.header.srcIp + ':' + tcpSegment.header.srcPort;

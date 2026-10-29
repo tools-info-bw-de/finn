@@ -59,7 +59,7 @@
 </script>
 
 <div class="background p-2 flex-fill d-flex flex-column">
-	<div class="d-flex flex-row justify-content-between">
+	<div class="d-flex flex-row justify-content-between align-items-center">
 		<div
 			class="form-check form-switch runningSwitch"
 			style:border-color={session.serverRunning ? '#57c569' : '#c55757'}
@@ -70,10 +70,22 @@
 				bind:checked={session.serverRunning}
 				type="checkbox"
 				role="switch"
-				id="runningSwitch"
+				id="{host.uuid}-runningSwitch"
 			/>
-			<label class="form-check-label ms-2" for="runningSwitch"
+			<label class="form-check-label ms-2" for="{host.uuid}-runningSwitch"
 				>Server {session.serverRunning ? 'läuft' : 'gestoppt'}</label
+			>
+		</div>
+		<div class="form-check">
+			<input
+				bind:checked={session.recursiveResolution}
+				class="form-check-input"
+				type="checkbox"
+				value=""
+				id="{host.uuid}-checkDefault"
+			/>
+			<label class="form-check-label" for="{host.uuid}-checkDefault">
+				Aktiviere rekursive Domain-Auflösung</label
 			>
 		</div>
 	</div>
@@ -83,12 +95,17 @@
 	<form onsubmit={addEntry}>
 		<div class="d-flex flex-row align-items-center justify-space-between gap-2">
 			<div class="form-floating">
-				<select class="form-select" id="dnsType" aria-label="DNS Type" bind:value={newEntryType}>
+				<select
+					class="form-select"
+					id="{host.uuid}-dnsType"
+					aria-label="DNS Type"
+					bind:value={newEntryType}
+				>
 					<option selected value="A">A (Adresse)</option>
 					<option value="NS">NS (Name Server)</option>
 					<option value="MX">MX (Mail Exchange)</option>
 				</select>
-				<label for="dnsType">DNS Record Typ</label>
+				<label for="{host.uuid}-dnsType">DNS Record Typ</label>
 			</div>
 			{#if newEntryType === 'A'}
 				<div class="form-floating">
@@ -96,21 +113,21 @@
 						type="text"
 						bind:value={newADomain}
 						class="form-control"
-						id="aDomain"
+						id="{host.uuid}-aDomain"
 						placeholder="Host-/Domainname"
 					/>
-					<label for="aDomain">Host-/Domainname</label>
+					<label for="{host.uuid}-aDomain">Host-/Domainname</label>
 				</div>
 				<div class="form-floating was-validated">
 					<input
 						type="text"
 						bind:value={newAIP}
 						class="form-control"
-						id="aIP"
+						id="{host.uuid}-aIP"
 						pattern={IPv4Pattern}
 						placeholder="IP-Adresse"
 					/>
-					<label for="aIP">IP-Adresse</label>
+					<label for="{host.uuid}-aIP">IP-Adresse</label>
 				</div>
 			{:else if newEntryType === 'NS'}
 				<div class="form-floating">
@@ -118,20 +135,20 @@
 						type="text"
 						bind:value={newNSDomain}
 						class="form-control"
-						id="nsDomain"
+						id="{host.uuid}-nsDomain"
 						placeholder="Domainname"
 					/>
-					<label for="nsDomain">Domainname</label>
+					<label for="{host.uuid}-nsDomain">Domainname</label>
 				</div>
 				<div class="form-floating">
 					<input
 						type="text"
 						bind:value={newNSServer}
 						class="form-control"
-						id="nsServer"
+						id="{host.uuid}-nsServer"
 						placeholder="Name Server"
 					/>
-					<label for="nsServer">Name Server</label>
+					<label for="{host.uuid}-nsServer">Name Server</label>
 				</div>
 			{:else if newEntryType === 'MX'}
 				<div class="form-floating">
@@ -139,21 +156,21 @@
 						type="text"
 						bind:value={newMXDomain}
 						class="form-control"
-						id="mxDomain"
+						id="{host.uuid}-mxDomain"
 						placeholder="Domainname"
 					/>
-					<label for="mxDomain">Domainname</label>
+					<label for="{host.uuid}-mxDomain">Domainname</label>
 				</div>
 				<div class="form-floating">
 					<input
 						type="text"
 						bind:value={newMXMailServer}
 						class="form-control"
-						id="mxMailServer"
+						id="{host.uuid}-mxMailServer"
 						placeholder="Mail Server"
 						required
 					/>
-					<label for="mxMailServer">Mail Server</label>
+					<label for="{host.uuid}-mxMailServer">Mail Server</label>
 				</div>
 			{/if}
 		</div>

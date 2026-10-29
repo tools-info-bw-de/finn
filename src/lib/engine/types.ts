@@ -125,7 +125,8 @@ export interface TerminalState {
 
 export interface DNSState {
 	serverRunning: boolean;
-	records: (NSRecord | MXRecord | ARecord)[]; // value = IP für A, NS-Domain für NS, MX-Domain für MX
+	recursiveResolution: boolean;
+	records: DNSRecord[]; // value = IP für A, NS-Domain für NS, MX-Domain für MX
 }
 
 export type AppType =
@@ -138,6 +139,8 @@ export type App =
 	| { type: Exclude<AppType, 'terminal' | 'dns'>; content: null };
 
 //------------------------
+
+export type DNSRecord = ARecord | NSRecord | MXRecord;
 
 export interface ARecord {
 	uuid: string;

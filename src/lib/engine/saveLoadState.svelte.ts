@@ -116,7 +116,6 @@ export function saveState(): string {
 			);
 			fromEndpointUuid = iface ? iface.dataLinkLayer.uuid : undefined;
 		}
-		console.log(fromEndpointUuid);
 
 		// Finde den "To"-Endpunkt des Kabels
 		n = nodes.find((n) => n.uuid === cable.to);

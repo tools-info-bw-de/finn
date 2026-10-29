@@ -1,5 +1,5 @@
 import type { NetworkConfig } from './NetworkConfig.svelte';
-import type { ARecord, DNSState, UDPDatagram } from './types';
+import type { ARecord, NSRecord, DNSState, UDPDatagram, DNSRecord } from './types';
 import { UDPService, type UDPPortBinding, type UDPPortHandler } from './UDPService';
 import { SvelteMap } from 'svelte/reactivity';
 import { isValidIPv4 } from './helpers';
@@ -10,16 +10,19 @@ import type { ICMPPacket } from './types';
 export type DNSQuery = {
 	id: string;
 	kind: 'query';
-	recordType: 'A';
+	recordType: 'A' | 'NS' | 'MX';
 	name: string;
 };
 
 export type DNSResponse = {
 	id: string;
 	kind: 'response';
-	recordType: 'A';
+	recordType: 'A' | 'NS' | 'MX';
 	name: string;
 	address?: string;
+	nsDomain?: string;
+	glueIp?: string;
+	mxDomain?: string;
 	error?: string;
 };
 
@@ -27,12 +30,14 @@ type DNSMessage = DNSQuery | DNSResponse;
 
 type PendingLookup = {
 	sourcePort: number;
-	resolve: (address: string) => void;
+	serverIp: string;
+	resolve: (response: DNSResponse) => void;
 	reject: (error: Error) => void;
 	portBinding: UDPPortBinding;
 };
 
 const DNS_PORT = 53;
+const MAX_RECURSION_HOPS = 10;
 
 export class DNSLookupError extends Error {
 	constructor(
@@ -57,34 +62,27 @@ function decodeMessage(payload: Uint8Array): DNSMessage | undefined {
 		if (
 			typeof message.id !== 'string' ||
 			typeof message.name !== 'string' ||
-			message.recordType !== 'A'
+			(message.recordType !== 'A' && message.recordType !== 'NS')
 		) {
 			return;
 		}
 
-		if (message.kind === 'query') {
+		if (message.kind === 'query' && message.recordType === 'A') {
 			return { kind: 'query', id: message.id, name: normalizeName(message.name), recordType: 'A' };
 		}
 
 		if (message.kind === 'response') {
-			if (typeof message.address === 'string') {
-				return {
-					kind: 'response',
-					id: message.id,
-					name: normalizeName(message.name),
-					recordType: 'A',
-					address: message.address
-				};
-			}
-			if (typeof message.error === 'string') {
-				return {
-					kind: 'response',
-					id: message.id,
-					name: normalizeName(message.name),
-					recordType: 'A',
-					error: message.error
-				};
-			}
+			const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+			return {
+				kind: 'response',
+				id: message.id,
+				name: normalizeName(message.name),
+				recordType: message.recordType,
+				address: str(message.address),
+				nsDomain: str(message.nsDomain),
+				glueIp: str(message.glueIp),
+				error: str(message.error)
+			};
 		}
 	} catch {
 		return;
@@ -125,6 +123,17 @@ export class DNSService implements UDPPortHandler {
 			return Promise.reject(new Error('Kein gültiger DNS-Server konfiguriert.'));
 		}
 
+		return this.queryServer(name, dnsIp).then((response) => {
+			if (response.address && isValidIPv4(response.address)) {
+				return response.address;
+			} else if (response.recordType === 'NS' && response.nsDomain) {
+				throw new Error('Domain nicht gefunden');
+			}
+			throw new Error(response.error ?? 'Ungültige DNS-Antwort.');
+		});
+	}
+
+	private queryServer(name: string, serverIp: string): Promise<DNSResponse> {
 		const id = crypto.randomUUID();
 		const query: DNSQuery = { id, kind: 'query', recordType: 'A', name };
 
@@ -141,6 +150,7 @@ export class DNSService implements UDPPortHandler {
 
 			this.pendingLookups.set(id, {
 				sourcePort: portBinding.port,
+				serverIp,
 				resolve,
 				reject,
 				portBinding
@@ -161,9 +171,43 @@ export class DNSService implements UDPPortHandler {
 					header: { srcPort: portBinding.port, dstPort: DNS_PORT, timeoutUuid: id },
 					payload: encodeMessage(query)
 				},
-				dnsIp
+				serverIp
 			);
 		});
+	}
+
+	// Folgt NS-Verweisen mit Glue-IP, bis A-Antwort, Fehler oder NS ohne IP vorliegt.
+	private async resolveIteratively(name: string, startIp: string): Promise<DNSResponse> {
+		let serverIp = startIp;
+		for (let hop = 0; hop < MAX_RECURSION_HOPS; hop++) {
+			const response = await this.queryServer(name, serverIp);
+			if (response.recordType === 'NS' && response.glueIp && isValidIPv4(response.glueIp)) {
+				serverIp = response.glueIp;
+				continue;
+			}
+			return response;
+		}
+		return {
+			id: '',
+			kind: 'response',
+			recordType: 'A',
+			name,
+			error: 'Maximale Rekursionstiefe überschritten.'
+		};
+	}
+
+	private sendAnswer(response: DNSResponse, request: UDPDatagram, srcIp: string): void {
+		this.udpService.send(
+			{
+				header: {
+					srcPort: DNS_PORT,
+					dstPort: request.header.srcPort,
+					timeoutUuid: request.header.timeoutUuid ?? response.id
+				},
+				payload: encodeMessage(response)
+			},
+			srcIp
+		);
 	}
 
 	public receive(datagram: UDPDatagram, srcIp: string): void {
@@ -202,12 +246,25 @@ export class DNSService implements UDPPortHandler {
 			return;
 		}
 
-		const record = state.records.find(
+		let record: DNSRecord | undefined;
+		let nsDomain: string | undefined;
+		record = state.records.find(
 			(candidate): candidate is ARecord =>
-				candidate.type === 'A' && normalizeName(candidate.domain) === query.name
+				candidate.type === query.recordType && normalizeName(candidate.domain) === query.name
 		);
-		const response: DNSResponse =
-			record && isValidIPv4(record.ip)
+		// Kein Ergebnis? Dann nach nem passenden NS-Record suchen
+		if (!record) {
+			record = state.records.find(
+				(candidate): candidate is NSRecord =>
+					candidate.type === 'NS' && query.name.endsWith(normalizeName(candidate.domain))
+			);
+			nsDomain = record?.type === 'NS' ? record.nsDomain : undefined;
+		}
+
+		let response: DNSResponse;
+		// A Record gefunden? Dann direkt die Antwort zurücksenden.
+		if (record && record.type === 'A' && query.recordType === 'A') {
+			response = isValidIPv4(record.ip)
 				? {
 						kind: 'response',
 						id: query.id,
@@ -220,8 +277,61 @@ export class DNSService implements UDPPortHandler {
 						id: query.id,
 						name: query.name,
 						recordType: 'A',
-						error: 'NXDOMAIN'
+						error: 'NXDOMAIN (Domain nicht gefunden oder Eintrag fehlerhaft)'
 					};
+		}
+
+		// Wenn NS Record gefunden wurde, dann prüfen, ob rekursiv aufgelöst werden soll.
+		// Wenn ja, dann die rekursive Auflösung starten. Wenn nein, dann eine NXDOMAIN-Antwort zurücksenden.
+		else if (record && record.type === 'NS') {
+			// Schauen, ob es einen passenden A-Record für den NS-Eintrag gibt.
+			record = state.records.find(
+				(candidate): candidate is ARecord =>
+					candidate.type === 'A' && normalizeName(candidate.domain) === normalizeName(nsDomain!)
+			);
+			// Wenn nein, dann eine NS-Antwort zurücksenden (ohne passende IP). // Sonst...
+			if (!record) {
+				response = {
+					kind: 'response',
+					id: query.id,
+					name: query.name,
+					recordType: 'NS',
+					nsDomain: nsDomain
+				};
+			} else if (state.recursiveResolution) {
+				this.resolveIteratively(query.name, record.ip)
+					.then((result) => ({ ...result, id: query.id, name: query.name }))
+					.catch((error: unknown): DNSResponse => ({
+						kind: 'response',
+						id: query.id,
+						name: query.name,
+						recordType: 'A',
+						error: error instanceof Error ? error.message : 'Rekursive Auflösung fehlgeschlagen.'
+					}))
+					.then((result) => this.sendAnswer(result, request, srcIp));
+				return;
+			} else {
+				// NS-Antwort zurücksenden (mit passender IP)
+				response = {
+					kind: 'response',
+					id: query.id,
+					name: query.name,
+					recordType: 'NS',
+					nsDomain: nsDomain,
+					glueIp: record.ip
+				};
+			}
+		}
+		//DUMMY
+		else {
+			response = {
+				kind: 'response',
+				id: query.id,
+				name: query.name,
+				recordType: 'A',
+				error: 'NXDOMAIN (Domain nicht gefunden oder Eintrag fehlerhaft)'
+			};
+		}
 
 		this.udpService.send(
 			{
@@ -240,7 +350,7 @@ export class DNSService implements UDPPortHandler {
 		const pending = this.pendingLookups.get(response.id);
 		if (
 			!pending ||
-			srcIp !== this.config.dns ||
+			srcIp !== pending.serverIp ||
 			datagram.header.srcPort !== DNS_PORT ||
 			datagram.header.dstPort !== pending.sourcePort
 		) {
@@ -249,11 +359,7 @@ export class DNSService implements UDPPortHandler {
 
 		this.finishLookup(response.id, pending);
 
-		if (response.address && isValidIPv4(response.address)) {
-			pending.resolve(response.address);
-		} else {
-			pending.reject(new Error(response.error ?? 'Ungültige DNS-Antwort.'));
-		}
+		pending.resolve(response);
 	}
 
 	private receiveIcmpError(packet: ICMPPacket, srcIp: string): void {

@@ -27,6 +27,7 @@ function createApp(type: AppType): App {
 			type,
 			content: {
 				serverRunning: false,
+				recursiveResolution: false,
 				records: []
 			}
 		};

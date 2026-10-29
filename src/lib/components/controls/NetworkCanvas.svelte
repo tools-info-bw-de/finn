@@ -28,6 +28,12 @@
 		}
 	});
 
+	$effect(() => {
+		if (settings.mode === 'edit') {
+			focusedWindowUuid = null;
+		}
+	});
+
 	let windowsMaxZIndex = $state(100);
 	// nodeUuid des fokussierten Fensters (bei Sniffern die UUID des DataLinkLayers), null = keins
 	let focusedWindowUuid = $state<string | null>(null);

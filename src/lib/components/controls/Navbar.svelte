@@ -2,7 +2,7 @@
 	import hammer from '$lib/assets/hammer.svg';
 	import play from '$lib/assets/play.svg';
 	import { settings } from '$lib/states/settings.svelte';
-	import { nodes } from '$lib/states/nodes.svelte';
+	import { nodes, editNode } from '$lib/states/nodes.svelte';
 	import type { Host } from '$lib/engine/Host.svelte';
 	import type { Router } from '$lib/engine/Router.svelte';
 	import { saveState, loadState } from '$lib/engine/saveLoadState.svelte';
@@ -10,6 +10,7 @@
 	$effect(() => {
 		if (settings.mode === 'play') {
 			emptyARPTables();
+			editNode.uuid = '';
 		}
 	});
 

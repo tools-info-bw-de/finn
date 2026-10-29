@@ -7,7 +7,7 @@
 	import { scale } from 'svelte/transition';
 	import type { Router } from '$lib/engine/Router.svelte';
 
-	let { uuid, x, y } = $props<{ uuid: string; x: number; y: number }>();
+	let { uuid, x, y }: { uuid: string; x: number; y: number } = $props();
 
 	function deleteNode() {
 		const index = nodes.findIndex((n) => n.uuid === uuid);

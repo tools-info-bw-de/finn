@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { IPv4Pattern } from '$lib/engine/helpers';
 	import { Host } from '$lib/engine/Host.svelte';
+	import { tick } from 'svelte';
 
 	let { host }: { host: Host } = $props();
 
@@ -19,8 +20,20 @@
 		return domain.trim().toLowerCase() + (domain.trim().endsWith('.') ? '' : '.');
 	}
 
+	let recordsScroll = $state<HTMLDivElement | null>(null);
+
 	function addEntry(event: SubmitEvent) {
 		event.preventDefault();
+		const countBefore = session.records.length;
+		pushEntry();
+		if (session.records.length > countBefore) {
+			tick().then(() =>
+				recordsScroll?.scrollTo({ top: recordsScroll.scrollHeight, behavior: 'smooth' })
+			);
+		}
+	}
+
+	function pushEntry() {
 		if (newEntryType === 'A') {
 			if (newADomain.trim() === '' || newAIP.trim() === '') return;
 			session.records.push({
@@ -189,7 +202,7 @@
 	{#if session.records.length === 0}
 		<div class="text-center">Noch keine Einträge vorhanden</div>
 	{:else}
-		<div class="records-scroll">
+		<div class="records-scroll" bind:this={recordsScroll}>
 			<table class="table table-sm table-hover mb-0 table-bordered">
 				<thead>
 					<tr>

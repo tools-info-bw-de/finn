@@ -6,7 +6,6 @@
 	import { nodes } from '$lib/states/nodes.svelte';
 	import { getColorForProtocol } from '$lib/engine/helpers';
 	import { tick } from 'svelte';
-	import type { DNSRecordType } from '$lib/engine/DNSService.svelte';
 
 	let { nodeUuid, linkLayerUuid }: { nodeUuid: string; linkLayerUuid: string } = $props();
 
@@ -27,7 +26,7 @@
 		}
 	});
 
-	function isDNSRecordType(value: unknown): value is DNSRecordType {
+	function isDNSRecordType(value: unknown): value is 'A' | 'NS' | 'MX' {
 		return value === 'A' || value === 'NS' || value === 'MX';
 	}
 
@@ -35,17 +34,13 @@
 		return typeof value === 'object' && value !== null;
 	}
 
-	let tableBody = $state<HTMLTableSectionElement | null>(null);
+	let tableScroll = $state<HTMLDivElement | null>(null);
 	$effect(() => {
-		if (captureBuffer?.length) {
-			if (tableBody) {
-				tick().then(() => {
-					const lastRow = tableBody?.lastElementChild;
-					if (lastRow) {
-						lastRow.scrollIntoView({ behavior: 'smooth', block: 'end' });
-					}
-				});
-			}
+		if (captureBuffer?.length && tableScroll) {
+			tick().then(() => {
+				// scrollIntoView würde auch Vorfahren horizontal verschieben
+				tableScroll?.scrollTo({ top: tableScroll.scrollHeight, behavior: 'smooth' });
+			});
 		}
 	});
 
@@ -147,9 +142,10 @@
 
 				if (isDnsPacket && isObject(payloadObject) && typeof payloadObject.name === 'string') {
 					const name = payloadObject.name;
-					if (payloadObject.kind === 'query' && isDNSRecordType(payloadObject.recordType)) {
+					const recordType = payloadObject.recordType;
+					if (payloadObject.kind === 'query' && isDNSRecordType(recordType)) {
 						const labels = { A: 'IP-Adresse', NS: 'Nameserver', MX: 'Mailserver' };
-						detail = `DNS: Suche ${labels[payloadObject.recordType]} für ${name}`;
+						detail = `DNS: Suche ${labels[recordType]} für ${name}`;
 					} else if (
 						payloadObject.kind === 'response' &&
 						isDNSRecordType(payloadObject.recordType)
@@ -222,7 +218,7 @@
 </script>
 
 <div class="sniffer" bind:this={snifferEl}>
-	<div class="table-scroll">
+	<div class="table-scroll" bind:this={tableScroll}>
 		<table class="table table-sm table-hover">
 			<thead>
 				<tr>
@@ -235,7 +231,7 @@
 					<th>Bemerkungen / Details</th>
 				</tr>
 			</thead>
-			<tbody bind:this={tableBody}>
+			<tbody>
 				{#each captureBuffer as packet (packet.number)}
 					{@const { number, time, srcIp, dstIp, protocol, layer, detail, protocolColor } =
 						spyPacket(packet)}

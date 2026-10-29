@@ -649,7 +649,9 @@
 	}
 
 	.path-group:has(.cableEdit) {
-		cursor: pointer;
+		cursor:
+			url('../../assets/scissors.svg') 14 14,
+			pointer;
 	}
 
 	.cable {

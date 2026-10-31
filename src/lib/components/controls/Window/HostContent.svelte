@@ -262,7 +262,7 @@
 	}
 
 	.window-background {
-		background-image: url($lib/assets/bliss.png);
+		background-image: url($lib/assets/bliss.jpg);
 		background-repeat: no-repeat;
 		background-position: center;
 		background-size: cover;

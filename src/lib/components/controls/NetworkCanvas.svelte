@@ -15,7 +15,7 @@
 	import { onMount } from 'svelte';
 	import { scale } from 'svelte/transition';
 	import { pan, zoom } from '$lib/states/canvas.svelte';
-	import HostServices from './HostServices.svelte';
+	import ServersOnHost from './ServersOnHost.svelte';
 
 	//let windows = $state<WindowData[]>([]);
 	let visibleWindows = $derived.by(() => {
@@ -521,7 +521,7 @@
 			>
 				{#if node.type === 'notebook' || node.type === 'desktop'}
 					<div class="host-services">
-						<HostServices host={node as Host} />
+						<ServersOnHost host={node as Host} />
 					</div>
 				{/if}
 				<img

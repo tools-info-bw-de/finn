@@ -178,7 +178,6 @@
 <style>
 	.window {
 		position: absolute;
-		background: #1e1e2e;
 		border: 1px solid #45475a;
 		border-radius: 8px;
 		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -187,10 +186,15 @@
 		overflow: hidden;
 		user-select: none;
 		cursor: default;
+		color: var(--bs-body-color);
+	}
+
+	:global([data-bs-theme='light'] .window) {
+		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+		border-color: #d1d5db;
 	}
 
 	.window-header {
-		background: #313244;
 		padding: 4px 12px;
 		display: flex;
 		justify-content: space-between;
@@ -199,10 +203,20 @@
 		border-bottom: 1px solid #45475a;
 	}
 
+	:global([data-bs-theme='dark'] .window-header) {
+		background: #313244;
+		border-bottom: 1px solid #45475a;
+		color: #cdd6f4;
+	}
+
+	:global([data-bs-theme='light'] .window-header) {
+		background: #dbdde0;
+		border-bottom: 1px solid #45475a;
+	}
+
 	.title {
 		font-weight: bold;
 		font-size: 13px;
-		color: #cdd6f4;
 	}
 
 	.close-btn {
@@ -229,7 +243,6 @@
 	.window-content {
 		flex: 1;
 		overflow: auto;
-		color: #cdd6f4;
 	}
 
 	.resize-handle {

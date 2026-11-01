@@ -31,4 +31,12 @@
 		min-height: 0;
 		overflow: hidden;
 	}
+
+	:global([data-bs-theme='dark'] .form-control) {
+		background-color: #1e1e1e;
+	}
+
+	:global([data-bs-theme='light'] .form-control, [data-bs-theme='light'] .form-check-input) {
+		background-color: #ffffff;
+	}
 </style>

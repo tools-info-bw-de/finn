@@ -282,6 +282,11 @@
 		font-weight: bold;
 	}
 
+	:global([data-bs-theme='light'] .appTitle) {
+		background-color: #b4b4b4;
+		color: #11111b;
+	}
+
 	.footer {
 		position: sticky;
 		bottom: 0;

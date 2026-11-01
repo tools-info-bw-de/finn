@@ -300,8 +300,16 @@
 	}
 
 	.background {
-		background-color: #1e1e1e;
+		/* background-color: #1e1e1e; */
 		width: 100%;
 		height: 100%;
+	}
+
+	:global([data-bs-theme='dark'] .background) {
+		background-color: var(--bs-body-bg);
+	}
+
+	:global([data-bs-theme='light'] .background) {
+		background-color: var(--bs-body-bg);
 	}
 </style>

@@ -7,10 +7,10 @@
 	import { settings } from '$lib/states/settings.svelte';
 </script>
 
-<div class="d-flex flex-column vh-100 vw-100">
+<div class="page-layout d-flex flex-column vh-100 vw-100">
 	<Navbar />
 
-	<div class="d-flex flex-row flex-fill">
+	<div class="workspace d-flex flex-row flex-fill">
 		{#if settings.mode === 'edit'}
 			<DeviceSelector />
 		{/if}
@@ -20,3 +20,15 @@
 		<NodeSettings />
 	{/if}
 </div>
+
+<style>
+	.page-layout {
+		overflow: hidden;
+	}
+
+	.workspace {
+		position: relative;
+		min-height: 0;
+		overflow: hidden;
+	}
+</style>

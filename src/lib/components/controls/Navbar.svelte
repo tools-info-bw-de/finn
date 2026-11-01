@@ -85,7 +85,7 @@
 		<div class="btn-group mx-4">
 			<button
 				type="button"
-				class="btn btn-outline-primary"
+				class="btn btn-warning"
 				data-bs-toggle="modal"
 				data-bs-target="#newProjectModal"
 			>
@@ -97,7 +97,7 @@
 				Neu
 			</button>
 
-			<button onclick={clickOpen} type="button" class="btn btn-outline-primary">
+			<button onclick={clickOpen} type="button" class="btn btn-warning ms-0 openBtn">
 				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"
 					><!--!Font Awesome Free v7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path
 						d="M88 289.6L64.4 360.2L64.4 160C64.4 124.7 93.1 96 128.4 96L267.1 96C280.9 96 294.4 100.5 305.5 108.8L343.9 137.6C349.4 141.8 356.2 144 363.1 144L480.4 144C515.7 144 544.4 172.7 544.4 208L544.4 224L179 224C137.7 224 101 250.4 87.9 289.6zM509.8 512L131 512C98.2 512 75.1 479.9 85.5 448.8L133.5 304.8C140 285.2 158.4 272 179 272L557.8 272C590.6 272 613.7 304.1 603.3 335.2L555.3 479.2C548.8 498.8 530.4 512 509.8 512z"
@@ -106,7 +106,7 @@
 				Öffnen
 			</button>
 
-			<button onclick={clickSave} type="button" class="btn btn-outline-primary">
+			<button onclick={clickSave} type="button" class="btn btn-warning ms-0">
 				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"
 					><!--!Font Awesome Free v7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path
 						d="M160 96C124.7 96 96 124.7 96 160L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 237.3C544 220.3 537.3 204 525.3 192L448 114.7C436 102.7 419.7 96 402.7 96L160 96zM192 192C192 174.3 206.3 160 224 160L384 160C401.7 160 416 174.3 416 192L416 256C416 273.7 401.7 288 384 288L224 288C206.3 288 192 273.7 192 256L192 192zM320 352C355.3 352 384 380.7 384 416C384 451.3 355.3 480 320 480C284.7 480 256 451.3 256 416C256 380.7 284.7 352 320 352z"
@@ -127,8 +127,10 @@
 				value="edit"
 			/>
 			<label
-				class="btn btn-outline-success d-flex flex-column align-items-center mode-label"
-				for="edit-mode"><img src={hammer} alt="edit" />Entwurf</label
+				class="btn btn-outline-secondary d-flex flex-column align-items-center mode-label editLabel"
+				class:active={settings.mode === 'edit'}
+				for="edit-mode"
+				><span class="edit-icon" style:--edit-icon={`url("${hammer}")`}></span>Entwurf</label
 			>
 
 			<input
@@ -141,10 +143,11 @@
 				value="play"
 			/>
 			<label
-				class="btn btn-outline-danger d-flex flex-column align-items-center mode-label"
+				class="btn btn-outline-primary d-flex flex-column align-items-center mode-label playLabel"
+				class:active={settings.mode === 'play'}
 				for="play-mode"
 			>
-				<img src={play} alt="play" />
+				<span class="play-icon" style:--play-icon={`url("${play}")`}></span>
 				Ausführen
 			</label>
 		</div>
@@ -174,7 +177,7 @@
 	<div class="navbar-end me-4 d-flex flex-row gap-2">
 		<div class="dropdown">
 			<button
-				class="btn btn-outline-secondary dropdown-toggle py-2"
+				class="btn btn-warning dropdown-toggle py-2"
 				type="button"
 				data-bs-toggle="dropdown"
 				aria-expanded="false"
@@ -185,34 +188,35 @@
 				<li>
 					<button
 						type="button"
-						class="btn btn-secondary dropdown-item"
+						class="btn btn-warning dropdown-item"
 						class:active={settings.lightMode === 'light'}
 						onclick={() => (settings.lightMode = 'light')}
-						><img src={light} alt="Light" /> Light</button
+						><span class="light-icon" style:--light-icon={`url("${light}")`}></span> Light</button
 					>
 				</li>
 
 				<li>
 					<button
 						type="button"
-						class="btn btn-secondary dropdown-item"
+						class="btn btn-warning dropdown-item"
 						class:active={settings.lightMode === 'dark'}
-						onclick={() => (settings.lightMode = 'dark')}><img src={dark} alt="Dark" /> Dark</button
+						onclick={() => (settings.lightMode = 'dark')}
+						><span class="dark-icon" style:--dark-icon={`url("${dark}")`}></span> Dark</button
 					>
 				</li>
 				<li>
 					<button
 						type="button"
-						class="btn btn-secondary dropdown-item"
+						class="btn btn-warning dropdown-item"
 						class:active={settings.lightMode === 'auto'}
 						onclick={() => (settings.lightMode = 'auto')}
-						><img src={darklight} alt="Auto" /> Auto</button
+						><span class="darklight-icon" style:--darklight-icon={`url("${darklight}")`}></span> Auto</button
 					>
 				</li>
 			</ul>
 		</div>
 
-		<button onclick={clickAbout} type="button" class="btn btn-outline-primary">
+		<button onclick={clickAbout} type="button" class="btn btn-warning">
 			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"
 				><!--!Font Awesome Free v7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path
 					d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM288 224C288 206.3 302.3 192 320 192C337.7 192 352 206.3 352 224C352 241.7 337.7 256 320 256C302.3 256 288 241.7 288 224zM280 288L328 288C341.3 288 352 298.7 352 312L352 400L360 400C373.3 400 384 410.7 384 424C384 437.3 373.3 448 360 448L280 448C266.7 448 256 437.3 256 424C256 410.7 266.7 400 280 400L304 400L304 336L280 336C266.7 336 256 325.3 256 312C256 298.7 266.7 288 280 288z"
@@ -248,6 +252,57 @@
 </div>
 
 <style>
+	:global([data-bs-theme='dark'] .editLabel:not(.active)) {
+		color: --var(--bs-secondary);
+		filter: brightness(1.5);
+	}
+
+	.edit-icon {
+		width: 2rem;
+		height: 2rem;
+		background-color: var(--bs-secondary);
+		mask: var(--edit-icon) center / contain no-repeat;
+		-webkit-mask: var(--edit-icon) center / contain no-repeat;
+	}
+
+	:global(.editLabel.active > .edit-icon) {
+		background-color: white;
+	}
+
+	.play-icon {
+		width: 2rem;
+		height: 2rem;
+		mask: var(--play-icon) center / contain no-repeat;
+		-webkit-mask: var(--play-icon) center / contain no-repeat;
+	}
+
+	.play-icon {
+		background-color: #fe5d3a;
+	}
+
+	.playLabel {
+		border-color: #fe5d3a !important;
+		color: #fe5d3a !important;
+	}
+
+	.playLabel.active {
+		background-color: #fe5d3a !important;
+		color: black !important;
+	}
+
+	:global(.playLabel.active > .play-icon) {
+		background-color: black;
+	}
+
+	:global([data-bs-theme='light'] .playLabel) {
+		color: black;
+	}
+
+	.openBtn {
+		border-right: 1px solid black;
+		border-left: 1px solid black;
+	}
+
 	.dropdown-menu {
 		min-width: 0;
 	}
@@ -269,8 +324,35 @@
 		gap: 0.5rem;
 	}
 
+	:global(.light-icon) {
+		background-color: var(--bs-warning);
+		mask: var(--light-icon) center / contain no-repeat;
+		-webkit-mask: var(--light-icon) center / contain no-repeat;
+	}
+
+	:global(.dark-icon) {
+		background-color: var(--bs-warning);
+		mask: var(--dark-icon) center / contain no-repeat;
+		-webkit-mask: var(--dark-icon) center / contain no-repeat;
+	}
+
+	:global(.darklight-icon) {
+		background-color: var(--bs-warning);
+		mask: var(--darklight-icon) center / contain no-repeat;
+		-webkit-mask: var(--darklight-icon) center / contain no-repeat;
+	}
+
+	:global(.dropdown-item.active > span) {
+		background-color: black;
+	}
+
+	.dropdown-item.active {
+		background-color: var(--bs-warning);
+		color: var(--bs-dark);
+	}
+
 	.dropdown > button > img,
-	.dropdown-item > img {
+	.dropdown-item > span {
 		width: 1.5rem;
 		height: 1.5rem;
 	}
@@ -324,6 +406,11 @@
 		background-color: #d6d6d6;
 	}
 
+	:global([data-bs-theme='dark'] code) {
+		background-color: #363e49;
+		color: #f3564b;
+	}
+
 	.btn-group button,
 	.navbar-end button {
 		display: flex;
@@ -335,8 +422,7 @@
 		padding: 0.2rem;
 	}
 
-	.btn-group button > svg,
-	label > img {
+	.btn-group button > svg {
 		width: 2rem;
 		height: 2rem;
 	}

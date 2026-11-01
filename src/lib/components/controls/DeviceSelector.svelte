@@ -59,20 +59,47 @@
 	});
 </script>
 
-<div class="d-flex flex-column">
-	<button type="button" class="btn btn-primary" onclick={startAddingCable}>
-		<img src={cable} alt="Cable" width="32" height="32" />
+<div class="device-selector d-flex flex-column gap-2 px-2 pt-3">
+	<button type="button" class="btn btn-secondary" onclick={startAddingCable}>
+		<img src={cable} alt="Cable" />
+		Kabel
 	</button>
-	<button type="button" class="btn btn-primary" onclick={() => createNode('notebook')}>
-		<img src={laptop} alt="Laptop" width="32" height="32" />
+	<button type="button" class="btn btn-secondary" onclick={() => createNode('notebook')}>
+		<img src={laptop} alt="Laptop" />
+		Notebook
 	</button>
-	<button type="button" class="btn btn-primary" onclick={() => createNode('desktop')}>
-		<img src={desktop} alt="Desktop" width="32" height="32" />
+	<button type="button" class="btn btn-secondary" onclick={() => createNode('desktop')}>
+		<img src={desktop} alt="Desktop" />
+		Rechner
 	</button>
-	<button type="button" class="btn btn-primary" onclick={() => createNode('switch')}>
-		<img src={switch_wifi} alt="Switch" width="32" height="32" />
+	<button type="button" class="btn btn-secondary" onclick={() => createNode('switch')}>
+		<img src={switch_wifi} alt="Switch" />
+		Switch
 	</button>
-	<button type="button" class="btn btn-primary" onclick={() => createNode('router')}>
-		<img src={router} alt="Router" width="32" height="32" />
+	<button type="button" class="btn btn-secondary" onclick={() => createNode('router')}>
+		<img src={router} alt="Router" />
+		Router
 	</button>
 </div>
+
+<style scoped>
+	button {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	img {
+		width: 48px;
+		height: 48px;
+	}
+
+	.device-selector {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		z-index: 1000;
+		background-color: var(--bs-body-bg);
+	}
+</style>

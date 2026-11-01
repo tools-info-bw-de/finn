@@ -440,8 +440,10 @@
 	class="viewport"
 	class:panning={isPanning}
 	style="background-size: {24 * zoom.value}px {24 *
-		zoom.value}px; background-position: {pan.x}px {pan.y}px; background-image: radial-gradient(#353749 {1 *
-		zoom.value}px, transparent {1 * zoom.value}px);"
+		zoom.value}px; background-position: {pan.x}px {pan.y}px; background-image: radial-gradient({settings.lightMode ===
+	'light'
+		? '#999999'
+		: '#353749'} {1 * zoom.value}px, transparent {1 * zoom.value}px);"
 	onwheel={handleWheel}
 	onpointerdown={handleViewportPointerDown}
 >
@@ -655,6 +657,10 @@
 		touch-action: none;
 	}
 
+	:global([data-bs-theme='light'] .viewport) {
+		background-color: #fff;
+	}
+
 	.viewport.panning {
 		cursor: grabbing;
 	}
@@ -751,6 +757,10 @@
 		color: #cdd6f4;
 		/* ESSENZIELL: Verhindert Text-Selection & Touch-Gesten */
 		touch-action: none;
+	}
+
+	:global([data-bs-theme='light'] .network-node) {
+		color: #353535 !important;
 	}
 
 	.network-node:hover {

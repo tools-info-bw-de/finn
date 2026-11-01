@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { Host } from '$lib/engine/Host.svelte';
-	import startMenu from '$lib/assets/start-menu.png';
 	import Terminal from './Host/Terminal.svelte';
 	import terminal from '$lib/assets/terminal.png';
 	import dns from '$lib/assets/dns.png';
@@ -79,7 +78,7 @@
 	<div class="footer d-flex flex-row">
 		<div class="dropup">
 			<button
-				class="startMenuButton dropdown-toggle"
+				class="startMenuButton dropdown-toggle d-flex flex-row align-items-center"
 				data-bs-auto-close="outside"
 				onclick={() => {
 					if (startMenuOpen) {
@@ -87,7 +86,22 @@
 					} else {
 						startMenuOpen = true;
 					}
-				}}><img src={startMenu} alt="Icon" />Start</button
+				}}
+			>
+				<div
+					class="startMenuIcon me-1 d-flex flex-row align-items-center justify-content-center miniGap"
+				>
+					<div class="d-flex flex-column h-100 miniGap">
+						<div class="block block60"></div>
+						<div class="block block40"></div>
+					</div>
+					<div class="d-flex flex-column h-100 miniGap">
+						<div class="block block40"></div>
+						<div class="block block60"></div>
+					</div>
+				</div>
+
+				Start</button
 			>
 
 			{#if startMenuOpen}
@@ -209,6 +223,29 @@
 </div>
 
 <style>
+	.startMenuIcon {
+		width: 20px;
+		height: 20px;
+	}
+
+	.miniGap {
+		gap: 2px;
+	}
+
+	.block {
+		background-color: #fe5d3a;
+		width: 10px;
+		border-radius: 2px;
+	}
+
+	.block60 {
+		height: 60%;
+	}
+
+	.block40 {
+		height: 40%;
+	}
+
 	.appTitle img {
 		width: 24px;
 		height: 24px;

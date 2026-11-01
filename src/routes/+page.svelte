@@ -39,4 +39,8 @@
 	:global([data-bs-theme='light'] .form-control, [data-bs-theme='light'] .form-check-input) {
 		background-color: #ffffff;
 	}
+
+	:global([data-bs-theme='light'] .form-check-input:checked) {
+		background-color: var(--bs-primary);
+	}
 </style>

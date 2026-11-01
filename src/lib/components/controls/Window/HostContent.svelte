@@ -335,13 +335,12 @@
 		height: 32px;
 		border: none;
 		border-top-right-radius: 5px;
+		background-color: #f1f4f2a0;
+		backdrop-filter: blur(5px) saturate(0.7);
+		color: #11111b;
 	}
 
 	.startMenuButton::after {
 		display: none;
-	}
-
-	.startMenuButton img {
-		height: 100%;
 	}
 </style>

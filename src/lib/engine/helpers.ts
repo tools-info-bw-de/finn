@@ -77,7 +77,7 @@ export function getColorForProtocol(protocol: string | undefined): string {
 		case 'ERROR':
 			return '#bb0000';
 		case 'UDP':
-			return '#ffe600';
+			return '#ffa600';
 		case 'TCP':
 			return '#0000ff';
 		default:

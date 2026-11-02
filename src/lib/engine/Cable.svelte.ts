@@ -69,7 +69,7 @@ export class Cable {
 
 	public get transmissionColor(): string {
 		if (this.currentlyTransmitting.length === 0) {
-			return '#89b4fa'; // Black when not transmitting
+			return '#89b4fa'; // Blue when not transmitting
 		}
 
 		const ethernet = this.currentlyTransmitting[this.currentlyTransmitting.length - 1];

@@ -1,8 +1,10 @@
 type ExtinctListener = (timeoutUuid: string) => void;
+type DeliveredListener = (timeoutUuid: string) => void;
 
 export class SimulationEventBus {
 	private static instance: SimulationEventBus;
 	private listeners = new Map<string, ExtinctListener[]>();
+	private deliveredListeners = new Map<string, DeliveredListener[]>();
 	// Zählt lebende Kopien eines aufgesplitteten Pakets (z.B. ARP-Broadcasts im Switch)
 	private branchCounts = new Map<string, number>();
 
@@ -15,6 +17,7 @@ export class SimulationEventBus {
 
 	public clear(): void {
 		this.listeners.clear();
+		this.deliveredListeners.clear();
 		this.branchCounts.clear();
 	}
 
@@ -27,12 +30,33 @@ export class SimulationEventBus {
 		this.listeners.delete(timeoutUuid);
 	}
 
+	/** Registriert einen Listener für die simulierte TCP-Segmentzustellung (nicht für ein TCP-ACK). */
+	public onDelivered(timeoutUuid: string, callback: DeliveredListener): void {
+		const current = this.deliveredListeners.get(timeoutUuid) || [];
+		this.deliveredListeners.set(timeoutUuid, [...current, callback]);
+	}
+
+	/** Entfernt den Zustellungs-Listener dieses TCP-Segments. */
+	public offDelivered(timeoutUuid: string): void {
+		this.deliveredListeners.delete(timeoutUuid);
+	}
+
 	public emitExtinct(timeoutUuid: string): void {
 		const callbacks = this.listeners.get(timeoutUuid);
 		if (callbacks) {
 			callbacks.forEach((cb) => cb(timeoutUuid));
 			this.listeners.delete(timeoutUuid);
 		}
+	}
+
+	/** Meldet TCP die Segmentzustellung und räumt Listener auf; das TCP-ACK bleibt separat erforderlich. */
+	public emitDelivered(timeoutUuid: string): void {
+		const callbacks = this.deliveredListeners.get(timeoutUuid);
+		if (callbacks) {
+			callbacks.forEach((cb) => cb(timeoutUuid));
+		}
+		this.deliveredListeners.delete(timeoutUuid);
+		this.listeners.delete(timeoutUuid);
 	}
 
 	/**

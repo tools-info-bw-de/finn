@@ -1,0 +1,332 @@
+<script lang="ts">
+	//import { SvelteMap } from 'svelte/reactivity';
+	import type { Host } from '$lib/engine/Host.svelte';
+	import type { TCPConnection, TCPConnectionListener } from '$lib/engine/TCPService';
+	import type { EchoConnectionState } from '$lib/engine/types';
+	import { onMount } from 'svelte';
+	import { SvelteMap } from 'svelte/reactivity';
+
+	let { host }: { host: Host } = $props();
+
+	// svelte-ignore state_referenced_locally
+	const session = host.echoServerState();
+
+	let releaseListener: (() => void) | undefined;
+	const connections = new SvelteMap<TCPConnection, EchoConnectionState>();
+
+	let portInput = $state(String(session.port));
+	let portIsValid = $derived(validatePort(portInput));
+	let serverError = $state('');
+	let echoAppOpen = $derived(host.apps.some((app) => app.type === 'echo-server'));
+
+	type logEntry = {
+		type:
+			| 'serverStarted'
+			| 'serverStopped'
+			| 'connectionOpened'
+			| 'connectionClosed'
+			| 'echo'
+			| 'error';
+		ip?: string;
+		port?: number;
+		message: string;
+	};
+
+	let log = $state<logEntry[]>([]);
+
+	$effect(() => {
+		if (!echoAppOpen) return;
+		return stopServer;
+	});
+
+	onMount(() => {
+		if (session.serverRunning && session.port) {
+			try {
+				startServer(session.port);
+			} catch (error) {
+				serverError =
+					error instanceof Error ? error.message : 'Echo-Server konnte nicht gestartet werden.';
+			}
+		}
+	});
+
+	function autoScrollLog(node: HTMLDivElement) {
+		$effect(() => {
+			if (log.length > 0) node.scrollTop = node.scrollHeight;
+		});
+	}
+
+	/**
+	 * Prüft, ob der eingegebene Port gültig ist (eine ganze Zahl zwischen 1 und 65535).
+	 * @param value
+	 */
+	function validatePort(value: string): boolean {
+		if (value === '') return true;
+		if (!/^\d+$/.test(value)) return false;
+
+		const port = Number(value);
+		return Number.isInteger(port) && port >= 1 && port <= 65535;
+	}
+
+	/**
+	 * Verarbeitet die Eingabe des Portfeldes und aktualisiert den Serverport, wenn die Eingabe gültig ist.
+	 * @param event
+	 */
+	function handlePortInput(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		portInput = input.value;
+
+		const isValid = validatePort(portInput);
+		input.setCustomValidity(isValid ? '' : 'Port muss eine ganze Zahl zwischen 1 und 65535 sein.');
+
+		if (portInput !== '' && isValid) {
+			session.port = Number(portInput);
+		}
+	}
+
+	/**
+	 * Verarbeitet den Klick auf den Server-Toggle-Schalter.
+	 * @param event
+	 */
+	function handleServerToggle(event: Event) {
+		const toggle = event.currentTarget as HTMLInputElement;
+		const shouldRun = toggle.checked;
+		serverError = '';
+
+		try {
+			if (!shouldRun) {
+				stopServer();
+				return;
+			}
+			if (!portInput || !validatePort(portInput)) {
+				throw new Error('Bitte eine gültige Portnummer eingeben.');
+			}
+			startServer(Number(portInput));
+		} catch (error) {
+			toggle.checked = false;
+			serverError =
+				error instanceof Error ? error.message : 'Echo-Server konnte nicht gestartet werden.';
+		}
+	}
+
+	/**
+	 * Startet den Echo-Server auf dem angegebenen Port.
+	 * @param port
+	 */
+	function startServer(port: number) {
+		if (releaseListener) throw new Error('Echo-Server läuft bereits.');
+
+		const listener: TCPConnectionListener = (connection) => acceptConnection(connection);
+		releaseListener = host.tcp.listen(port, listener);
+		session.port = port;
+		session.serverRunning = true;
+	}
+
+	function stopServer() {
+		releaseListener?.();
+		releaseListener = undefined;
+		session.serverRunning = false;
+
+		for (const state of [...connections.values()]) {
+			state.closeWhenDrained = true;
+			sendNext(state);
+		}
+	}
+
+	function acceptConnection(connection: TCPConnection) {
+		const state: EchoConnectionState = {
+			connection,
+			pendingPayloads: [],
+			detachListeners: [],
+			sending: false,
+			closeWhenDrained: false
+		};
+		log.push({
+			type: 'connectionOpened',
+			ip: connection.remoteIp,
+			port: connection.remotePort,
+			message: ``
+		});
+		connections.set(connection, state);
+		state.detachListeners.push(
+			connection.onData((payload) => {
+				if (state.closeWhenDrained) return;
+				state.pendingPayloads.push(payload.slice());
+				sendNext(state);
+			}),
+			connection.onClose(() => removeConnection(state)),
+			connection.onError(() => removeConnection(state))
+		);
+	}
+
+	function sendNext(state: EchoConnectionState) {
+		if (state.sending) return;
+
+		const payload = state.pendingPayloads.shift();
+		if (!payload) {
+			if (state.closeWhenDrained) closeConnection(state);
+			return;
+		}
+
+		state.sending = true;
+		try {
+			state.connection.send(
+				payload,
+				() => {
+					state.sending = false;
+					sendNext(state);
+				},
+				() => removeConnection(state)
+			);
+
+			log.push({
+				type: 'echo',
+				ip: state.connection.remoteIp,
+				port: state.connection.remotePort,
+				message: `${new TextDecoder().decode(payload)}`
+			});
+		} catch {
+			removeConnection(state);
+		}
+	}
+
+	function closeConnection(state: EchoConnectionState) {
+		try {
+			state.connection.close(undefined, () => removeConnection(state));
+		} catch {
+			removeConnection(state);
+		}
+	}
+
+	function removeConnection(state: EchoConnectionState) {
+		if (!connections.delete(state.connection)) return;
+		for (const detach of state.detachListeners) detach();
+		state.pendingPayloads.length = 0;
+	}
+</script>
+
+<div class="background p-2 flex-fill d-flex flex-column">
+	<div class="d-flex flex-row align-items-center gap-2">
+		<div class="was-validated">
+			<input
+				bind:value={portInput}
+				oninput={handlePortInput}
+				class="form-control portInput"
+				disabled={session.serverRunning}
+				type="text"
+				inputmode="numeric"
+				pattern="[0-9]*"
+				placeholder="Portnummer"
+				aria-label="Portnummer"
+				aria-invalid={!portIsValid}
+			/>
+		</div>
+		<div
+			class="form-check form-switch runningSwitch d-flex flex-row"
+			style:border-color={session.serverRunning ? '#57c569' : '#c55757'}
+			style:background-color={session.serverRunning ? '#57c56940' : '#c5575740'}
+		>
+			<input
+				class="form-check-input"
+				checked={session.serverRunning}
+				onchange={handleServerToggle}
+				type="checkbox"
+				role="switch"
+				id="{host.uuid}-runningSwitchEcho"
+			/>
+			<label class="form-check-label ms-2 nowrap" for="{host.uuid}-runningSwitchEcho"
+				>Server {session.serverRunning ? 'läuft' : 'gestoppt'}</label
+			>
+		</div>
+	</div>
+	{#if serverError}
+		<div class="alert alert-danger py-1 px-2 mt-2 mb-0" role="alert">{serverError}</div>
+	{/if}
+
+	<div class="logArea flex-fill d-flex flex-column mt-2">
+		<div {@attach autoScrollLog} class="logContent flex-fill overflow-auto">
+			{#each log as entry, index (index)}
+				<div class="logEntry d-flex flex-row align-items-center gap-2">
+					<span class="logType">
+						{#if entry.type === 'serverStarted'}
+							Server gestartet
+						{:else if entry.type === 'serverStopped'}
+							Server gestoppt
+						{:else if entry.type === 'echo'}
+							Echo
+						{/if}
+					</span>
+					<span class="logMessage d-flex flex-column">
+						{#if entry.ip && entry.port}
+							<span class="text-muted">{entry.ip} : {entry.port}</span>
+						{/if}
+						{#if entry.type === 'connectionOpened'}
+							<span class="text-success">Neue Verbindung geöffnet</span>
+						{:else if entry.type === 'connectionClosed'}
+							<span class="text-warning">Verbindung geschlossen</span>
+						{:else if entry.type === 'error'}
+							<span class="text-danger">{entry.message}</span>
+						{:else if entry.type === 'echo'}
+							<span class="text-primary">{entry.message}</span>
+						{/if}
+						{entry.message}
+					</span>
+				</div>
+			{/each}
+		</div>
+	</div>
+</div>
+
+<style>
+	.background {
+		min-height: 0;
+	}
+
+	.logEntry {
+		font-size: 0.85rem;
+		padding: 0.25rem 0.5rem;
+		border-bottom: 1px solid #45475a;
+	}
+
+	.logMessage > .text-muted {
+		font-size: 0.75rem;
+	}
+
+	.logArea {
+		border: 1px solid #45475a;
+		border-radius: 0.5rem;
+		padding: 0.25rem 0.5rem;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	.logContent {
+		min-height: 0;
+		flex: 1 1 0;
+		overflow-y: auto;
+	}
+
+	:global([data-bs-theme='light'] .logArea) {
+		border-color: #c6c9cf;
+	}
+
+	.portInput {
+		width: 9rem;
+	}
+
+	.nowrap {
+		white-space: nowrap;
+	}
+
+	.runningSwitch input[type='checkbox'] {
+		margin-left: 0 !important;
+	}
+
+	.runningSwitch {
+		padding: 0.2rem 0.5rem;
+		border: 1px solid;
+		border-radius: 0.5rem;
+		border-color: #57c569;
+		transition: all 0.2s ease;
+	}
+</style>

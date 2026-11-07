@@ -12,6 +12,7 @@
 	function deleteNode() {
 		const index = nodes.findIndex((n) => n.uuid === uuid);
 		if (index === -1) return; // uuid ungültig -> nichts löschen (sonst würde splice(-1,1) den letzten Node treffen)
+		if (nodes[index] instanceof Host) nodes[index].tcp.dispose();
 		deleteConnections();
 		nodes.splice(index, 1);
 

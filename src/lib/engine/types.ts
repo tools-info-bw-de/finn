@@ -1,4 +1,5 @@
 import type { Cable } from './Cable.svelte';
+import type { TCPConnection } from './TCPService';
 
 export interface EthernetFrame {
 	uuid: string;
@@ -129,6 +130,24 @@ export interface DNSState {
 	records: DNSRecord[]; // value = IP für A, NS-Domain für NS, MX-Domain für MX
 }
 
+export type EchoConnectionState = {
+	connection: TCPConnection;
+	pendingPayloads: Uint8Array[];
+	detachListeners: (() => void)[];
+	sending: boolean;
+	closeWhenDrained: boolean;
+};
+
+export interface EchoServerState {
+	serverRunning: boolean;
+	port: number;
+}
+
+export interface SimpleClientState {
+	serverAddress: string;
+	serverPort: number;
+}
+
 export type AppType =
 	'terminal' | 'dns' | 'echo-server' | 'simple-client' | 'web-server' | 'web-browser' | 'editor';
 export type AppName = AppType | '';
@@ -136,6 +155,8 @@ export type AppName = AppType | '';
 export type App =
 	| { type: 'terminal'; content: TerminalState }
 	| { type: 'dns'; content: DNSState }
+	| { type: 'echo-server'; content: EchoServerState }
+	| { type: 'simple-client'; content: SimpleClientState }
 	| { type: Exclude<AppType, 'terminal' | 'dns'>; content: null };
 
 //------------------------

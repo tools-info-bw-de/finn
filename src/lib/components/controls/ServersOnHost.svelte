@@ -16,7 +16,7 @@
 		} else if (app.type === 'web-server') {
 			//return host.webServerState().serverRunning;
 		} else if (app.type === 'echo-server') {
-			//return host.echoServerState().serverRunning;
+			return host.echoServerState().serverRunning;
 		}
 		return false;
 	}

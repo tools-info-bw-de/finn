@@ -2,11 +2,15 @@
 	import type { Host } from '$lib/engine/Host.svelte';
 	import Terminal from './Host/Terminal.svelte';
 	import terminal from '$lib/assets/terminal.png';
+	import SimpleClient from './Host/SimpleClient.svelte';
 	import dns from '$lib/assets/dns.png';
+	import echo from '$lib/assets/echo.png';
+	import simpleClient from '$lib/assets/simple-client.png';
 	import { fly, scale } from 'svelte/transition';
 	import type { AppType } from '$lib/engine/types';
 	import HostAppDock from './Host/HostAppDock.svelte';
 	import DNS from './Host/DNS.svelte';
+	import EchoServer from './Host/EchoServer.svelte';
 
 	let { host }: { host: Host } = $props();
 
@@ -53,26 +57,54 @@
 <div class="d-flex flex-column h-100 window-background">
 	<div class="windowArea">
 		{#key host.currentApp}
+			{#if host.currentApp !== 'echo-server' && host.currentApp !== 'simple-client'}
+				<div
+					class="window"
+					in:scale={{ start: 0.9, duration: 300 }}
+					out:scale={{ start: 0.9, duration: switchingApp ? 0 : 400 }}
+				>
+					{#if host.currentApp === 'terminal'}
+						<div class="appTitle">
+							<img src={terminal} alt="Terminal" />
+							Terminal
+						</div>
+						<Terminal {host} />
+					{:else if host.currentApp === 'dns'}
+						<div class="appTitle">
+							<img src={dns} alt="DNS" />
+							DNS
+						</div>
+						<DNS {host} />
+					{/if}
+				</div>
+			{/if}
+		{/key}
+		{#if host.apps.some((app) => app.type === 'echo-server')}
 			<div
-				class="window"
+				class={['window echoWindow', { windowHidden: host.currentApp !== 'echo-server' }]}
 				in:scale={{ start: 0.9, duration: 300 }}
 				out:scale={{ start: 0.9, duration: switchingApp ? 0 : 400 }}
 			>
-				{#if host.currentApp === 'terminal'}
-					<div class="appTitle">
-						<img src={terminal} alt="Terminal" />
-						Terminal
-					</div>
-					<Terminal {host} />
-				{:else if host.currentApp === 'dns'}
-					<div class="appTitle">
-						<img src={dns} alt="DNS" />
-						DNS
-					</div>
-					<DNS {host} />
-				{/if}
+				<div class="appTitle">
+					<img src={echo} alt="Echo-Server" />
+					Echo-Server
+				</div>
+				<EchoServer {host} />
 			</div>
-		{/key}
+		{/if}
+		{#if host.apps.some((app) => app.type === 'simple-client')}
+			<div
+				class={['window echoWindow', { windowHidden: host.currentApp !== 'simple-client' }]}
+				in:scale={{ start: 0.9, duration: 300 }}
+				out:scale={{ start: 0.9, duration: switchingApp ? 0 : 400 }}
+			>
+				<div class="appTitle">
+					<img src={simpleClient} alt="Simple Client" />
+					Simple Client
+				</div>
+				<SimpleClient {host} />
+			</div>
+		{/if}
 	</div>
 
 	<div class="footer d-flex flex-row">
@@ -152,8 +184,11 @@
 										href="#"
 										onclick={() => {
 											openApp('echo-server');
-										}}>Echo-Server</a
+										}}
 									>
+										<img src={echo} alt="Echo-Server" />
+										Echo-Server
+									</a>
 								</li>
 								<li>
 									<a
@@ -161,7 +196,10 @@
 										href="#"
 										onclick={() => {
 											openApp('simple-client');
-										}}>Einfacher Client</a
+										}}
+									>
+										<img src={simpleClient} alt="Simple Client" />
+										Einfacher Client</a
 									>
 								</li>
 							</ul>
@@ -310,6 +348,10 @@
 		height: 100%;
 		display: flex;
 		flex-direction: column;
+	}
+
+	.windowHidden {
+		display: none;
 	}
 
 	.appTitle {

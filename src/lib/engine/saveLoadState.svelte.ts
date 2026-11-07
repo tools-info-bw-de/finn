@@ -243,6 +243,9 @@ export function resetProject() {
 		removeCable(cableuuid);
 	}
 
+	for (const node of nodes) {
+		if (node instanceof Host) node.tcp.dispose();
+	}
 	nodes.splice(0);
 	windows.splice(0);
 	hosts.splice(0);

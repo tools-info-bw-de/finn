@@ -181,7 +181,7 @@
 				layer = 'Transportschicht';
 				protocolColor = 'TCP';
 				detail =
-					`TCP Segment, ${tcpSegment.payload.length} Bytes` +
+					`TCP Segment, ${tcpSegment.payload.length} Bytes, Seq=${tcpSegment.header.seqNum}, Ack=${tcpSegment.header.ackNum}` +
 					(tcpSegment.header.flags.SYN ? ', SYN' : '') +
 					(tcpSegment.header.flags.ACK ? ', ACK' : '') +
 					(tcpSegment.header.flags.FIN ? ', FIN' : '') +

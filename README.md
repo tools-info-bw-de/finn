@@ -18,6 +18,8 @@ Die Seite verwendet Bilder von Flaticon.com:
 - Router: <a href="https://www.flaticon.com/free-icons/isometric" title="isometric icons">Isometric icons created by Ylivdesign - Flaticon</a>
 - Terminal: <a href="https://www.flaticon.com/free-icons/terminal" title="terminal icons">Terminal icons created by Bharat Icons - Flaticon</a>
 - DNS: <a href="https://www.flaticon.com/free-icons/dns" title="dns icons">Dns icons created by Abbasi - Flaticon</a>
+- Echo-Server: <a href="https://www.flaticon.com/free-icons/undo" title="undo icons">Undo icons created by Pixel perfect - Flaticon</a>
+- Einfacher Client: <a href="https://www.flaticon.com/free-icons/registration" title="registration icons">Registration icons created by Magnific - Flaticon</a>
 
 ## Developing
 

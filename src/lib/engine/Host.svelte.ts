@@ -1,11 +1,21 @@
 import { DataLinkLayer } from './DataLinkLayer.svelte';
 import { NetworkLayer } from './NetworkLayer';
 import { ArpService } from './ArpService.svelte';
-import type { App, AppName, AppType, DNSState, NetworkNode, TerminalState } from './types';
+import type {
+	App,
+	AppName,
+	AppType,
+	DNSState,
+	EchoServerState,
+	NetworkNode,
+	SimpleClientState,
+	TerminalState
+} from './types';
 import { NetworkConfig } from './NetworkConfig.svelte';
 import { ICMPService } from './ICMPService.svelte';
 import { DNSService } from './DNSService.svelte';
 import { UDPService } from './UDPService';
+import { TCPService } from './TCPService';
 import { nodeSpawn } from '$lib/states/nodes.svelte';
 
 function createApp(type: AppType): App {
@@ -31,6 +41,22 @@ function createApp(type: AppType): App {
 				records: []
 			}
 		};
+	} else if (type === 'echo-server') {
+		return {
+			type,
+			content: {
+				serverRunning: false,
+				port: 55555
+			}
+		};
+	} else if (type === 'simple-client') {
+		return {
+			type,
+			content: {
+				serverAddress: '',
+				serverPort: 55555
+			}
+		};
 	}
 	return { type, content: null };
 }
@@ -54,6 +80,7 @@ export class Host implements NetworkNode {
 
 	public icmp: ICMPService;
 	public udp: UDPService;
+	public tcp: TCPService;
 	public dns: DNSService;
 
 	constructor(
@@ -85,6 +112,11 @@ export class Host implements NetworkNode {
 		this.networkLayer.registerProtocolHandler('ICMP', this.icmp);
 		this.udp = new UDPService(this.networkLayer);
 		this.networkLayer.registerProtocolHandler('UDP', this.udp);
+		this.tcp = new TCPService(this.networkLayer);
+		this.networkLayer.registerProtocolHandler('TCP', this.tcp);
+		this.icmp.registerErrorHandler('TCP', (packet, srcIp) =>
+			this.tcp.handleIcmpError(packet, srcIp)
+		);
 
 		this.dns = new DNSService(
 			this.udp,
@@ -124,6 +156,22 @@ export class Host implements NetworkNode {
 	public dnsState(): DNSState {
 		const app = this.apps.find((a): a is Extract<App, { type: 'dns' }> => a.type === 'dns');
 		if (!app) throw new Error('DNS-App ist nicht geöffnet');
+		return app.content;
+	}
+
+	public echoServerState(): EchoServerState {
+		const app = this.apps.find(
+			(a): a is Extract<App, { type: 'echo-server' }> => a.type === 'echo-server'
+		);
+		if (!app) throw new Error('Echo-Server-App ist nicht geöffnet');
+		return app.content;
+	}
+
+	public simpleClientState(): SimpleClientState {
+		const app = this.apps.find(
+			(a): a is Extract<App, { type: 'simple-client' }> => a.type === 'simple-client'
+		);
+		if (!app) throw new Error('Simple-Client-App ist nicht geöffnet');
 		return app.content;
 	}
 }

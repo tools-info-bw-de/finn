@@ -2,6 +2,8 @@
 	import type { App, AppType } from '$lib/engine/types';
 	import terminal from '$lib/assets/terminal.png';
 	import dns from '$lib/assets/dns.png';
+	import echo from '$lib/assets/echo.png';
+	import simpleClient from '$lib/assets/simple-client.png';
 	import { slide } from 'svelte/transition';
 
 	let { apps, openApp }: { apps: App[]; openApp: (appType: AppType) => void } = $props();
@@ -19,6 +21,10 @@
 				<img src={terminal} alt={app.type} />
 			{:else if app.type === 'dns'}
 				<img src={dns} alt={app.type} />
+			{:else if app.type === 'echo-server'}
+				<img src={echo} alt={app.type} />
+			{:else if app.type === 'simple-client'}
+				<img src={simpleClient} alt={app.type} />
 			{/if}
 		</button>
 	{/each}

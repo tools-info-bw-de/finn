@@ -1,7 +1,13 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import type { Host } from '$lib/engine/Host.svelte';
 	import type { TCPConnection } from '$lib/engine/TCPService';
 	import { isValidIPv4 } from '$lib/engine/helpers';
+	import linkImg from '$lib/assets/link.svg';
+	import unlinkImg from '$lib/assets/unlink.svg';
+	import envelopeImg from '$lib/assets/envelope.svg';
+	import echoImg from '$lib/assets/echo.png';
+	import triangleExclamation from '$lib/assets/triangle-exclamation.svg';
 
 	let { host }: { host: Host } = $props();
 
@@ -25,21 +31,20 @@
 		message: string;
 	};
 	let log = $state<logEntry[]>([]);
-	const logTypeLabels: Record<logEntry['type'], string> = {
-		connected: 'Verbunden',
-		disconnected: 'Getrennt',
-		sent: 'Gesendet',
-		received: 'Empfangen',
-		error: 'Fehler'
-	};
 
 	let clientAppOpen = $derived(host.apps.some((app) => app.type === 'simple-client'));
 	let portIsValid = $derived(validatePort(portInput));
 
 	function autoScrollLog(node: HTMLDivElement) {
-		$effect(() => {
-			if (log.length > 0) node.scrollTop = node.scrollHeight;
-		});
+		let detached = false;
+		if (log.length > 0) {
+			void tick().then(() => {
+				if (!detached) node.scrollTop = node.scrollHeight;
+			});
+		}
+		return () => {
+			detached = true;
+		};
 	}
 
 	$effect(() => {
@@ -97,13 +102,12 @@
 		const attempt = ++connectionAttempt;
 		closeWhenDrained = false;
 		connectionStatus = 'connecting';
-		addLog('connected', `Verbinde mit ${serverAddress}:${serverPort} ...`);
 
 		try {
 			const connection = host.tcp.connect(serverAddress, serverPort, () => {
 				if (attempt !== connectionAttempt) return;
 				connectionStatus = 'connected';
-				addLog('connected', `Verbunden mit ${serverAddress}:${serverPort}.`);
+				addLog('connected', `Verbunden mit ${serverAddress}:${serverPort}`);
 				if (closeWhenDrained) closeConnection();
 				else sendNextMessage();
 			});
@@ -158,10 +162,10 @@
 		const connection = activeConnection;
 		sendingMessage = true;
 		try {
+			addLog('sent', message);
 			connection.send(new TextEncoder().encode(message), () => {
 				if (activeConnection !== connection) return;
 				sendingMessage = false;
-				addLog('sent', message);
 				sendNextMessage();
 			});
 		} catch (error) {
@@ -241,22 +245,40 @@
 			/>
 			<label for="{host.uuid}-simpleClientPort">Server-Port</label>
 		</div>
-		<button class="btn btn-primary" type="submit" disabled={connectionStatus !== 'disconnected'}>
-			{connectionStatus === 'connecting' ? 'Verbinde ...' : 'Verbinden'}
-		</button>
-		{#if connectionStatus === 'connected'}
-			<button class="btn btn-outline-secondary" type="button" onclick={disconnect}>Trennen</button>
+
+		{#if connectionStatus === 'connected' || connectionStatus === 'closing'}
+			<button
+				class="btn btn-outline-secondary nowrap"
+				type="button"
+				onclick={disconnect}
+				disabled={connectionStatus !== 'connected'}
+			>
+				Trennen
+				{#if connectionStatus === 'closing'}<div
+						class="spinner-border spinner-border-sm"
+						role="status"
+					>
+						<span class="visually-hidden">Loading...</span>
+					</div>
+				{/if}
+			</button>
+		{:else}
+			<button
+				class="btn btn-primary nowrap"
+				type="submit"
+				disabled={connectionStatus !== 'disconnected'}
+			>
+				Verbinden
+				{#if connectionStatus === 'connecting'}<div
+						class="spinner-border spinner-border-sm"
+						role="status"
+					>
+						<span class="visually-hidden">Loading...</span>
+					</div>
+				{/if}
+			</button>
 		{/if}
 	</form>
-	<div class="connectionStatus" aria-live="polite">
-		{connectionStatus === 'connected'
-			? 'Verbunden'
-			: connectionStatus === 'connecting'
-				? 'Verbindung wird aufgebaut ...'
-				: connectionStatus === 'closing'
-					? 'Verbindung wird geschlossen ...'
-					: 'Nicht verbunden'}
-	</div>
 
 	<hr class="my-2" />
 
@@ -284,9 +306,33 @@
 	<div class="logArea flex-fill d-flex flex-column mt-2">
 		<div {@attach autoScrollLog} class="logContent flex-fill overflow-auto">
 			{#each log as entry, index (index)}
-				<div class={['logEntry', { errorEntry: entry.type === 'error' }]}>
-					<strong>{logTypeLabels[entry.type]}:</strong>
-					{entry.message}
+				<div class="logEntry d-flex flex-row align-items-center gap-2">
+					<span class="logType">
+						{#if entry.type === 'connected'}
+							<img src={linkImg} alt="Verbunden" width="16" height="16" />
+						{:else if entry.type === 'disconnected'}
+							<img src={unlinkImg} alt="Getrennt" width="16" height="16" />
+						{:else if entry.type === 'sent'}
+							<img src={envelopeImg} alt="Gesendet" width="16" height="16" />
+						{:else if entry.type === 'received'}
+							<img src={echoImg} alt="Empfangen" width="16" height="16" />
+						{:else if entry.type === 'error'}
+							<img src={triangleExclamation} alt="Fehler" width="16" height="16" />
+						{/if}
+					</span>
+					<span class="logMessage">
+						{#if entry.type === 'connected'}
+							<span class="text-success">{entry.message}</span>
+						{:else if entry.type === 'disconnected'}
+							<span class="text-warning">{entry.message}</span>
+						{:else if entry.type === 'sent'}
+							<span class="text-info">{entry.message}</span>
+						{:else if entry.type === 'received'}
+							<span class="text-info">{entry.message}</span>
+						{:else if entry.type === 'error'}
+							<span class="text-danger">{entry.message}</span>
+						{/if}
+					</span>
 				</div>
 			{/each}
 		</div>
@@ -294,6 +340,10 @@
 </div>
 
 <style>
+	.nowrap {
+		white-space: nowrap;
+	}
+
 	.background {
 		min-height: 0;
 	}
@@ -310,15 +360,6 @@
 		min-height: 0;
 		flex: 1 1 0;
 		overflow-y: auto;
-	}
-
-	.connectionStatus {
-		font-size: 0.85rem;
-		padding-top: 0.35rem;
-	}
-
-	.errorEntry {
-		color: var(--bs-danger-text-emphasis);
 	}
 
 	.form-floating > input {

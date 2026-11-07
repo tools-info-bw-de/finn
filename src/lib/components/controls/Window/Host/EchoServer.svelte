@@ -3,7 +3,13 @@
 	import type { Host } from '$lib/engine/Host.svelte';
 	import type { TCPConnection, TCPConnectionListener } from '$lib/engine/TCPService';
 	import type { EchoConnectionState } from '$lib/engine/types';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
+	import playImg from '$lib/assets/play.svg';
+	import stopImg from '$lib/assets/stop.svg';
+	import linkImg from '$lib/assets/link.svg';
+	import unlinkImg from '$lib/assets/unlink.svg';
+	import echoImg from '$lib/assets/echo.png';
+	import triangleExclamation from '$lib/assets/triangle-exclamation.svg';
 	import { SvelteMap } from 'svelte/reactivity';
 
 	let { host }: { host: Host } = $props();
@@ -16,7 +22,6 @@
 
 	let portInput = $state(String(session.port));
 	let portIsValid = $derived(validatePort(portInput));
-	let serverError = $state('');
 	let echoAppOpen = $derived(host.apps.some((app) => app.type === 'echo-server'));
 
 	type logEntry = {
@@ -44,16 +49,25 @@
 			try {
 				startServer(session.port);
 			} catch (error) {
-				serverError =
-					error instanceof Error ? error.message : 'Echo-Server konnte nicht gestartet werden.';
+				log.push({
+					type: 'error',
+					message:
+						error instanceof Error ? error.message : 'Echo-Server konnte nicht gestartet werden.'
+				});
 			}
 		}
 	});
 
 	function autoScrollLog(node: HTMLDivElement) {
-		$effect(() => {
-			if (log.length > 0) node.scrollTop = node.scrollHeight;
-		});
+		let detached = false;
+		if (log.length > 0) {
+			void tick().then(() => {
+				if (!detached) node.scrollTop = node.scrollHeight;
+			});
+		}
+		return () => {
+			detached = true;
+		};
 	}
 
 	/**
@@ -91,7 +105,6 @@
 	function handleServerToggle(event: Event) {
 		const toggle = event.currentTarget as HTMLInputElement;
 		const shouldRun = toggle.checked;
-		serverError = '';
 
 		try {
 			if (!shouldRun) {
@@ -104,8 +117,11 @@
 			startServer(Number(portInput));
 		} catch (error) {
 			toggle.checked = false;
-			serverError =
-				error instanceof Error ? error.message : 'Echo-Server konnte nicht gestartet werden.';
+			log.push({
+				type: 'error',
+				message:
+					error instanceof Error ? error.message : 'Echo-Server konnte nicht gestartet werden.'
+			});
 		}
 	}
 
@@ -120,6 +136,11 @@
 		releaseListener = host.tcp.listen(port, listener);
 		session.port = port;
 		session.serverRunning = true;
+
+		log.push({
+			type: 'serverStarted',
+			message: ''
+		});
 	}
 
 	function stopServer() {
@@ -131,6 +152,11 @@
 			state.closeWhenDrained = true;
 			sendNext(state);
 		}
+
+		log.push({
+			type: 'serverStopped',
+			message: ''
+		});
 	}
 
 	function acceptConnection(connection: TCPConnection) {
@@ -202,6 +228,12 @@
 		if (!connections.delete(state.connection)) return;
 		for (const detach of state.detachListeners) detach();
 		state.pendingPayloads.length = 0;
+		log.push({
+			type: 'connectionClosed',
+			ip: state.connection.remoteIp,
+			port: state.connection.remotePort,
+			message: ``
+		});
 	}
 </script>
 
@@ -239,9 +271,6 @@
 			>
 		</div>
 	</div>
-	{#if serverError}
-		<div class="alert alert-danger py-1 px-2 mt-2 mb-0" role="alert">{serverError}</div>
-	{/if}
 
 	<div class="logArea flex-fill d-flex flex-column mt-2">
 		<div {@attach autoScrollLog} class="logContent flex-fill overflow-auto">
@@ -249,27 +278,36 @@
 				<div class="logEntry d-flex flex-row align-items-center gap-2">
 					<span class="logType">
 						{#if entry.type === 'serverStarted'}
-							Server gestartet
+							<img src={playImg} alt="Server gestartet" width="16" height="16" />
 						{:else if entry.type === 'serverStopped'}
-							Server gestoppt
+							<img src={stopImg} alt="Server gestoppt" width="16" height="16" />
 						{:else if entry.type === 'echo'}
-							Echo
+							<img src={echoImg} alt="Echo" width="16" height="16" />
+						{:else if entry.type === 'connectionOpened'}
+							<img src={linkImg} alt="Verbindung geöffnet" width="16" height="16" />
+						{:else if entry.type === 'connectionClosed'}
+							<img src={unlinkImg} alt="Verbindung geschlossen" width="16" height="16" />
+						{:else if entry.type === 'error'}
+							<img src={triangleExclamation} alt="Fehler" width="16" height="16" />
 						{/if}
 					</span>
 					<span class="logMessage d-flex flex-column">
 						{#if entry.ip && entry.port}
 							<span class="text-muted">{entry.ip} : {entry.port}</span>
 						{/if}
-						{#if entry.type === 'connectionOpened'}
+						{#if entry.type === 'serverStarted'}
+							<span class="text-success">Server gestartet</span>
+						{:else if entry.type === 'serverStopped'}
+							<span class="text-warning">Server gestoppt</span>
+						{:else if entry.type === 'connectionOpened'}
 							<span class="text-success">Neue Verbindung geöffnet</span>
 						{:else if entry.type === 'connectionClosed'}
 							<span class="text-warning">Verbindung geschlossen</span>
 						{:else if entry.type === 'error'}
 							<span class="text-danger">{entry.message}</span>
 						{:else if entry.type === 'echo'}
-							<span class="text-primary">{entry.message}</span>
+							<span class="text-info">{entry.message}</span>
 						{/if}
-						{entry.message}
 					</span>
 				</div>
 			{/each}

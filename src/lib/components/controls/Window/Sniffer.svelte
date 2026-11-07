@@ -173,7 +173,10 @@
 					}
 				}
 				detail ??= `UDP Datagram, ${udpDatagram.payload.length} Bytes: ${payload}`;
-			} else if (ipPacket.header.protocol === 'TCP') {
+			} else if (
+				ipPacket.header.protocol === 'TCP' &&
+				(ipPacket.payload as TCPSegment).payload.length == 0
+			) {
 				const tcpSegment = ipPacket.payload as TCPSegment;
 				srcIp = ipPacket.header.srcIp + ':' + tcpSegment.header.srcPort;
 				dstIp = ipPacket.header.dstIp + ':' + tcpSegment.header.dstPort;
@@ -186,6 +189,17 @@
 					(tcpSegment.header.flags.ACK ? ', ACK' : '') +
 					(tcpSegment.header.flags.FIN ? ', FIN' : '') +
 					(tcpSegment.header.flags.RST ? ', RST' : '');
+			} else if (
+				ipPacket.header.protocol === 'TCP' &&
+				(ipPacket.payload as TCPSegment).payload.length > 0
+			) {
+				const tcpSegment = ipPacket.payload as TCPSegment;
+				srcIp = ipPacket.header.srcIp + ':' + tcpSegment.header.srcPort;
+				dstIp = ipPacket.header.dstIp + ':' + tcpSegment.header.dstPort;
+				protocol = '';
+				layer = 'Anwendung';
+				protocolColor = 'TCP';
+				detail = new TextDecoder().decode(tcpSegment.payload);
 			}
 		}
 
@@ -217,7 +231,7 @@
 	}
 </script>
 
-<div class="sniffer" bind:this={snifferEl}>
+<div class="sniffer background" bind:this={snifferEl}>
 	<div class="table-scroll" bind:this={tableScroll}>
 		<table class="table table-sm table-hover">
 			<thead>

@@ -34,14 +34,10 @@ type PendingLookup = {
 	resolve: (response: DNSResponse) => void;
 	reject: (error: Error) => void;
 	portBinding: UDPPortBinding;
-	attempts: number;
-	retryTimer?: ReturnType<typeof setTimeout>;
 };
 
 const DNS_PORT = 53;
 const MAX_RECURSION_HOPS = 10;
-const DNS_RETRY_DELAY_MS = 1000;
-const MAX_DNS_ATTEMPTS = 3;
 
 export class DNSLookupError extends Error {
 	constructor(
@@ -160,8 +156,7 @@ export class DNSService implements UDPPortHandler {
 				serverIp,
 				resolve,
 				reject,
-				portBinding,
-				attempts: 1
+				portBinding
 			};
 			this.pendingLookups.set(id, pending);
 			SimulationEventBus.getInstance().registerOrigin(
@@ -181,28 +176,17 @@ export class DNSService implements UDPPortHandler {
 	private sendQuery(id: string, name: string, query: DNSQuery, pending: PendingLookup): void {
 		SimulationEventBus.getInstance().onExtinct(id, (_timeoutUuid, message) => {
 			if (this.pendingLookups.get(id) !== pending) return;
+			this.finishLookup(id, pending);
 			if (message !== undefined) {
-				this.finishLookup(id, pending);
 				pending.reject(new DNSLookupError('network-error', message));
 				return;
 			}
-			if (pending.attempts >= MAX_DNS_ATTEMPTS) {
-				this.finishLookup(id, pending);
-				pending.reject(
-					new DNSLookupError(
-						'packet-lost',
-						`DNS-Anfrage für ${name} ist nach ${MAX_DNS_ATTEMPTS} Versuchen verloren gegangen. Ist der Hin- und Rückweg zum DNS-Server (${pending.serverIp}) fehlerfrei eingerichtet?`
-					)
-				);
-				return;
-			}
-
-			pending.retryTimer = setTimeout(() => {
-				pending.retryTimer = undefined;
-				if (this.pendingLookups.get(id) !== pending) return;
-				pending.attempts++;
-				this.sendQuery(id, name, query, pending);
-			}, DNS_RETRY_DELAY_MS);
+			pending.reject(
+				new DNSLookupError(
+					'packet-lost',
+					`Timeout bei DNS-Anfrage für ${name}. Ist der Hin- und Rückweg zum DNS-Server (${pending.serverIp}) fehlerfrei eingerichtet?`
+				)
+			);
 		});
 
 		this.udpService.send(
@@ -425,7 +409,6 @@ export class DNSService implements UDPPortHandler {
 	}
 
 	private finishLookup(id: string, pending: PendingLookup): void {
-		if (pending.retryTimer) clearTimeout(pending.retryTimer);
 		SimulationEventBus.getInstance().offExtinct(id);
 		SimulationEventBus.getInstance().forgetOrigin(id);
 		this.pendingLookups.delete(id);

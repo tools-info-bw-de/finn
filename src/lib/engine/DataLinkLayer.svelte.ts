@@ -50,7 +50,12 @@ export class DataLinkLayer implements LayerInterface, CableEndpoint {
 				if (uuid) SimulationEventBus.getInstance().resolveBranch(uuid);
 			} else {
 				const trackingId = getPacketTrackingId(packet as IPPacket);
-				if (trackingId) SimulationEventBus.getInstance().emitExtinct(trackingId);
+				if (trackingId)
+					SimulationEventBus.getInstance().reportFailure(
+						trackingId,
+						this.config,
+						`Kein Kabel an der Netzwerkschnittstelle von ${this.config.ipAddress}.`
+					);
 			}
 			console.warn('No cable connected to the DataLinkLayer.', this.config.macAddress);
 		}

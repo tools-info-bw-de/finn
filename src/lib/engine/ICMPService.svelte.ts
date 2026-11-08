@@ -94,7 +94,10 @@ export class ICMPService {
 			timeoutUuid: crypto.randomUUID() // Generiere eine eindeutige UUID für diesen Ping
 		};
 
-		SimulationEventBus.getInstance().onExtinct(payload.timeoutUuid, () => {
+		SimulationEventBus.getInstance().registerOrigin(payload.timeoutUuid, this.networkLayer.config);
+		SimulationEventBus.getInstance().onExtinct(payload.timeoutUuid, (_id, message) => {
+			SimulationEventBus.getInstance().forgetOrigin(payload.timeoutUuid);
+			if (message) this.emit('message', message);
 			this.emit('timeout', { seq, targetIp });
 		});
 
@@ -122,7 +125,17 @@ export class ICMPService {
 		if (packet.type === 'time-exceeded' || packet.type === 'destination-unreachable') {
 			const protocol = packet.original?.protocol;
 			if (protocol === 'ICMP') {
+				if (
+					SimulationEventBus.getInstance().hasOtherOrigin(
+						packet.timeoutUuid,
+						this.networkLayer.config
+					)
+				) {
+					SimulationEventBus.getInstance().emitExtinct(packet.timeoutUuid);
+					return;
+				}
 				SimulationEventBus.getInstance().offExtinct(packet.timeoutUuid);
+				SimulationEventBus.getInstance().forgetOrigin(packet.timeoutUuid);
 				this.emit('error', { srcIp, seq: packet.original?.seq ?? 0, type: packet.type });
 			} else if (protocol) {
 				this.errorHandlers.get(protocol)?.(packet, srcIp);
@@ -148,6 +161,7 @@ export class ICMPService {
 
 			// Entferne den Extinct-Listener für diese UUID
 			SimulationEventBus.getInstance().offExtinct(packet.timeoutUuid);
+			SimulationEventBus.getInstance().forgetOrigin(packet.timeoutUuid);
 
 			this.results.push({
 				seq: seq,

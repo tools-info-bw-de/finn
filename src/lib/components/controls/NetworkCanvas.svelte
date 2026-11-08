@@ -16,6 +16,7 @@
 	import { scale } from 'svelte/transition';
 	import { pan, zoom } from '$lib/states/canvas.svelte';
 	import ServersOnHost from './ServersOnHost.svelte';
+	import PacketNotices from './PacketNotices.svelte';
 
 	//let windows = $state<WindowData[]>([]);
 	let visibleWindows = $derived.by(() => {
@@ -85,7 +86,7 @@
 	// 1. Zoom per Mausrad
 	function handleWheel(e: WheelEvent) {
 		// Wheel über Fenstern/Menüs darf nie die Karte zoomen
-		if ((e.target as HTMLElement).closest('.window, .list-group')) return;
+		if ((e.target as HTMLElement).closest('.window, .list-group, .toast')) return;
 
 		e.preventDefault();
 		const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
@@ -108,7 +109,7 @@
 	// 2. Klick auf den Hintergrund (Karten-Pan starten)
 	function handleViewportPointerDown(e: PointerEvent) {
 		// Sicherheits-Check: Falls e.stopPropagation am Knoten/UI-Overlay fehlschlägt
-		if ((e.target as HTMLElement).closest('.network-node, .list-group, .window')) return;
+		if ((e.target as HTMLElement).closest('.network-node, .list-group, .window, .toast')) return;
 
 		isPanning = true;
 		startPointer = { x: e.clientX, y: e.clientY };
@@ -234,7 +235,7 @@
 			e.clientY >= viewportRect.top &&
 			e.clientY <= viewportRect.bottom;
 		// Klicks auf Kontextmenüs/Fenster dürfen das Menü nicht vorzeitig schließen (sonst kommt der eigentliche Klick nie an)
-		const isOnOverlay = (e.target as HTMLElement).closest('.list-group, .window');
+		const isOnOverlay = (e.target as HTMLElement).closest('.list-group, .window, .toast');
 
 		if (isWithinViewport && !isDraggingNode && !newCable.adding && !isOnOverlay) {
 			if (draggingNodeUuid) {
@@ -373,6 +374,10 @@
 		contextMenuPlay.uuid = '';
 	}
 
+	function handleWindowClick(event: MouseEvent) {
+		if (!(event.target as HTMLElement).closest('.toast')) closeContextMenu();
+	}
+
 	function openSniffer() {
 		const existingWindow = windows.find(
 			(w) => w.nodeUuid === nodeToSniff.dataLinkLayerUuid && w.isSniffer === true
@@ -414,7 +419,7 @@
 	onpointermove={handleWindowPointerMove}
 	onpointerup={handleWindowPointerUp}
 	onkeydown={handleKeyDown}
-	onclick={closeContextMenu}
+	onclick={handleWindowClick}
 />
 
 <svg width="0" height="0" style="position: absolute;" aria-hidden="true">
@@ -580,6 +585,7 @@
 			onClose={() => closeWindow(win.nodeUuid)}
 		/>
 	{/each}
+	<PacketNotices />
 </div>
 
 <style>

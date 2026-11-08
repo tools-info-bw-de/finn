@@ -109,6 +109,7 @@ export const pingCommand: CommandHandler = async ({ term, args, currentNode, sig
 			currentNode.icmp.off('reply', handleReply);
 			currentNode.icmp.off('timeout', handleTimeout);
 			currentNode.icmp.off('error', handleError);
+			currentNode.icmp.off('message', handleMessage);
 
 			term.writeln(`\n--- ${target} ping statistics ---`);
 			term.writeln(

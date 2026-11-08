@@ -1,9 +1,10 @@
-import type { ICMPPacket, IPPacket, TCPSegment, UDPDatagram } from './types';
+import type { ARPPacket, ICMPPacket, IPPacket, TCPSegment, UDPDatagram } from './types';
 import type { NetworkNode } from './types';
 import { getPacketTrackingId, ipToInt } from './helpers';
 import { RouterInterface } from './RouterInterface.svelte';
 import { SimulationEventBus } from './SimulationEventBus';
 import { nodeSpawn } from '$lib/states/nodes.svelte';
+import { SvelteMap } from 'svelte/reactivity';
 
 export interface RouteEntry {
 	subnet: string;
@@ -11,6 +12,8 @@ export interface RouteEntry {
 	nextHop: string | null;
 	iface: RouterInterface;
 }
+
+type NetworkReceiveHandler = (packet: IPPacket | ARPPacket, type: 'IP' | 'ARP') => void;
 
 export class Router implements NetworkNode {
 	public uuid: string;
@@ -21,6 +24,7 @@ export class Router implements NetworkNode {
 
 	public interfaces = $state<RouterInterface[]>([]);
 	public routingTable = $state<RouteEntry[]>([]);
+	private readonly originalReceivers = new SvelteMap<RouterInterface, NetworkReceiveHandler>();
 
 	/**
 	 * Erzeugt einen neuen Router mit dem angegebenen Namen. Optionaler Parameter gibt an, wie viele Interfaces aus Datei geladen werden (sofern vorhanden).
@@ -120,6 +124,7 @@ export class Router implements NetworkNode {
 
 	private attachPacketListener(iface: RouterInterface): void {
 		const originalReceive = iface.networkLayer.receive.bind(iface.networkLayer);
+		this.originalReceivers.set(iface, originalReceive);
 
 		iface.networkLayer.receive = (packet, type) => {
 			if (type === 'ARP') {
@@ -129,16 +134,21 @@ export class Router implements NetworkNode {
 
 			const ipPacket = packet as IPPacket;
 
-			// Prüfen, ob die Ziel-IP einer der IPs unserer Interfaces entspricht
-			const isForAnyInterface = this.interfaces.some(
+			const destinationInterface = this.interfaces.find(
 				(i) => i.networkLayer.config.ipAddress === ipPacket.header.dstIp
 			);
 
-			if (isForAnyInterface || ipPacket.header.dstIp === '255.255.255.255') {
-				originalReceive(packet, type);
-			} else {
-				this.routePacket(ipPacket, iface);
+			if (destinationInterface) {
+				this.originalReceivers.get(destinationInterface)?.(packet, type);
+				return;
 			}
+
+			if (ipPacket.header.dstIp === '255.255.255.255') {
+				originalReceive(packet, type);
+				return;
+			}
+
+			this.routePacket(ipPacket, iface);
 		};
 	}
 
@@ -146,6 +156,13 @@ export class Router implements NetworkNode {
 		// 1. TTL prüfen
 		ipPacket.header.ttl--;
 		if (ipPacket.header.ttl <= 0) {
+			const trackingId = getPacketTrackingId(ipPacket);
+			if (trackingId)
+				SimulationEventBus.getInstance().reportDiagnostic(
+					trackingId,
+					ingressIface.config,
+					`Paket an ${ipPacket.header.dstIp}: TTL auf Router ${this.name} abgelaufen.`
+				);
 			this.sendIcmpError(ipPacket, ingressIface, 'time-exceeded');
 			return;
 		}
@@ -153,6 +170,13 @@ export class Router implements NetworkNode {
 		// 2. Ziel-Route suchen
 		const route = this.findBestRoute(ipPacket.header.dstIp);
 		if (!route) {
+			const trackingId = getPacketTrackingId(ipPacket);
+			if (trackingId)
+				SimulationEventBus.getInstance().reportDiagnostic(
+					trackingId,
+					ingressIface.config,
+					`Router ${this.name} hat keine Route zu ${ipPacket.header.dstIp}.`
+				);
 			this.sendIcmpError(ipPacket, ingressIface, 'destination-unreachable');
 			return;
 		}
@@ -173,6 +197,11 @@ export class Router implements NetworkNode {
 				// ARP-Auflösung lief ins Leere -> Pseudo-Timeout direkt melden (kein echtes Paket zurückschicken)
 				const timeoutUuid = getPacketTrackingId(failedPacket);
 				if (timeoutUuid) {
+					SimulationEventBus.getInstance().reportDiagnostic(
+						timeoutUuid,
+						egressIface.config,
+						`Router ${this.name}: ARP-Auflösung für ${nextHopIp} fehlgeschlagen.`
+					);
 					SimulationEventBus.getInstance().emitExtinct(timeoutUuid);
 				}
 			}

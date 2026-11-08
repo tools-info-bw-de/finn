@@ -34,14 +34,18 @@ type PendingLookup = {
 	resolve: (response: DNSResponse) => void;
 	reject: (error: Error) => void;
 	portBinding: UDPPortBinding;
+	attempts: number;
+	retryTimer?: ReturnType<typeof setTimeout>;
 };
 
 const DNS_PORT = 53;
 const MAX_RECURSION_HOPS = 10;
+const DNS_RETRY_DELAY_MS = 1000;
+const MAX_DNS_ATTEMPTS = 3;
 
 export class DNSLookupError extends Error {
 	constructor(
-		public readonly kind: 'packet-lost' | 'icmp-unreachable',
+		public readonly kind: 'packet-lost' | 'icmp-unreachable' | 'network-error',
 		message: string
 	) {
 		super(message);
@@ -126,14 +130,17 @@ export class DNSService implements UDPPortHandler {
 		return this.queryServer(name, dnsIp).then((response) => {
 			if (response.address && isValidIPv4(response.address)) {
 				return response.address;
-			} else if (response.recordType === 'NS' && response.nsDomain) {
-				throw new Error('Domain nicht gefunden');
 			}
-			throw new Error(response.error ?? 'Ungültige DNS-Antwort.');
+
+			const message =
+				response.recordType === 'NS' && response.nsDomain
+					? 'Domain nicht gefunden'
+					: (response.error ?? 'Ungültige DNS-Antwort.');
+			throw new Error(message);
 		});
 	}
 
-	private queryServer(name: string, serverIp: string): Promise<DNSResponse> {
+	private queryServer(name: string, serverIp: string, parentId?: string): Promise<DNSResponse> {
 		const id = crypto.randomUUID();
 		const query: DNSQuery = { id, kind: 'query', recordType: 'A', name };
 
@@ -148,39 +155,74 @@ export class DNSService implements UDPPortHandler {
 				return;
 			}
 
-			this.pendingLookups.set(id, {
+			const pending: PendingLookup = {
 				sourcePort: portBinding.port,
 				serverIp,
 				resolve,
 				reject,
-				portBinding
-			});
-			SimulationEventBus.getInstance().onExtinct(id, () => {
-				const pending = this.pendingLookups.get(id);
-				if (!pending) return;
+				portBinding,
+				attempts: 1
+			};
+			this.pendingLookups.set(id, pending);
+			SimulationEventBus.getInstance().registerOrigin(
+				id,
+				this.config,
+				() => {
+					if (this.pendingLookups.get(id) !== pending) return;
+					this.finishLookup(id, pending);
+					pending.reject(new Error('DNS-Anfrage wurde abgebrochen.'));
+				},
+				parentId
+			);
+			this.sendQuery(id, name, query, pending);
+		});
+	}
+
+	private sendQuery(id: string, name: string, query: DNSQuery, pending: PendingLookup): void {
+		SimulationEventBus.getInstance().onExtinct(id, (_timeoutUuid, message) => {
+			if (this.pendingLookups.get(id) !== pending) return;
+			if (message !== undefined) {
+				this.finishLookup(id, pending);
+				pending.reject(new DNSLookupError('network-error', message));
+				return;
+			}
+			if (pending.attempts >= MAX_DNS_ATTEMPTS) {
 				this.finishLookup(id, pending);
 				pending.reject(
 					new DNSLookupError(
 						'packet-lost',
-						`DNS-Anfrage für ${name} ist im Netzwerk verloren gegangen.`
+						`DNS-Anfrage für ${name} ist nach ${MAX_DNS_ATTEMPTS} Versuchen verloren gegangen. Ist der Hin- und Rückweg zum DNS-Server (${pending.serverIp}) fehlerfrei eingerichtet?`
 					)
 				);
-			});
-			this.udpService.send(
-				{
-					header: { srcPort: portBinding.port, dstPort: DNS_PORT, timeoutUuid: id },
-					payload: encodeMessage(query)
-				},
-				serverIp
-			);
+				return;
+			}
+
+			pending.retryTimer = setTimeout(() => {
+				pending.retryTimer = undefined;
+				if (this.pendingLookups.get(id) !== pending) return;
+				pending.attempts++;
+				this.sendQuery(id, name, query, pending);
+			}, DNS_RETRY_DELAY_MS);
 		});
+
+		this.udpService.send(
+			{
+				header: { srcPort: pending.sourcePort, dstPort: DNS_PORT, timeoutUuid: id },
+				payload: encodeMessage(query)
+			},
+			pending.serverIp
+		);
 	}
 
 	// Folgt NS-Verweisen mit Glue-IP, bis A-Antwort, Fehler oder NS ohne IP vorliegt.
-	private async resolveIteratively(name: string, startIp: string): Promise<DNSResponse> {
+	private async resolveIteratively(
+		name: string,
+		startIp: string,
+		parentId: string
+	): Promise<DNSResponse> {
 		let serverIp = startIp;
 		for (let hop = 0; hop < MAX_RECURSION_HOPS; hop++) {
-			const response = await this.queryServer(name, serverIp);
+			const response = await this.queryServer(name, serverIp, parentId);
 			if (response.recordType === 'NS' && response.glueIp && isValidIPv4(response.glueIp)) {
 				serverIp = response.glueIp;
 				continue;
@@ -299,14 +341,17 @@ export class DNSService implements UDPPortHandler {
 					nsDomain: nsDomain
 				};
 			} else if (state.recursiveResolution) {
-				this.resolveIteratively(query.name, record.ip)
+				this.resolveIteratively(query.name, record.ip, request.header.timeoutUuid ?? query.id)
 					.then((result) => ({ ...result, id: query.id, name: query.name }))
 					.catch((error: unknown): DNSResponse => ({
 						kind: 'response',
 						id: query.id,
 						name: query.name,
 						recordType: 'A',
-						error: error instanceof Error ? error.message : 'Rekursive Auflösung fehlgeschlagen.'
+						error:
+							error instanceof Error && !(error instanceof DNSLookupError)
+								? error.message
+								: 'Rekursive Auflösung fehlgeschlagen.'
 					}))
 					.then((result) => this.sendAnswer(result, request, srcIp));
 				return;
@@ -380,7 +425,9 @@ export class DNSService implements UDPPortHandler {
 	}
 
 	private finishLookup(id: string, pending: PendingLookup): void {
+		if (pending.retryTimer) clearTimeout(pending.retryTimer);
 		SimulationEventBus.getInstance().offExtinct(id);
+		SimulationEventBus.getInstance().forgetOrigin(id);
 		this.pendingLookups.delete(id);
 		pending.portBinding.release();
 	}

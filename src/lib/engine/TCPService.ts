@@ -5,6 +5,7 @@ import { SimulationEventBus } from './SimulationEventBus';
 const FIRST_EPHEMERAL_PORT = 49152;
 const LAST_PORT = 65535;
 const RETRY_DELAY_MS = 1000;
+const HANDSHAKE_TIMEOUT_MS = 120000;
 const MAX_ATTEMPTS = 3;
 
 export interface TCPConnection {
@@ -26,6 +27,7 @@ interface PendingSegment {
 	segment: TCPSegment;
 	expectedAck: number;
 	attempts: number;
+	parentId?: string;
 	trackingId?: string;
 	timer?: ReturnType<typeof setTimeout>;
 	onAcknowledged?: () => void;
@@ -102,7 +104,7 @@ export class TCPService implements ProtocolHandler {
 
 		const syn = this.createSegment(state, { SYN: true });
 		state.sendSequence = this.advanceSequence(state.sendSequence, 1);
-		this.sendReliable(state, syn, () => {}, onError);
+		this.sendReliable(state, syn, () => {});
 		return state.handle;
 	}
 
@@ -130,6 +132,11 @@ export class TCPService implements ProtocolHandler {
 				}
 			}
 			if (segment.header.timeoutUuid) {
+				SimulationEventBus.getInstance().reportDiagnostic(
+					segment.header.timeoutUuid,
+					this.networkLayer.config,
+					`Kein TCP-Endpunkt für Port ${segment.header.dstPort} auf ${localIp}.`
+				);
 				SimulationEventBus.getInstance().emitExtinct(segment.header.timeoutUuid);
 			}
 			return;
@@ -208,7 +215,14 @@ export class TCPService implements ProtocolHandler {
 				state.remotePort === packet.original.dstPort &&
 				state.outstanding?.trackingId === packet.timeoutUuid
 			) {
-				this.failConnection(state, new Error('ICMP-Fehler für TCP-Segment.'));
+				this.failConnection(
+					state,
+					new Error(
+						state.phase === 'syn-sent'
+							? 'Timeout: Verbindungsaufbau gescheitert'
+							: 'ICMP-Fehler für TCP-Segment.'
+					)
+				);
 				return;
 			}
 		}
@@ -243,7 +257,7 @@ export class TCPService implements ProtocolHandler {
 
 		const synAck = this.createSegment(state, { SYN: true, ACK: true });
 		state.sendSequence = this.advanceSequence(state.sendSequence, 1);
-		this.sendReliable(state, synAck);
+		this.sendReliable(state, synAck, undefined, undefined, segment.header.timeoutUuid);
 		return state;
 	}
 
@@ -258,6 +272,7 @@ export class TCPService implements ProtocolHandler {
 
 		state.receiveSequence = this.advanceSequence(segment.header.seqNum, 1);
 		state.phase = 'established';
+		state.connectError = undefined;
 		this.sendAcknowledgement(state);
 		state.connectCallback?.(state.handle);
 	}
@@ -361,8 +376,16 @@ export class TCPService implements ProtocolHandler {
 		};
 		const pending: PendingTransientSegment = { state };
 		this.transientSegments.set(trackingId, pending);
-		const retry = () => {
+		bus.registerOrigin(trackingId, this.networkLayer.config, () =>
+			this.failConnection(state, new Error('TCP-Verbindung wurde abgebrochen.'))
+		);
+		const retry = (_id: string, message?: string) => {
+			if (message) {
+				this.failConnection(state, new Error(message));
+				return;
+			}
 			pending.timer = setTimeout(() => {
+				bus.forgetOrigin(trackingId);
 				this.transientSegments.delete(trackingId);
 				bus.offDelivered(trackingId);
 				if (state.phase === 'closed') return;
@@ -376,6 +399,7 @@ export class TCPService implements ProtocolHandler {
 
 		bus.onExtinct(trackingId, retry);
 		bus.onDelivered(trackingId, () => {
+			bus.forgetOrigin(trackingId);
 			if (pending.timer) clearTimeout(pending.timer);
 			this.transientSegments.delete(trackingId);
 			bus.offExtinct(trackingId);
@@ -387,13 +411,15 @@ export class TCPService implements ProtocolHandler {
 		state: ConnectionState,
 		segment: TCPSegment,
 		onAcknowledged?: () => void,
-		onError?: (error: Error) => void
+		onError?: (error: Error) => void,
+		parentId?: string
 	): void {
 		const sequenceLength = this.sequenceLength(segment);
 		const pending: PendingSegment = {
 			segment,
 			expectedAck: this.advanceSequence(segment.header.seqNum, sequenceLength),
 			attempts: 0,
+			parentId,
 			onAcknowledged,
 			onError
 		};
@@ -407,6 +433,12 @@ export class TCPService implements ProtocolHandler {
 		const bus = SimulationEventBus.getInstance();
 		const trackingId = crypto.randomUUID();
 		pending.trackingId = trackingId;
+		bus.registerOrigin(
+			trackingId,
+			this.networkLayer.config,
+			() => this.failConnection(state, new Error('TCP-Verbindung wurde abgebrochen.')),
+			pending.parentId
+		);
 		const segment: TCPSegment = {
 			...pending.segment,
 			header: { ...pending.segment.header, timeoutUuid: trackingId }
@@ -417,22 +449,42 @@ export class TCPService implements ProtocolHandler {
 			if (state.outstanding !== pending || pending.trackingId !== trackingId) return;
 			bus.offExtinct(trackingId);
 			bus.offDelivered(trackingId);
+			bus.forgetOrigin(trackingId);
+			if (pending.segment.header.flags.SYN) {
+				this.failConnection(state, new Error('Timeout: Verbindungsaufbau gescheitert'));
+				return;
+			}
 			if (pending.attempts >= MAX_ATTEMPTS) {
 				this.failConnection(state, new Error('TCP-Segment nach drei Versuchen nicht bestätigt.'));
 				return;
 			}
 			this.sendAttempt(state, pending);
 		};
-		const scheduleRetry = () => {
+		const scheduleRetry = (delay = RETRY_DELAY_MS) => {
 			if (pending.timer) clearTimeout(pending.timer);
-			pending.timer = setTimeout(retry, RETRY_DELAY_MS);
+			pending.timer = setTimeout(retry, delay);
 		};
-		scheduleRetry();
 
-		bus.onExtinct(trackingId, () => {
+		let extinct = false;
+		const onExtinct = (_id: string, message?: string) => {
 			if (state.outstanding !== pending || pending.trackingId !== trackingId) return;
+			extinct = true;
+			if (pending.parentId) bus.emitExtinct(pending.parentId);
+			if (message) {
+				this.failConnection(state, new Error(message));
+				return;
+			}
 			scheduleRetry();
-		});
+		};
+		bus.onExtinct(trackingId, onExtinct);
+		if (segment.header.flags.SYN && !segment.header.flags.ACK) {
+			bus.onDelivered(trackingId, () => {
+				if (!extinct && state.outstanding === pending && pending.trackingId === trackingId) {
+					bus.onExtinct(trackingId, onExtinct);
+				}
+			});
+		}
+		if (segment.header.flags.SYN) scheduleRetry(HANDSHAKE_TIMEOUT_MS);
 		this.networkLayer.send(segment, state.remoteIp, 'TCP');
 	}
 
@@ -443,8 +495,13 @@ export class TCPService implements ProtocolHandler {
 		if (pending.trackingId) {
 			SimulationEventBus.getInstance().offExtinct(pending.trackingId);
 			SimulationEventBus.getInstance().offDelivered(pending.trackingId);
+			SimulationEventBus.getInstance().forgetOrigin(pending.trackingId);
 		}
 		pending.trackingId = undefined;
+		if (pending.segment.header.flags.SYN) {
+			this.failConnection(state, new Error('Timeout: Verbindungsaufbau gescheitert'));
+			return;
+		}
 		if (pending.attempts >= MAX_ATTEMPTS) {
 			this.failConnection(state, new Error('TCP-Segment nach drei Versuchen verloren.'));
 			return;
@@ -460,6 +517,7 @@ export class TCPService implements ProtocolHandler {
 		if (pending.trackingId) {
 			SimulationEventBus.getInstance().offExtinct(pending.trackingId);
 			SimulationEventBus.getInstance().offDelivered(pending.trackingId);
+			SimulationEventBus.getInstance().forgetOrigin(pending.trackingId);
 		}
 		state.outstanding = undefined;
 		pending.onAcknowledged?.();
@@ -511,6 +569,7 @@ export class TCPService implements ProtocolHandler {
 		if (pending?.trackingId) {
 			SimulationEventBus.getInstance().offExtinct(pending.trackingId);
 			SimulationEventBus.getInstance().offDelivered(pending.trackingId);
+			SimulationEventBus.getInstance().forgetOrigin(pending.trackingId);
 		}
 		state.outstanding = undefined;
 		this.clearTransientSegments(state);
@@ -533,6 +592,7 @@ export class TCPService implements ProtocolHandler {
 			if (pending.timer) clearTimeout(pending.timer);
 			bus.offExtinct(trackingId);
 			bus.offDelivered(trackingId);
+			bus.forgetOrigin(trackingId);
 			this.transientSegments.delete(trackingId);
 		}
 	}

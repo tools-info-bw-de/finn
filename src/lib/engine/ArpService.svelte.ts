@@ -8,8 +8,7 @@ import { SimulationEventBus } from './SimulationEventBus';
 
 interface PendingArpEntry {
 	uuid: string;
-	onTimeout?: (ipPacket: IPPacket) => void;
-	packets: IPPacket[];
+	packets: { packet: IPPacket; onTimeout?: (ipPacket: IPPacket) => void }[];
 }
 
 export class ArpService {
@@ -25,6 +24,10 @@ export class ArpService {
 	}
 
 	public emptyTable(): void {
+		for (const entry of this.pendingQueue.values()) {
+			SimulationEventBus.getInstance().offExtinct(entry.uuid);
+			SimulationEventBus.getInstance().clearBranch(entry.uuid);
+		}
 		this.table = {};
 		this.pendingQueue = new SvelteMap();
 	}
@@ -44,12 +47,12 @@ export class ArpService {
 		// Not in cache
 		// check if there's already a pending request for this IP
 		if (this.pendingQueue.has(dstIp)) {
-			this.pendingQueue.get(dstIp)!.packets.push(ipPacket);
+			this.pendingQueue.get(dstIp)!.packets.push({ packet: ipPacket, onTimeout });
 			return;
 		}
 
 		const uuid = crypto.randomUUID();
-		this.pendingQueue.set(dstIp, { uuid, onTimeout, packets: [ipPacket] });
+		this.pendingQueue.set(dstIp, { uuid, packets: [{ packet: ipPacket, onTimeout }] });
 		this.sendRequest(dstIp, uuid);
 	}
 
@@ -92,10 +95,10 @@ export class ArpService {
 			const entry = this.pendingQueue.get(arpPacket.senderIP);
 			if (entry) {
 				SimulationEventBus.getInstance().offExtinct(entry.uuid);
-				for (const pendingPacket of entry.packets) {
-					onPacketReadyToDeliver(pendingPacket, arpPacket.senderMac);
-				}
 				this.pendingQueue.delete(arpPacket.senderIP);
+				for (const pendingPacket of entry.packets) {
+					onPacketReadyToDeliver(pendingPacket.packet, arpPacket.senderMac);
+				}
 			}
 		}
 	}
@@ -121,6 +124,6 @@ export class ArpService {
 		const entry = this.pendingQueue.get(targetIp);
 		if (!entry) return;
 		this.pendingQueue.delete(targetIp);
-		entry.packets.forEach((packet) => entry.onTimeout?.(packet));
+		entry.packets.forEach(({ packet, onTimeout }) => onTimeout?.(packet));
 	}
 }

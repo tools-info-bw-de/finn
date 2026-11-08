@@ -51,7 +51,14 @@ export class NetworkLayer implements LayerInterface {
 
 		if (!this.lowerLayer || !isValidIPv4(destinationIp)) {
 			const trackingId = getPacketTrackingId(ipPacket);
-			if (trackingId) SimulationEventBus.getInstance().emitExtinct(trackingId);
+			if (trackingId)
+				SimulationEventBus.getInstance().reportFailure(
+					trackingId,
+					this.config,
+					!this.lowerLayer
+						? `Netzwerkschnittstelle von ${this.config.ipAddress} ist nicht verfügbar.`
+						: `Zieladresse ${destinationIp} ist keine gültige IPv4-Adresse.`
+				);
 			return;
 		}
 
@@ -66,8 +73,31 @@ export class NetworkLayer implements LayerInterface {
 			);
 
 			const trackingId = getPacketTrackingId(ipPacket);
-			if (trackingId) SimulationEventBus.getInstance().emitExtinct(trackingId);
+			if (trackingId)
+				SimulationEventBus.getInstance().reportFailure(
+					trackingId,
+					this.config,
+					`Kein Weg von ${this.config.ipAddress} zu ${destinationIp} (Nicht lokal und kein Gateway gesetzt).`
+				);
 
+			return;
+		}
+
+		if (!isLocal && !isValidIPv4(nextHopIp)) {
+			const message = `Gateway ${nextHopIp} auf ${this.config.ipAddress} ist keine gültige IPv4-Adresse.`;
+			console.warn(`[NetworkLayer] ${message}`);
+			const trackingId = getPacketTrackingId(ipPacket);
+			if (trackingId)
+				SimulationEventBus.getInstance().reportFailure(trackingId, this.config, message);
+			return;
+		}
+
+		if (!isLocal && !isSameSubnet(this.config.ipAddress, nextHopIp, this.config.netmask)) {
+			const message = `Gateway ${nextHopIp} liegt nicht im lokalen Subnetz von ${this.config.ipAddress} und ist daher nicht erreichbar.`;
+			console.warn(`[NetworkLayer] ${message}`);
+			const trackingId = getPacketTrackingId(ipPacket);
+			if (trackingId)
+				SimulationEventBus.getInstance().reportFailure(trackingId, this.config, message);
 			return;
 		}
 
@@ -82,6 +112,13 @@ export class NetworkLayer implements LayerInterface {
 				// ARP-Anfrage lief ins Leere -> Pseudo-Timeout direkt an den ursprünglichen Absender melden
 				const timeoutUuid = getPacketTrackingId(failedPacket);
 				if (timeoutUuid) {
+					SimulationEventBus.getInstance().reportDiagnostic(
+						timeoutUuid,
+						this.config,
+						`Gerät ${this.config.ipAddress} findet nirgends die IP ${nextHopIp} (ARP-Auflösung gescheitert).`,
+						failedPacket.header.protocol === 'TCP' &&
+							(failedPacket.payload as TCPSegment).header.flags.SYN
+					);
 					SimulationEventBus.getInstance().emitExtinct(timeoutUuid);
 				}
 			}
@@ -125,6 +162,13 @@ export class NetworkLayer implements LayerInterface {
 				if (trackingId) SimulationEventBus.getInstance().emitExtinct(trackingId);
 			}
 		} else if (--ipPacket.header.ttl <= 0) {
+			const trackingId = getPacketTrackingId(ipPacket);
+			if (trackingId)
+				SimulationEventBus.getInstance().reportDiagnostic(
+					trackingId,
+					this.config,
+					`Paket an ${ipPacket.header.dstIp}: TTL bei ${this.config.ipAddress} abgelaufen.`
+				);
 			// TTL abgelaufen -> ICMP Time-Exceeded senden
 			this.sendIcmpError(ipPacket, 'time-exceeded');
 			console.warn(
@@ -157,6 +201,13 @@ export class NetworkLayer implements LayerInterface {
 		const nextHopIp = isLocal ? destinationIp : this.config.gateway;
 
 		if (!nextHopIp) {
+			const trackingId = getPacketTrackingId(ipPacket);
+			if (trackingId)
+				SimulationEventBus.getInstance().reportDiagnostic(
+					trackingId,
+					this.config,
+					`Keine Route zu ${destinationIp} auf ${this.config.ipAddress}.`
+				);
 			// Kein Weg zum Ziel -> ICMP destination-unreachable zurück an Absender
 			console.warn(`[NetworkLayer] Forwarding fehlgeschlagen: Kein Next-Hop für ${destinationIp}`);
 			this.sendIcmpError(ipPacket, 'destination-unreachable');
@@ -176,6 +227,13 @@ export class NetworkLayer implements LayerInterface {
 				// ARP-Auflösung lief ins Leere -> Pseudo-Timeout direkt melden (kein echtes Paket zurückschicken)
 				const timeoutUuid = getPacketTrackingId(failedPacket);
 				if (timeoutUuid) {
+					SimulationEventBus.getInstance().reportDiagnostic(
+						timeoutUuid,
+						this.config,
+						`ARP-Auflösung für ${nextHopIp} auf ${this.config.ipAddress} fehlgeschlagen.`,
+						failedPacket.header.protocol === 'TCP' &&
+							(failedPacket.payload as TCPSegment).header.flags.SYN
+					);
 					SimulationEventBus.getInstance().emitExtinct(timeoutUuid);
 				}
 			}

@@ -74,6 +74,11 @@ export class UDPService implements ProtocolHandler {
 		if (handler) {
 			handler.receive(datagram, srcIp);
 		} else if (datagram.header.timeoutUuid) {
+			SimulationEventBus.getInstance().reportDiagnostic(
+				datagram.header.timeoutUuid,
+				this.networkLayer.config,
+				`UDP-Port ${datagram.header.dstPort} auf ${this.networkLayer.config.ipAddress} ist nicht belegt.`
+			);
 			SimulationEventBus.getInstance().emitExtinct(datagram.header.timeoutUuid);
 		}
 	}

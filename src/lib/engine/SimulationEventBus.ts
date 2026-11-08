@@ -1,10 +1,19 @@
-type ExtinctListener = (timeoutUuid: string) => void;
+type ExtinctListener = (timeoutUuid: string, message?: string) => void;
 type DeliveredListener = (timeoutUuid: string) => void;
+type NoticeListener = (message: string | undefined) => void;
+
+interface OriginEntry {
+	origin: object;
+	parent?: { id: string; entry: OriginEntry };
+}
 
 export class SimulationEventBus {
 	private static instance: SimulationEventBus;
 	private listeners = new Map<string, ExtinctListener[]>();
 	private deliveredListeners = new Map<string, DeliveredListener[]>();
+	private origins = new Map<string, OriginEntry>();
+	private cancellations = new Map<string, () => void>();
+	private noticeListeners = new Set<NoticeListener>();
 	// Zählt lebende Kopien eines aufgesplitteten Pakets (z.B. ARP-Broadcasts im Switch)
 	private branchCounts = new Map<string, number>();
 
@@ -16,9 +25,61 @@ export class SimulationEventBus {
 	}
 
 	public clear(): void {
+		const cancellations = [...this.cancellations.values()];
 		this.listeners.clear();
 		this.deliveredListeners.clear();
 		this.branchCounts.clear();
+		this.origins.clear();
+		this.cancellations.clear();
+		this.noticeListeners.forEach((listener) => listener(undefined));
+		cancellations.forEach((cancel) => cancel());
+	}
+
+	public registerOrigin(id: string, origin: object, cancel?: () => void, parentId?: string): void {
+		const parent = parentId ? this.origins.get(parentId) : undefined;
+		this.origins.set(id, {
+			origin,
+			parent: parent && parentId ? { id: parentId, entry: parent } : undefined
+		});
+		if (cancel) this.cancellations.set(id, cancel);
+	}
+
+	public forgetOrigin(id: string): void {
+		this.origins.delete(id);
+		this.cancellations.delete(id);
+	}
+
+	public hasOtherOrigin(id: string, location: object): boolean {
+		const origin = this.origins.get(id)?.origin;
+		return origin !== undefined && origin !== location;
+	}
+
+	public onNotice(listener: NoticeListener): () => void {
+		this.noticeListeners.add(listener);
+		return () => this.noticeListeners.delete(listener);
+	}
+
+	public reportDiagnostic(
+		id: string,
+		location: object,
+		message: string,
+		includeOrigin = false
+	): void {
+		let entry = this.origins.get(id);
+		while (entry) {
+			if (includeOrigin || entry.origin !== location) {
+				this.noticeListeners.forEach((listener) => listener(message));
+				return;
+			}
+			const parent = entry.parent;
+			entry = parent && this.origins.get(parent.id) === parent.entry ? parent.entry : undefined;
+		}
+	}
+
+	public reportFailure(id: string, location: object, message: string): void {
+		const origin = this.origins.get(id)?.origin;
+		this.reportDiagnostic(id, location, message);
+		this.emitExtinct(id, origin === location ? message : undefined);
 	}
 
 	public onExtinct(timeoutUuid: string, callback: ExtinctListener): void {
@@ -41,22 +102,22 @@ export class SimulationEventBus {
 		this.deliveredListeners.delete(timeoutUuid);
 	}
 
-	public emitExtinct(timeoutUuid: string): void {
+	public emitExtinct(timeoutUuid: string, message?: string): void {
 		const callbacks = this.listeners.get(timeoutUuid);
 		if (callbacks) {
-			callbacks.forEach((cb) => cb(timeoutUuid));
 			this.listeners.delete(timeoutUuid);
+			callbacks.forEach((cb) => cb(timeoutUuid, message));
 		}
 	}
 
 	/** Meldet TCP die Segmentzustellung und räumt Listener auf; das TCP-ACK bleibt separat erforderlich. */
 	public emitDelivered(timeoutUuid: string): void {
 		const callbacks = this.deliveredListeners.get(timeoutUuid);
+		this.deliveredListeners.delete(timeoutUuid);
+		this.listeners.delete(timeoutUuid);
 		if (callbacks) {
 			callbacks.forEach((cb) => cb(timeoutUuid));
 		}
-		this.deliveredListeners.delete(timeoutUuid);
-		this.listeners.delete(timeoutUuid);
 	}
 
 	/**

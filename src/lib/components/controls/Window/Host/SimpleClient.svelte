@@ -84,33 +84,61 @@
 		log.push({ type, message });
 	}
 
-	function startConnection(event: SubmitEvent) {
+	async function startConnection(event: SubmitEvent) {
 		event.preventDefault();
 		if (activeConnection) return;
 
-		const serverAddress = session.serverAddress.trim();
-		if (!isValidIPv4(serverAddress)) {
-			addLog('error', 'Bitte eine gültige IPv4-Adresse eingeben.');
-			return;
-		}
 		if (!portInput || !validatePort(portInput)) {
 			addLog('error', 'Bitte eine gültige Portnummer eingeben.');
+			return;
+		}
+
+		connectionStatus = 'connecting';
+
+		const serverAddress = session.serverAddress.trim();
+		let ip: string;
+		try {
+			ip = await host.dns.resolveAddress(serverAddress);
+		} catch (error) {
+			connectionStatus = 'disconnected';
+			addLog('error', error instanceof Error ? error.message : 'DNS-Auflösung fehlgeschlagen.');
+			return;
+		}
+
+		if (!isValidIPv4(ip)) {
+			addLog('error', 'DNS-Auflösung hat keine gültige IPv4-Adresse geliefert.');
+			connectionStatus = 'disconnected';
 			return;
 		}
 
 		const serverPort = Number(portInput);
 		const attempt = ++connectionAttempt;
 		closeWhenDrained = false;
-		connectionStatus = 'connecting';
 
 		try {
-			const connection = host.tcp.connect(serverAddress, serverPort, () => {
-				if (attempt !== connectionAttempt) return;
-				connectionStatus = 'connected';
-				addLog('connected', `Verbunden mit ${serverAddress}:${serverPort}`);
-				if (closeWhenDrained) closeConnection();
-				else sendNextMessage();
-			});
+			let connection: TCPConnection | undefined;
+			let earlyError: Error | undefined;
+			connection = host.tcp.connect(
+				ip,
+				serverPort,
+				() => {
+					if (attempt !== connectionAttempt) return;
+					connectionStatus = 'connected';
+					addLog('connected', `Verbunden mit ${ip}:${serverPort}`);
+					if (closeWhenDrained) closeConnection();
+					else sendNextMessage();
+				},
+				(error) => {
+					if (connection) finishConnection(connection, 'error', error.message);
+					else earlyError = error;
+				}
+			);
+
+			if (earlyError) {
+				connectionStatus = 'disconnected';
+				addLog('error', earlyError.message);
+				return;
+			}
 
 			activeConnection = connection;
 			session.serverPort = serverPort;
@@ -342,6 +370,12 @@
 <style>
 	.nowrap {
 		white-space: nowrap;
+	}
+
+	.logEntry {
+		font-size: 0.85rem;
+		padding: 0.25rem 0.5rem;
+		border-bottom: 1px solid #45475a;
 	}
 
 	.background {

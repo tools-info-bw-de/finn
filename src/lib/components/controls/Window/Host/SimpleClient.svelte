@@ -145,6 +145,7 @@
 				type="text"
 				required
 				placeholder="Nachricht"
+				disabled={session.connectionStatus !== 'connected'}
 			/>
 			<label for="{host.uuid}-simpleClientMessage">Nachricht</label>
 		</div>

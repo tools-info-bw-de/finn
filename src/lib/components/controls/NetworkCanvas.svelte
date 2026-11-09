@@ -426,7 +426,7 @@
 	<defs>
 		<filter id="outline">
 			<!-- 1. Bildbereich vergrößern/aufblähen -->
-			<feMorphology in="SourceAlpha" result="expanded" operator="dilate" radius="2" />
+			<feMorphology in="SourceAlpha" result="expanded" operator="dilate" radius="3" />
 			<!-- 2. Farbe der Umrandung festlegen -->
 			<feFlood flood-color="#2ac759" result="color" />
 			<feComposite in="color" in2="expanded" operator="in" result="outline" />

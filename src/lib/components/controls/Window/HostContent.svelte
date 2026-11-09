@@ -383,6 +383,6 @@
 	}
 
 	.startMenuButton::after {
-		display: none;
+		display: none !important;
 	}
 </style>

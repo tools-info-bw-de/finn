@@ -1,7 +1,7 @@
 <script lang="ts">
 	//import { SvelteMap } from 'svelte/reactivity';
 	import type { Host } from '$lib/engine/Host.svelte';
-	import type { TCPConnection, TCPConnectionListener } from '$lib/engine/TCPService';
+	import type { TCPConnection, TCPConnectionListener } from '$lib/engine/services/TCPService';
 	import type { EchoConnectionState } from '$lib/engine/types';
 	import { onMount, tick } from 'svelte';
 	import playImg from '$lib/assets/play.svg';
@@ -10,7 +10,6 @@
 	import unlinkImg from '$lib/assets/unlink.svg';
 	import echoImg from '$lib/assets/echo.png';
 	import triangleExclamation from '$lib/assets/triangle-exclamation.svg';
-	import { SvelteMap } from 'svelte/reactivity';
 
 	let { host }: { host: Host } = $props();
 
@@ -18,7 +17,7 @@
 	const session = host.echoServerState();
 
 	let releaseListener: (() => void) | undefined;
-	const connections = new SvelteMap<TCPConnection, EchoConnectionState>();
+	//const connections = new SvelteMap<TCPConnection, EchoConnectionState>();
 
 	let portInput = $state(String(session.port));
 	let portIsValid = $derived(validatePort(portInput));
@@ -148,7 +147,7 @@
 		releaseListener = undefined;
 		session.serverRunning = false;
 
-		for (const state of [...connections.values()]) {
+		for (const state of [...session.connections.values()]) {
 			state.closeWhenDrained = true;
 			sendNext(state);
 		}
@@ -173,7 +172,7 @@
 			port: connection.remotePort,
 			message: ``
 		});
-		connections.set(connection, state);
+		session.connections.set(connection, state);
 		state.detachListeners.push(
 			connection.onData((payload) => {
 				if (state.closeWhenDrained) return;
@@ -225,7 +224,7 @@
 	}
 
 	function removeConnection(state: EchoConnectionState) {
-		if (!connections.delete(state.connection)) return;
+		if (!session.connections.delete(state.connection)) return;
 		for (const detach of state.detachListeners) detach();
 		state.pendingPayloads.length = 0;
 		log.push({

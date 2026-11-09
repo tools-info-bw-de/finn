@@ -1,4 +1,4 @@
-import { DataLinkLayer } from './DataLinkLayer.svelte';
+import { DataLinkLayer } from './DataLinkLayer.svelte.ts';
 import type { ARPPacket, CableEndpoint, EthernetFrame, ICMPPacket, IPPacket } from './types';
 import { SwitchPort } from './SwitchPort.ts';
 import { settings } from '../states/settings.svelte';

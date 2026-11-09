@@ -1,6 +1,6 @@
-import type { NetworkLayer } from './NetworkLayer';
-import type { ICMPPacket, IPPacket, ProtocolHandler, TCPSegment } from './types';
-import { SimulationEventBus } from './SimulationEventBus';
+import type { NetworkLayer } from '../NetworkLayer';
+import type { ICMPPacket, IPPacket, ProtocolHandler, TCPSegment } from '../types';
+import { SimulationEventBus } from '../SimulationEventBus';
 
 const FIRST_EPHEMERAL_PORT = 49152;
 const LAST_PORT = 65535;

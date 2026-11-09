@@ -1,9 +1,9 @@
-import { ArpService } from './ArpService.svelte';
+import { ArpService } from './services/ArpService.svelte';
 import { NetworkLayer } from './NetworkLayer';
 import { NetworkConfig } from './NetworkConfig.svelte';
 import { generateRandomMac } from './helpers';
 import { DataLinkLayer } from './DataLinkLayer.svelte';
-import { ICMPService } from './ICMPService.svelte';
+import { ICMPService } from './services/ICMPService.svelte';
 
 export class RouterInterface {
 	public uuid: string = crypto.randomUUID();

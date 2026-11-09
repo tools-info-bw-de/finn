@@ -1,7 +1,7 @@
-import type { NetworkLayer } from './NetworkLayer';
-import type { ICMPPacket, IPPacket } from './types';
+import type { NetworkLayer } from '../NetworkLayer';
+import type { ICMPPacket, IPPacket } from '../types';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { SimulationEventBus } from './SimulationEventBus';
+import { SimulationEventBus } from '../SimulationEventBus';
 
 export interface PingResult {
 	seq: number;

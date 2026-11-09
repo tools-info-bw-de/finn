@@ -1,6 +1,6 @@
-import type { NetworkLayer } from './NetworkLayer';
-import type { IPPacket, ProtocolHandler, UDPDatagram } from './types';
-import { SimulationEventBus } from './SimulationEventBus';
+import type { NetworkLayer } from '../NetworkLayer';
+import type { IPPacket, ProtocolHandler, UDPDatagram } from '../types';
+import { SimulationEventBus } from '../SimulationEventBus';
 
 export interface UDPPortHandler {
 	receive(datagram: UDPDatagram, srcIp: string): void;

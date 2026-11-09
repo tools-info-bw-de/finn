@@ -1,5 +1,5 @@
 import { isSameSubnet, isValidIPv4 } from '$lib/engine/helpers';
-import { DNSLookupError } from '$lib/engine/DNSService.svelte';
+import { DNSLookupError } from '$lib/engine/services/DNSService.svelte';
 import type { CommandHandler } from '../types';
 
 export const pingCommand: CommandHandler = async ({ term, args, currentNode, signal }) => {

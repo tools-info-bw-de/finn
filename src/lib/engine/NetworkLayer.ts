@@ -7,7 +7,7 @@ import type {
 	TCPSegment,
 	ProtocolHandler
 } from './types';
-import type { ArpService } from './ArpService.svelte';
+import type { ArpService } from './services/ArpService.svelte';
 import { NetworkConfig } from './NetworkConfig.svelte';
 import { getPacketTrackingId, isValidIPv4, isSameSubnet } from './helpers';
 import { SimulationEventBus } from './SimulationEventBus';

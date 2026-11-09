@@ -1,5 +1,6 @@
+import type { SvelteMap } from 'svelte/reactivity';
 import type { Cable } from './Cable.svelte';
-import type { TCPConnection } from './TCPService';
+import type { TCPConnection } from './services/TCPService';
 
 export interface EthernetFrame {
 	uuid: string;
@@ -141,6 +142,7 @@ export type EchoConnectionState = {
 export interface EchoServerState {
 	serverRunning: boolean;
 	port: number;
+	connections: SvelteMap<TCPConnection, EchoConnectionState>;
 }
 
 export interface SimpleClientState {

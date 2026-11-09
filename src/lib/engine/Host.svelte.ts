@@ -1,6 +1,6 @@
 import { DataLinkLayer } from './DataLinkLayer.svelte';
 import { NetworkLayer } from './NetworkLayer';
-import { ArpService } from './ArpService.svelte';
+import { ArpService } from './services/ArpService.svelte';
 import type {
 	App,
 	AppName,
@@ -12,11 +12,12 @@ import type {
 	TerminalState
 } from './types';
 import { NetworkConfig } from './NetworkConfig.svelte';
-import { ICMPService } from './ICMPService.svelte';
-import { DNSService } from './DNSService.svelte';
-import { UDPService } from './UDPService';
-import { TCPService } from './TCPService';
+import { ICMPService } from './services/ICMPService.svelte';
+import { DNSService } from './services/DNSService.svelte';
+import { UDPService } from './services/UDPService';
+import { TCPService } from './services/TCPService';
 import { nodeSpawn } from '$lib/states/nodes.svelte';
+import { SvelteMap } from 'svelte/reactivity';
 
 function createApp(type: AppType): App {
 	if (type === 'terminal') {
@@ -46,7 +47,8 @@ function createApp(type: AppType): App {
 			type,
 			content: {
 				serverRunning: false,
-				port: 55555
+				port: 55555,
+				connections: new SvelteMap()
 			}
 		};
 	} else if (type === 'simple-client') {

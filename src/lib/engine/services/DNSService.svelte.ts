@@ -1,11 +1,11 @@
-import type { NetworkConfig } from './NetworkConfig.svelte';
-import type { ARecord, NSRecord, DNSState, UDPDatagram, DNSRecord } from './types';
+import type { NetworkConfig } from '../NetworkConfig.svelte';
+import type { ARecord, NSRecord, DNSState, UDPDatagram, DNSRecord } from '../types';
 import { UDPService, type UDPPortBinding, type UDPPortHandler } from './UDPService';
 import { SvelteMap } from 'svelte/reactivity';
-import { isValidIPv4 } from './helpers';
-import { SimulationEventBus } from './SimulationEventBus';
+import { isValidIPv4 } from '../helpers';
+import { SimulationEventBus } from '../SimulationEventBus';
 import type { ICMPService } from './ICMPService.svelte';
-import type { ICMPPacket } from './types';
+import type { ICMPPacket } from '../types';
 
 export type DNSQuery = {
 	id: string;

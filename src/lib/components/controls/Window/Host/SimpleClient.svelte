@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import type { Host } from '$lib/engine/Host.svelte';
-	import type { TCPConnection } from '$lib/engine/TCPService';
-	import { isValidIPv4 } from '$lib/engine/helpers';
 	import linkImg from '$lib/assets/link.svg';
 	import unlinkImg from '$lib/assets/unlink.svg';
 	import envelopeImg from '$lib/assets/envelope.svg';
@@ -13,31 +11,13 @@
 
 	// svelte-ignore state_referenced_locally
 	const session = host.simpleClientState();
-	let activeConnection: TCPConnection | null = null;
-
 	let messageInput = $state('');
-	let connectionStatus = $state<'disconnected' | 'connecting' | 'connected' | 'closing'>(
-		'disconnected'
-	);
 	let portInput = $state(String(session.serverPort));
-	let sendingMessage = false;
-	let closeWhenDrained = false;
-	let connectionAttempt = 0;
-	let pendingMessages: string[] = [];
-	let detachConnectionListeners: (() => void)[] = [];
-
-	type logEntry = {
-		type: 'connected' | 'disconnected' | 'sent' | 'received' | 'error';
-		message: string;
-	};
-	let log = $state<logEntry[]>([]);
-
-	let clientAppOpen = $derived(host.apps.some((app) => app.type === 'simple-client'));
 	let portIsValid = $derived(validatePort(portInput));
 
 	function autoScrollLog(node: HTMLDivElement) {
 		let detached = false;
-		if (log.length > 0) {
+		if (session.log.length > 0) {
 			void tick().then(() => {
 				if (!detached) node.scrollTop = node.scrollHeight;
 			});
@@ -46,11 +26,6 @@
 			detached = true;
 		};
 	}
-
-	$effect(() => {
-		if (!clientAppOpen) return;
-		return disconnect;
-	});
 
 	/**
 	 * Prüft, ob der eingegebene Port gültig ist (eine ganze Zahl zwischen 1 und 65535).
@@ -80,170 +55,19 @@
 		}
 	}
 
-	function addLog(type: logEntry['type'], message: string) {
-		log.push({ type, message });
-	}
-
-	async function startConnection(event: SubmitEvent) {
+	function startConnection(event: SubmitEvent) {
 		event.preventDefault();
-		if (activeConnection) return;
-
 		if (!portInput || !validatePort(portInput)) {
-			addLog('error', 'Bitte eine gültige Portnummer eingeben.');
+			session.log.push({ type: 'error', message: 'Bitte eine gültige Portnummer eingeben.' });
 			return;
 		}
-
-		connectionStatus = 'connecting';
-
-		const serverAddress = session.serverAddress.trim();
-		let ip: string;
-		try {
-			ip = await host.dns.resolveAddress(serverAddress);
-		} catch (error) {
-			connectionStatus = 'disconnected';
-			addLog('error', error instanceof Error ? error.message : 'DNS-Auflösung fehlgeschlagen.');
-			return;
-		}
-
-		if (!isValidIPv4(ip)) {
-			addLog('error', 'DNS-Auflösung hat keine gültige IPv4-Adresse geliefert.');
-			connectionStatus = 'disconnected';
-			return;
-		}
-
-		const serverPort = Number(portInput);
-		const attempt = ++connectionAttempt;
-		closeWhenDrained = false;
-
-		try {
-			let connection: TCPConnection | undefined;
-			let earlyError: Error | undefined;
-			connection = host.tcp.connect(
-				ip,
-				serverPort,
-				() => {
-					if (attempt !== connectionAttempt) return;
-					connectionStatus = 'connected';
-					addLog('connected', `Verbunden mit ${ip}:${serverPort}`);
-					if (closeWhenDrained) closeConnection();
-					else sendNextMessage();
-				},
-				(error) => {
-					if (connection) finishConnection(connection, 'error', error.message);
-					else earlyError = error;
-				}
-			);
-
-			if (earlyError) {
-				connectionStatus = 'disconnected';
-				addLog('error', earlyError.message);
-				return;
-			}
-
-			activeConnection = connection;
-			session.serverPort = serverPort;
-			detachConnectionListeners = [
-				connection.onData((payload) => {
-					if (activeConnection !== connection) return;
-					addLog('received', new TextDecoder().decode(payload));
-				}),
-				connection.onClose(() =>
-					finishConnection(connection, 'disconnected', 'Verbindung geschlossen.')
-				),
-				connection.onError((error) => finishConnection(connection, 'error', error.message))
-			];
-		} catch (error) {
-			connectionStatus = 'disconnected';
-			addLog(
-				'error',
-				error instanceof Error ? error.message : 'Verbindung konnte nicht gestartet werden.'
-			);
-		}
+		void session.connect(Number(portInput));
 	}
 
 	function sendMessage(event: SubmitEvent) {
 		event.preventDefault();
-		if (!activeConnection || connectionStatus !== 'connected') {
-			addLog('error', 'Es besteht keine Verbindung zum Server.');
-			return;
-		}
-		if (messageInput.length === 0) return;
-
-		pendingMessages.push(messageInput);
-		messageInput = '';
-		sendNextMessage();
-	}
-
-	function sendNextMessage() {
-		if (sendingMessage || !activeConnection) return;
-		if (closeWhenDrained && pendingMessages.length === 0) {
-			closeConnection();
-			return;
-		}
-		if (connectionStatus !== 'connected') return;
-
-		const message = pendingMessages.shift();
-		if (message === undefined) {
-			return;
-		}
-
-		const connection = activeConnection;
-		sendingMessage = true;
-		try {
-			addLog('sent', message);
-			connection.send(new TextEncoder().encode(message), () => {
-				if (activeConnection !== connection) return;
-				sendingMessage = false;
-				sendNextMessage();
-			});
-		} catch (error) {
-			sendingMessage = false;
-			addLog(
-				'error',
-				error instanceof Error ? error.message : 'Nachricht konnte nicht gesendet werden.'
-			);
-		}
-	}
-
-	function disconnect() {
-		if (!activeConnection) return;
-		const wasConnecting = connectionStatus === 'connecting';
-		closeWhenDrained = true;
-		pendingMessages = [];
-		connectionStatus = 'closing';
-		if (wasConnecting) return;
-		if (!sendingMessage) closeConnection();
-	}
-
-	function closeConnection() {
-		if (!activeConnection || connectionStatus === 'connecting' || sendingMessage) return;
-		try {
-			activeConnection.close();
-		} catch (error) {
-			closeWhenDrained = false;
-			connectionStatus = 'connected';
-			addLog(
-				'error',
-				error instanceof Error ? error.message : 'Verbindung konnte nicht geschlossen werden.'
-			);
-		}
-	}
-
-	function finishConnection(
-		connection: TCPConnection,
-		type: 'disconnected' | 'error',
-		message: string
-	) {
-		if (activeConnection !== connection) return;
-		for (const detach of detachConnectionListeners) detach();
-		detachConnectionListeners = [];
-		activeConnection = null;
-		connectionAttempt++;
-		connectionStatus = 'disconnected';
-		sendingMessage = false;
-		closeWhenDrained = false;
-		pendingMessages = [];
-		addLog(type, message);
+		session.send(messageInput);
+		if (session.connectionStatus === 'connected') messageInput = '';
 	}
 </script>
 
@@ -256,6 +80,7 @@
 				id="{host.uuid}-simpleClientAddress"
 				type="text"
 				placeholder="Server-Adresse"
+				disabled={session.connectionStatus !== 'disconnected'}
 			/>
 			<label for="{host.uuid}-simpleClientAddress">Server-Adresse</label>
 		</div>
@@ -269,20 +94,21 @@
 				inputmode="numeric"
 				pattern="[0-9]*"
 				placeholder="Server-Port"
+				disabled={session.connectionStatus !== 'disconnected'}
 				aria-invalid={!portIsValid}
 			/>
 			<label for="{host.uuid}-simpleClientPort">Server-Port</label>
 		</div>
 
-		{#if connectionStatus === 'connected' || connectionStatus === 'closing'}
+		{#if session.connectionStatus === 'connected' || session.connectionStatus === 'closing'}
 			<button
-				class="btn btn-outline-secondary nowrap"
+				class="btn btn-secondary nowrap"
 				type="button"
-				onclick={disconnect}
-				disabled={connectionStatus !== 'connected'}
+				onclick={() => session.disconnect()}
+				disabled={session.connectionStatus !== 'connected'}
 			>
 				Trennen
-				{#if connectionStatus === 'closing'}<div
+				{#if session.connectionStatus === 'closing'}<div
 						class="spinner-border spinner-border-sm"
 						role="status"
 					>
@@ -294,10 +120,10 @@
 			<button
 				class="btn btn-primary nowrap"
 				type="submit"
-				disabled={connectionStatus !== 'disconnected'}
+				disabled={session.connectionStatus !== 'disconnected'}
 			>
 				Verbinden
-				{#if connectionStatus === 'connecting'}<div
+				{#if session.connectionStatus === 'connecting'}<div
 						class="spinner-border spinner-border-sm"
 						role="status"
 					>
@@ -325,7 +151,8 @@
 		<button
 			class="btn btn-primary"
 			type="submit"
-			disabled={connectionStatus !== 'connected' || messageInput.length === 0}>Senden</button
+			disabled={session.connectionStatus !== 'connected' || messageInput.length === 0}
+			>Senden</button
 		>
 	</form>
 
@@ -333,7 +160,7 @@
 
 	<div class="logArea flex-fill d-flex flex-column mt-2">
 		<div {@attach autoScrollLog} class="logContent flex-fill overflow-auto">
-			{#each log as entry, index (index)}
+			{#each session.log as entry, index (index)}
 				<div class="logEntry d-flex flex-row align-items-center gap-2">
 					<span class="logType">
 						{#if entry.type === 'connected'}

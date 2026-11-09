@@ -1,6 +1,7 @@
 import type { SvelteMap } from 'svelte/reactivity';
 import type { Cable } from './Cable.svelte';
 import type { TCPConnection } from './services/TCPService';
+import type { SimpleClientService } from './services/SimpleClientService.svelte';
 
 export interface EthernetFrame {
 	uuid: string;
@@ -158,7 +159,7 @@ export type App =
 	| { type: 'terminal'; content: TerminalState }
 	| { type: 'dns'; content: DNSState }
 	| { type: 'echo-server'; content: EchoServerState }
-	| { type: 'simple-client'; content: SimpleClientState }
+	| { type: 'simple-client'; content: SimpleClientService }
 	| { type: Exclude<AppType, 'terminal' | 'dns'>; content: null };
 
 //------------------------

@@ -58,9 +58,21 @@ export function saveState(): string {
 				gateway: n.config.gateway,
 				dns: n.config.dns,
 				dataLinkLayerUuid: n.dataLinkLayer.uuid,
+				echoServer: { port: n.echoServer.port, serverRunning: n.echoServer.serverRunning },
 				apps: n.apps.map((app) => ({
 					type: app.type,
-					content: app.content
+					content:
+						app.type === 'echo-server'
+							? {
+									port: n.echoServer.port,
+									serverRunning: n.echoServer.serverRunning
+								}
+							: app.type === 'simple-client' && app.content
+								? {
+										serverAddress: app.content.serverAddress,
+										serverPort: app.content.serverPort
+									}
+								: app.content
 				})),
 				currentApp: n.currentApp
 			});
@@ -188,10 +200,39 @@ export function loadState(stateString: string): void {
 					nodeData.dns,
 					nodeData.dataLinkLayerUuid
 				);
-				node.apps = nodeData.apps.map((appData: App) => ({
-					type: appData.type,
-					content: appData.content
-				}));
+				const savedEcho =
+					nodeData.echoServer ??
+					nodeData.apps.find((app: App) => app.type === 'echo-server')?.content;
+				if (savedEcho) {
+					node.echoServer.port = savedEcho.port;
+					if (savedEcho.serverRunning) {
+						try {
+							node.echoServer.start(savedEcho.port);
+						} catch (error) {
+							node.echoServer.log.push({
+								type: 'error',
+								message:
+									error instanceof Error
+										? error.message
+										: 'Echo-Server konnte nicht gestartet werden.'
+							});
+						}
+					}
+				}
+				const echoServer = node.echoServer;
+				const host = node;
+				node.apps = nodeData.apps.map((appData: App) => {
+					if (appData.type === 'echo-server') return { type: 'echo-server', content: echoServer };
+					if (appData.type === 'simple-client' && appData.content) {
+						const app = host.createApp('simple-client');
+						if (app.type === 'simple-client' && app.content) {
+							app.content.serverAddress = appData.content.serverAddress;
+							app.content.serverPort = appData.content.serverPort;
+						}
+						return app;
+					}
+					return { type: appData.type, content: appData.content };
+				});
 				node.currentApp = nodeData.currentApp;
 			} else if (nodeData.type === 'router') {
 				node = new Router(nodeData.name, nodeData.interfaces.length);
@@ -244,7 +285,7 @@ export function resetProject() {
 	}
 
 	for (const node of nodes) {
-		if (node instanceof Host) node.tcp.dispose();
+		if (node instanceof Host) node.dispose();
 	}
 	nodes.splice(0);
 	windows.splice(0);

@@ -1,9 +1,6 @@
 <script lang="ts">
-	//import { SvelteMap } from 'svelte/reactivity';
 	import type { Host } from '$lib/engine/Host.svelte';
-	import type { TCPConnection, TCPConnectionListener } from '$lib/engine/services/TCPService';
-	import type { EchoConnectionState } from '$lib/engine/types';
-	import { onMount, tick } from 'svelte';
+	import { tick } from 'svelte';
 	import playImg from '$lib/assets/play.svg';
 	import stopImg from '$lib/assets/stop.svg';
 	import linkImg from '$lib/assets/link.svg';
@@ -14,52 +11,14 @@
 	let { host }: { host: Host } = $props();
 
 	// svelte-ignore state_referenced_locally
-	const session = host.echoServerState();
-
-	let releaseListener: (() => void) | undefined;
-	//const connections = new SvelteMap<TCPConnection, EchoConnectionState>();
+	const session = host.echoServer;
 
 	let portInput = $state(String(session.port));
 	let portIsValid = $derived(validatePort(portInput));
-	let echoAppOpen = $derived(host.apps.some((app) => app.type === 'echo-server'));
-
-	type logEntry = {
-		type:
-			| 'serverStarted'
-			| 'serverStopped'
-			| 'connectionOpened'
-			| 'connectionClosed'
-			| 'echo'
-			| 'error';
-		ip?: string;
-		port?: number;
-		message: string;
-	};
-
-	let log = $state<logEntry[]>([]);
-
-	$effect(() => {
-		if (!echoAppOpen) return;
-		return stopServer;
-	});
-
-	onMount(() => {
-		if (session.serverRunning && session.port) {
-			try {
-				startServer(session.port);
-			} catch (error) {
-				log.push({
-					type: 'error',
-					message:
-						error instanceof Error ? error.message : 'Echo-Server konnte nicht gestartet werden.'
-				});
-			}
-		}
-	});
 
 	function autoScrollLog(node: HTMLDivElement) {
 		let detached = false;
-		if (log.length > 0) {
+		if (session.log.length > 0) {
 			void tick().then(() => {
 				if (!detached) node.scrollTop = node.scrollHeight;
 			});
@@ -107,132 +66,21 @@
 
 		try {
 			if (!shouldRun) {
-				stopServer();
+				session.stop();
 				return;
 			}
 			if (!portInput || !validatePort(portInput)) {
 				throw new Error('Bitte eine gültige Portnummer eingeben.');
 			}
-			startServer(Number(portInput));
+			session.start(Number(portInput));
 		} catch (error) {
 			toggle.checked = false;
-			log.push({
+			session.log.push({
 				type: 'error',
 				message:
 					error instanceof Error ? error.message : 'Echo-Server konnte nicht gestartet werden.'
 			});
 		}
-	}
-
-	/**
-	 * Startet den Echo-Server auf dem angegebenen Port.
-	 * @param port
-	 */
-	function startServer(port: number) {
-		if (releaseListener) throw new Error('Echo-Server läuft bereits.');
-
-		const listener: TCPConnectionListener = (connection) => acceptConnection(connection);
-		releaseListener = host.tcp.listen(port, listener);
-		session.port = port;
-		session.serverRunning = true;
-
-		log.push({
-			type: 'serverStarted',
-			message: ''
-		});
-	}
-
-	function stopServer() {
-		releaseListener?.();
-		releaseListener = undefined;
-		session.serverRunning = false;
-
-		for (const state of [...session.connections.values()]) {
-			state.closeWhenDrained = true;
-			sendNext(state);
-		}
-
-		log.push({
-			type: 'serverStopped',
-			message: ''
-		});
-	}
-
-	function acceptConnection(connection: TCPConnection) {
-		const state: EchoConnectionState = {
-			connection,
-			pendingPayloads: [],
-			detachListeners: [],
-			sending: false,
-			closeWhenDrained: false
-		};
-		log.push({
-			type: 'connectionOpened',
-			ip: connection.remoteIp,
-			port: connection.remotePort,
-			message: ``
-		});
-		session.connections.set(connection, state);
-		state.detachListeners.push(
-			connection.onData((payload) => {
-				if (state.closeWhenDrained) return;
-				state.pendingPayloads.push(payload.slice());
-				sendNext(state);
-			}),
-			connection.onClose(() => removeConnection(state)),
-			connection.onError(() => removeConnection(state))
-		);
-	}
-
-	function sendNext(state: EchoConnectionState) {
-		if (state.sending) return;
-
-		const payload = state.pendingPayloads.shift();
-		if (!payload) {
-			if (state.closeWhenDrained) closeConnection(state);
-			return;
-		}
-
-		state.sending = true;
-		try {
-			state.connection.send(
-				payload,
-				() => {
-					state.sending = false;
-					sendNext(state);
-				},
-				() => removeConnection(state)
-			);
-
-			log.push({
-				type: 'echo',
-				ip: state.connection.remoteIp,
-				port: state.connection.remotePort,
-				message: `${new TextDecoder().decode(payload)}`
-			});
-		} catch {
-			removeConnection(state);
-		}
-	}
-
-	function closeConnection(state: EchoConnectionState) {
-		try {
-			state.connection.close(undefined, () => removeConnection(state));
-		} catch {
-			removeConnection(state);
-		}
-	}
-
-	function removeConnection(state: EchoConnectionState) {
-		if (!session.connections.delete(state.connection)) return;
-		for (const detach of state.detachListeners) detach();
-		state.pendingPayloads.length = 0;
-		log.push({
-			type: 'connectionClosed',
-			ip: state.connection.remoteIp,
-			port: state.connection.remotePort,
-			message: ``
-		});
 	}
 </script>
 
@@ -273,7 +121,7 @@
 
 	<div class="logArea flex-fill d-flex flex-column mt-2">
 		<div {@attach autoScrollLog} class="logContent flex-fill overflow-auto">
-			{#each log as entry, index (index)}
+			{#each session.log as entry, index (index)}
 				<div class="logEntry d-flex flex-row align-items-center gap-2">
 					<span class="logType">
 						{#if entry.type === 'serverStarted'}

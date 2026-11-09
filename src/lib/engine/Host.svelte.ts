@@ -8,7 +8,6 @@ import type {
 	DNSState,
 	EchoServerState,
 	NetworkNode,
-	SimpleClientState,
 	TerminalState
 } from './types';
 import { NetworkConfig } from './NetworkConfig.svelte';
@@ -16,52 +15,9 @@ import { ICMPService } from './services/ICMPService.svelte';
 import { DNSService } from './services/DNSService.svelte';
 import { UDPService } from './services/UDPService';
 import { TCPService } from './services/TCPService';
+import { EchoServerService } from './services/EchoServerService.svelte';
+import { SimpleClientService } from './services/SimpleClientService.svelte';
 import { nodeSpawn } from '$lib/states/nodes.svelte';
-import { SvelteMap } from 'svelte/reactivity';
-
-function createApp(type: AppType): App {
-	if (type === 'terminal') {
-		return {
-			type,
-			content: {
-				history: [],
-				historyIndex: -1,
-				draftInput: '',
-				inputBuffer: '',
-				cursorPos: 0,
-				screen: null,
-				running: false
-			}
-		};
-	} else if (type === 'dns') {
-		return {
-			type,
-			content: {
-				serverRunning: false,
-				recursiveResolution: false,
-				records: []
-			}
-		};
-	} else if (type === 'echo-server') {
-		return {
-			type,
-			content: {
-				serverRunning: false,
-				port: 55555,
-				connections: new SvelteMap()
-			}
-		};
-	} else if (type === 'simple-client') {
-		return {
-			type,
-			content: {
-				serverAddress: '',
-				serverPort: 55555
-			}
-		};
-	}
-	return { type, content: null };
-}
 
 // Ist entweder ein Notebook oder ein Rechner - wird nur durch den "type" unterschieden!
 export class Host implements NetworkNode {
@@ -84,6 +40,7 @@ export class Host implements NetworkNode {
 	public udp: UDPService;
 	public tcp: TCPService;
 	public dns: DNSService;
+	public echoServer: EchoServerService;
 
 	constructor(
 		name: string,
@@ -115,6 +72,7 @@ export class Host implements NetworkNode {
 		this.udp = new UDPService(this.networkLayer);
 		this.networkLayer.registerProtocolHandler('UDP', this.udp);
 		this.tcp = new TCPService(this.networkLayer);
+		this.echoServer = new EchoServerService(this.tcp);
 		this.networkLayer.registerProtocolHandler('TCP', this.tcp);
 		this.icmp.registerErrorHandler('TCP', (packet, srcIp) =>
 			this.tcp.handleIcmpError(packet, srcIp)
@@ -134,17 +92,63 @@ export class Host implements NetworkNode {
 		this.networkLayer.lowerLayer = this.dataLinkLayer;
 	}
 
+	public createApp(type: AppType): App {
+		if (type === 'terminal') {
+			return {
+				type,
+				content: {
+					history: [],
+					historyIndex: -1,
+					draftInput: '',
+					inputBuffer: '',
+					cursorPos: 0,
+					screen: null,
+					running: false
+				}
+			};
+		} else if (type === 'dns') {
+			return {
+				type,
+				content: {
+					serverRunning: false,
+					recursiveResolution: false,
+					records: []
+				}
+			};
+		} else if (type === 'echo-server') {
+			return {
+				type,
+				content: this.echoServer
+			};
+		} else if (type === 'simple-client') {
+			return {
+				type,
+				content: new SimpleClientService(this.tcp, this.dns)
+			};
+		}
+		return { type, content: null };
+	}
+
 	public openApp(type: AppType): void {
 		if (!this.apps.some((app) => app.type === type)) {
-			this.apps.push(createApp(type));
+			this.apps.push(this.createApp(type));
 		}
 		this.currentApp = type;
 	}
 
 	// Entfernt die aktuelle App samt ihrem Zustand
 	public closeCurrentApp(): void {
+		if (this.currentApp === 'simple-client') this.simpleClientState().dispose();
 		this.apps = this.apps.filter((app) => app.type !== this.currentApp);
 		this.currentApp = '';
+	}
+
+	public dispose(): void {
+		this.echoServer.dispose();
+		for (const app of this.apps) {
+			if (app.type === 'simple-client' && app.content) app.content.dispose();
+		}
+		this.tcp.dispose();
 	}
 
 	public terminalState(): TerminalState {
@@ -169,7 +173,7 @@ export class Host implements NetworkNode {
 		return app.content;
 	}
 
-	public simpleClientState(): SimpleClientState {
+	public simpleClientState(): SimpleClientService {
 		const app = this.apps.find(
 			(a): a is Extract<App, { type: 'simple-client' }> => a.type === 'simple-client'
 		);

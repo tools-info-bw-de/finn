@@ -52,59 +52,47 @@
 	}
 </script>
 
+{#snippet appTitle(title: string, imgSrc: string)}
+	<div class="appTitle d-flex flex-row justify-content-between align-items-center">
+		<div>
+			<img src={imgSrc} alt={title} />
+			{title}
+		</div>
+		<button
+			class="close-btn"
+			onclick={(e) => {
+				e.stopPropagation();
+				closeApp();
+			}}>✕</button
+		>
+	</div>
+{/snippet}
+
 <svelte:window onclick={windowClick} />
 
 <div class="d-flex flex-column h-100 window-background">
 	<div class="windowArea">
 		{#key host.currentApp}
-			{#if host.currentApp !== 'echo-server' && host.currentApp !== 'simple-client'}
-				<div
-					class="window"
-					in:scale={{ start: 0.9, duration: 300 }}
-					out:scale={{ start: 0.9, duration: switchingApp ? 0 : 400 }}
-				>
-					{#if host.currentApp === 'terminal'}
-						<div class="appTitle">
-							<img src={terminal} alt="Terminal" />
-							Terminal
-						</div>
-						<Terminal {host} />
-					{:else if host.currentApp === 'dns'}
-						<div class="appTitle">
-							<img src={dns} alt="DNS" />
-							DNS
-						</div>
-						<DNS {host} />
-					{/if}
-				</div>
-			{/if}
+			<div
+				class="window"
+				in:scale={{ start: 0.9, duration: 300 }}
+				out:scale={{ start: 0.9, duration: switchingApp ? 0 : 400 }}
+			>
+				{#if host.currentApp === 'terminal'}
+					{@render appTitle('Terminal', terminal)}
+					<Terminal {host} />
+				{:else if host.currentApp === 'dns'}
+					{@render appTitle('DNS', dns)}
+					<DNS {host} />
+				{:else if host.currentApp === 'echo-server'}
+					{@render appTitle('Echo-Server', echo)}
+					<EchoServer {host} />
+				{:else if host.currentApp === 'simple-client'}
+					{@render appTitle('Simple Client', simpleClient)}
+					<SimpleClient {host} />
+				{/if}
+			</div>
 		{/key}
-		{#if host.apps.some((app) => app.type === 'echo-server')}
-			<div
-				class={['window echoWindow', { windowHidden: host.currentApp !== 'echo-server' }]}
-				in:scale={{ start: 0.9, duration: 300 }}
-				out:scale={{ start: 0.9, duration: switchingApp ? 0 : 400 }}
-			>
-				<div class="appTitle">
-					<img src={echo} alt="Echo-Server" />
-					Echo-Server
-				</div>
-				<EchoServer {host} />
-			</div>
-		{/if}
-		{#if host.apps.some((app) => app.type === 'simple-client')}
-			<div
-				class={['window echoWindow', { windowHidden: host.currentApp !== 'simple-client' }]}
-				in:scale={{ start: 0.9, duration: 300 }}
-				out:scale={{ start: 0.9, duration: switchingApp ? 0 : 400 }}
-			>
-				<div class="appTitle">
-					<img src={simpleClient} alt="Simple Client" />
-					Simple Client
-				</div>
-				<SimpleClient {host} />
-			</div>
-		{/if}
 	</div>
 
 	<div class="footer d-flex flex-row">
@@ -250,9 +238,6 @@
 							</ul>
 						{/if}
 					</li>
-					<li>
-						<a class="dropdown-item" href="#" onclick={() => closeApp()}>Close current app</a>
-					</li>
 				</ul>
 			{/if}
 		</div>
@@ -261,6 +246,28 @@
 </div>
 
 <style>
+	.close-btn {
+		background: transparent;
+		border: 1px solid #ff2424;
+		color: #ff2424;
+		cursor: pointer;
+		font-size: 14px;
+		line-height: 1;
+		padding: 0;
+		border-radius: 50%;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 24px;
+		height: 24px;
+		transition: 0.2s;
+	}
+
+	.close-btn:hover {
+		background: #ff2424;
+		color: #11111b;
+	}
+
 	.startMenuIcon {
 		width: 20px;
 		height: 20px;
@@ -348,10 +355,6 @@
 		height: 100%;
 		display: flex;
 		flex-direction: column;
-	}
-
-	.windowHidden {
-		display: none;
 	}
 
 	.appTitle {

@@ -86,7 +86,7 @@
 
 <div class="background p-2 flex-fill d-flex flex-column">
 	<div class="d-flex flex-row align-items-center gap-2">
-		<div class="was-validated">
+		<div class="form-floating was-validated">
 			<input
 				bind:value={portInput}
 				oninput={handlePortInput}
@@ -95,10 +95,12 @@
 				type="text"
 				inputmode="numeric"
 				pattern="[0-9]*"
-				placeholder="Portnummer"
-				aria-label="Portnummer"
+				placeholder="Server-Port"
+				aria-label="Server-Port"
 				aria-invalid={!portIsValid}
+				id="{host.uuid}-echoServerPort"
 			/>
+			<label for="{host.uuid}-echoServerPort">Server-Port</label>
 		</div>
 		<div
 			class="form-check form-switch runningSwitch d-flex flex-row"
@@ -163,6 +165,20 @@
 </div>
 
 <style>
+	.form-floating > input {
+		padding-top: 1.2rem !important;
+		padding-left: 0.75rem !important;
+		padding-right: 0.4rem !important;
+		padding-bottom: 0.1rem !important;
+		height: 3rem !important;
+		min-height: 1rem !important;
+	}
+
+	.form-floating > label {
+		padding: 0.75rem 0.75rem !important;
+		font-size: 0.9rem !important;
+	}
+
 	.background {
 		min-height: 0;
 	}

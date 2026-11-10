@@ -234,7 +234,7 @@
 	aria-labelledby="newProjectModalLabel"
 	aria-hidden="true"
 >
-	<div class="modal-dialog">
+	<div class="modal-dialog modal-dialog-centered">
 		<div class="modal-content">
 			<div class="modal-header">
 				<h1 class="modal-title fs-5">Aktuelles Projekt löschen?</h1>
@@ -252,6 +252,11 @@
 </div>
 
 <style>
+	.modal {
+		background-color: rgba(0, 0, 0, 0.1);
+		backdrop-filter: blur(3px);
+	}
+
 	:global([data-bs-theme='dark'] .editLabel:not(.active)) {
 		color: --var(--bs-secondary);
 		filter: brightness(1.5);

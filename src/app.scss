@@ -1,5 +1,10 @@
 @import 'bootstrap/scss/functions';
 
+$modal-fade-transform: scale(0.85);
+$modal-transition:
+	transform 0.2s ease-out,
+	opacity 0.2s ease-out;
+
 $primary: #176b66;
 $secondary: #315ea8;
 $success: #34805a;

@@ -9,22 +9,13 @@
 	function handleNameInput(event: Event) {
 		if (n) n.name = (event.currentTarget as HTMLInputElement).value;
 	}
-
-	let shownName = $derived(n?.useIpAsName ? n!.config.ipAddress : n!.name);
 </script>
 
 <div class="d-flex flex-row mx-4">
 	<div class="d-grid inputGrid">
 		<label for="name" class="col-sm-2 col-form-label">Name</label>
 		<div class="col-sm-10">
-			<input
-				value={shownName}
-				disabled={n?.useIpAsName}
-				oninput={handleNameInput}
-				type="text"
-				class="form-control"
-				id="name"
-			/>
+			<input value={n?.name} oninput={handleNameInput} type="text" class="form-control" id="name" />
 		</div>
 
 		<label for="mac" class="col-sm-2 col-form-label">MAC</label>
@@ -87,21 +78,6 @@
 			{/if}
 		</div>
 	</div>
-
-	<form>
-		<div class="form-check">
-			<input
-				class="form-check-input"
-				type="checkbox"
-				checked={n?.useIpAsName ?? false}
-				onchange={(e) => {
-					if (n) n.useIpAsName = e.currentTarget.checked;
-				}}
-				id="ipAsNameCheck"
-			/>
-			<label class="form-check-label" for="ipAsNameCheck"> IP-Adresse als Name verwenden </label>
-		</div>
-	</form>
 </div>
 
 <style>

@@ -24,7 +24,6 @@ export class Host implements NetworkNode {
 	public uuid: string = crypto.randomUUID();
 	public name = $state<string>('');
 	public config: NetworkConfig;
-	public useIpAsName = $state<boolean>(false);
 	public type: 'notebook' | 'desktop';
 	public x = $state<number>(0);
 	public y = $state<number>(0);

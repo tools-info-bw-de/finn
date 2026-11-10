@@ -7,7 +7,14 @@
 	let type = $derived(nodes.find((n) => n.uuid === editNode.uuid)?.type);
 </script>
 
-<div class="px-4 py-2">
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+	class=" py-2"
+	onclick={(e) => {
+		e.stopPropagation();
+	}}
+>
 	{#if type === 'notebook' || type === 'desktop'}
 		<HostSettings />
 	{:else if type === 'switch'}

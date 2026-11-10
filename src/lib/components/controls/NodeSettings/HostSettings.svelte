@@ -13,18 +13,18 @@
 
 <div class="d-flex flex-row mx-4">
 	<div class="d-grid inputGrid">
-		<label for="name" class="col-sm-2 col-form-label">Name</label>
-		<div class="col-sm-10">
+		<label for="name" class="col-form-label">Name</label>
+		<div>
 			<input value={n?.name} oninput={handleNameInput} type="text" class="form-control" id="name" />
 		</div>
 
-		<label for="mac" class="col-sm-2 col-form-label">MAC</label>
-		<div class="col-sm-10">
+		<label for="mac" class=" col-form-label">MAC</label>
+		<div>
 			<input value={n?.config.macAddress} disabled type="text" class="form-control" id="mac" />
 		</div>
 
-		<label for="ip" class="col-sm-2 col-form-label">IP</label>
-		<div class="col-sm-10 was-validated">
+		<label for="ip" class="col-form-label">IP</label>
+		<div class="was-validated">
 			{#if n}
 				<input
 					bind:value={n.config.ipAddress}
@@ -37,8 +37,8 @@
 			{/if}
 		</div>
 
-		<label for="netmask" class="col-sm-2 col-form-label">Netzmaske</label>
-		<div class="col-sm-10">
+		<label for="netmask" class=" col-form-label">Netzmaske</label>
+		<div>
 			{#if n}
 				<input
 					bind:value={n.config.netmask}
@@ -52,8 +52,8 @@
 			{/if}
 		</div>
 
-		<label for="gateway" class="col-sm-2 col-form-label">Gateway</label>
-		<div class="col-sm-10 was-validated">
+		<label for="gateway" class=" col-form-label">Gateway</label>
+		<div class="was-validated">
 			{#if n}
 				<input
 					bind:value={n.config.gateway}
@@ -65,8 +65,8 @@
 			{/if}
 		</div>
 
-		<label for="dns" class="col-sm col-form-label">Domain Name Server</label>
-		<div class="col-sm-10 was-validated">
+		<label for="dns" class=" col-form-label">Domain Name Server</label>
+		<div class="was-validated">
 			{#if n}
 				<input
 					bind:value={n.config.dns}

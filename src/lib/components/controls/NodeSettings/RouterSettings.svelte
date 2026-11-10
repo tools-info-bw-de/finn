@@ -40,7 +40,7 @@
 	}
 </script>
 
-<ul class="nav nav-pills">
+<ul class="nav nav-pills mb-3">
 	<li class="nav-item">
 		<button
 			class="nav-link"
@@ -76,9 +76,9 @@
 </ul>
 
 {#if selectedTab === 'general'}
-	<div class="row mb-3">
-		<label for="name" class="col-sm-2 col-form-label">Name</label>
-		<div class="col-sm-10">
+	<div class="d-flex flex-row justify-content-center gap-3 mb-3">
+		<label for="name" class="col-form-label">Name</label>
+		<div>
 			{#if n}
 				<input bind:value={n.name} type="text" class="form-control" id="name" />
 			{/if}
@@ -86,9 +86,9 @@
 	</div>
 {:else if selectedTab.startsWith('interface-')}
 	{@const iface = n?.interfaces[parseInt(selectedTab.split('-')[1])] as RouterInterface}
-	<div class="row mb-3">
-		<label for="ip" class="col-sm-2 col-form-label">IP-Adresse</label>
-		<div class="col-sm-10 was-validated">
+	<div class="d-grid inputGrid">
+		<label for="ip" class="col-form-label">IP-Adresse</label>
+		<div class="was-validated">
 			{#if n}
 				<input
 					bind:value={iface.networkLayer.config.ipAddress}
@@ -103,10 +103,8 @@
 				/>
 			{/if}
 		</div>
-	</div>
-	<div class="row mb-3">
-		<label for="netmask" class="col-sm-2 col-form-label">Netzmaske</label>
-		<div class="col-sm-10">
+		<label for="netmask" class="col-form-label">Netzmaske</label>
+		<div>
 			{#if n}
 				<input
 					bind:value={iface.networkLayer.config.netmask}
@@ -123,10 +121,8 @@
 				/>
 			{/if}
 		</div>
-	</div>
-	<div class="row mb-3">
-		<label for="mac" class="col-sm-2 col-form-label">MAC-Adresse</label>
-		<div class="col-sm-10">
+		<label for="mac" class="col-form-label">MAC-Adresse</label>
+		<div>
 			{#if n}
 				<input
 					value={iface.networkLayer.config.macAddress}
@@ -160,3 +156,10 @@
 		</tbody>
 	</table>
 {/if}
+
+<style>
+	.inputGrid {
+		grid-template-columns: max-content 1fr;
+		grid-gap: 0.5rem;
+	}
+</style>

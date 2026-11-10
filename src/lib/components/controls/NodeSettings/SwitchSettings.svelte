@@ -7,19 +7,16 @@
 	};
 </script>
 
-<div class="d-flex flex-row justify-content-between mx-4">
-	<form>
-		<div class="row mb-3">
-			<label for="name" class="col-sm-2 col-form-label">Name</label>
-			<div class="col-sm-10">
-				<input
-					value={shownName}
-					oninput={handleNameInput}
-					type="text"
-					class="form-control"
-					id="name"
-				/>
-			</div>
-		</div>
-	</form>
+<div class="d-flex flex-row gap-3 justify-content-between mx-4">
+	<label for="name" class="col-form-label">Name</label>
+	<div>
+		<input
+			value={shownName}
+			oninput={handleNameInput}
+			autofocus
+			type="text"
+			class="form-control"
+			id="name"
+		/>
+	</div>
 </div>

@@ -17,6 +17,7 @@
 	import { pan, zoom } from '$lib/states/canvas.svelte';
 	import ServersOnHost from './ServersOnHost.svelte';
 	import PacketNotices from './PacketNotices.svelte';
+	import NodeSettings from './NodeSettings.svelte';
 
 	//let windows = $state<WindowData[]>([]);
 	let visibleWindows = $derived.by(() => {
@@ -86,7 +87,7 @@
 	// 1. Zoom per Mausrad
 	function handleWheel(e: WheelEvent) {
 		// Wheel über Fenstern/Menüs darf nie die Karte zoomen
-		if ((e.target as HTMLElement).closest('.window, .list-group, .toast')) return;
+		if ((e.target as HTMLElement).closest('.window, .list-group, .toast, .popover')) return;
 
 		e.preventDefault();
 		const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
@@ -109,7 +110,8 @@
 	// 2. Klick auf den Hintergrund (Karten-Pan starten)
 	function handleViewportPointerDown(e: PointerEvent) {
 		// Sicherheits-Check: Falls e.stopPropagation am Knoten/UI-Overlay fehlschlägt
-		if ((e.target as HTMLElement).closest('.network-node, .list-group, .window, .toast')) return;
+		if ((e.target as HTMLElement).closest('.network-node, .list-group, .window, .toast, .popover'))
+			return;
 
 		isPanning = true;
 		startPointer = { x: e.clientX, y: e.clientY };
@@ -235,7 +237,7 @@
 			e.clientY >= viewportRect.top &&
 			e.clientY <= viewportRect.bottom;
 		// Klicks auf Kontextmenüs/Fenster dürfen das Menü nicht vorzeitig schließen (sonst kommt der eigentliche Klick nie an)
-		const isOnOverlay = (e.target as HTMLElement).closest('.list-group, .window, .toast');
+		const isOnOverlay = (e.target as HTMLElement).closest('.list-group, .window, .toast, .popover');
 
 		if (isWithinViewport && !isDraggingNode && !newCable.adding && !isOnOverlay) {
 			if (draggingNodeUuid) {
@@ -265,9 +267,67 @@
 		}
 	}
 
+	type Placement = 'top' | 'bottom' | 'start' | 'end';
+	const POPOVER_GAP = 10; // Pfeilhöhe (0.5rem) + Abstand
+	const ARROW_SIZE = 16; // Pfeilbreite (1rem)
+	const NODE_LABEL_HEIGHT = 48; // Name + IP unter dem Icon
+	const PLACEMENT_ORDER: Placement[] = ['bottom', 'top', 'end', 'start'];
+
+	let viewportWidth = $state(0);
+	let viewportHeight = $state(0);
+	let popoverWidth = $state(0);
+	let popoverHeight = $state(0);
+
+	// Node in Viewport-Pixeln (Pan/Zoom); das Popover selbst bleibt unskaliert
+	let popoverLayout = $derived.by(() => {
+		const node = nodes.find((n) => n.uuid === editNode.uuid);
+		if (!node) return null;
+
+		const z = zoom.value;
+		const x = node.x * z + pan.x;
+		const y = node.y * z + pan.y;
+		const size = 64 * z;
+		const cx = x + size / 2;
+		const cy = y + size / 2;
+		const w = popoverWidth;
+		const h = popoverHeight;
+		const bottomEdge = y + size + NODE_LABEL_HEIGHT * z;
+
+		const space: Record<Placement, number> = {
+			bottom: viewportHeight - bottomEdge - POPOVER_GAP - h,
+			top: y - POPOVER_GAP - h,
+			end: viewportWidth - (x + size) - POPOVER_GAP - w,
+			start: x - POPOVER_GAP - w
+		};
+		const placement =
+			PLACEMENT_ORDER.find((p) => space[p] >= 0) ??
+			PLACEMENT_ORDER.reduce((best, p) => (space[p] > space[best] ? p : best));
+
+		const clamp = (v: number, max: number) => Math.max(0, Math.min(v, max));
+		let left: number;
+		let top: number;
+		let arrow: number;
+		if (placement === 'top' || placement === 'bottom') {
+			left = clamp(cx - w / 2, viewportWidth - w);
+			top = placement === 'top' ? y - POPOVER_GAP - h : bottomEdge + POPOVER_GAP;
+			arrow = Math.max(ARROW_SIZE / 2, Math.min(cx - left - ARROW_SIZE / 2, w - ARROW_SIZE * 1.5));
+		} else {
+			top = clamp(cy - h / 2, viewportHeight - h);
+			left = placement === 'start' ? x - POPOVER_GAP - w : x + size + POPOVER_GAP;
+			arrow = Math.max(ARROW_SIZE / 2, Math.min(cy - top - ARROW_SIZE / 2, h - ARROW_SIZE * 1.5));
+		}
+		return { placement, left, top, arrow };
+	});
+
+	let popoverPosition = $state({ x: 0, y: 0 });
 	function handleNodeClick() {
 		// Zum Öffnen der Node-Settings
 		if (settings.mode === 'edit' && draggingNodeUuid) {
+			// Hole Position von dem Node, um das Popover dort zu platzieren
+			const node = nodes.find((n) => n.uuid === draggingNodeUuid);
+			if (!node) return;
+			popoverPosition.x = node.x;
+			popoverPosition.y = node.y;
 			editNode.uuid = draggingNodeUuid;
 		}
 
@@ -442,6 +502,8 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	bind:this={viewportEl}
+	bind:clientWidth={viewportWidth}
+	bind:clientHeight={viewportHeight}
 	class="viewport"
 	class:panning={isPanning}
 	style="background-size: {24 * zoom.value}px {24 *
@@ -552,6 +614,26 @@
 			</div>
 		{/each}
 	</div>
+	{#if editNode.uuid && settings.mode === 'edit' && popoverLayout}
+		<div
+			transition:scale={{ start: 0.96, duration: 100 }}
+			class="popover bs-popover-{popoverLayout.placement} show shadow"
+			style="width: max-content; position: absolute; left: {popoverLayout.left}px; top: {popoverLayout.top}px;"
+			bind:offsetWidth={popoverWidth}
+			bind:offsetHeight={popoverHeight}
+		>
+			<div
+				class="popover-arrow"
+				style="position: absolute; {popoverLayout.placement === 'top' ||
+				popoverLayout.placement === 'bottom'
+					? 'left'
+					: 'top'}: {popoverLayout.arrow}px;"
+			></div>
+			<div class="popover-body">
+				<NodeSettings />
+			</div>
+		</div>
+	{/if}
 	{#if settings.mode === 'edit' && contextMenuEdit.uuid !== ''}
 		<ContextMenuEdit uuid={contextMenuEdit.uuid} x={contextMenuEdit.x} y={contextMenuEdit.y} />
 	{/if}
@@ -589,6 +671,13 @@
 </div>
 
 <style>
+	.popover {
+		backdrop-filter: blur(4px);
+		background-color: rgba(24, 24, 27, 0.8);
+		border-color: #45475a83;
+		max-width: inherit !important;
+	}
+
 	.host-services {
 		position: absolute;
 		top: 0;

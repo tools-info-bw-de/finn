@@ -20,6 +20,7 @@ Die Seite verwendet Bilder von Flaticon.com:
 - DNS: <a href="https://www.flaticon.com/free-icons/dns" title="dns icons">Dns icons created by Abbasi - Flaticon</a>
 - Echo-Server: <a href="https://www.flaticon.com/free-icons/undo" title="undo icons">Undo icons created by Pixel perfect - Flaticon</a>
 - Einfacher Client: <a href="https://www.flaticon.com/free-icons/registration" title="registration icons">Registration icons created by Magnific - Flaticon</a>
+- Stop-Cable: <a href="https://www.flaticon.com/free-icons/stop-sign" title="stop sign icons">Stop sign icons created by Bartama Graphic - Flaticon</a>
 
 ## Developing
 

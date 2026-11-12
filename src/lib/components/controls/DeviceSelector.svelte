@@ -4,6 +4,7 @@
 	import desktop from '$lib/assets/desktop.png';
 	import switch_wifi from '$lib/assets/switch-wifi.png';
 	import router from '$lib/assets/router.png';
+	import stopImg from '$lib/assets/stop.png';
 	import { Host } from '$lib/engine/Host.svelte';
 	import { SwitchWifi } from '$lib/engine/SwitchWifi.svelte';
 	import { generateRandomMac } from '$lib/engine/helpers';
@@ -45,6 +46,11 @@
 		newCable.uuids = [];
 	}
 
+	function stopAddingCable() {
+		newCable.adding = false;
+		newCable.uuids = [];
+	}
+
 	$effect(() => {
 		if (newCable.adding && newCable.uuids.length === 2) {
 			const c = new Cable(getCableEndpoint(newCable.uuids[0]), getCableEndpoint(newCable.uuids[1]));
@@ -60,9 +66,18 @@
 </script>
 
 <div class="device-selector d-flex flex-column gap-2 px-2 pt-3">
-	<button type="button" class="btn btn-secondary" onclick={startAddingCable}>
-		<img src={cable} alt="Cable" />
-		Kabel
+	<button
+		type="button"
+		class="btn btn-secondary"
+		onclick={newCable.adding ? stopAddingCable : startAddingCable}
+	>
+		{#if newCable.adding}
+			<img src={stopImg} alt="Cable" />
+			Stoppen
+		{:else}
+			<img src={cable} alt="Cable" />
+			Kabel
+		{/if}
 	</button>
 	<button type="button" class="btn btn-secondary" onclick={() => createNode('notebook')}>
 		<img src={laptop} alt="Laptop" />

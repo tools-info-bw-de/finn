@@ -10,9 +10,13 @@
 	import type { Host } from '$lib/engine/Host.svelte';
 	import type { Router } from '$lib/engine/Router.svelte';
 	import { saveState, loadState, resetProject } from '$lib/engine/saveLoadState.svelte';
+	import { newCable } from '$lib/states/cables.svelte';
 
 	$effect(() => {
 		if (settings.mode === 'play') {
+			newCable.adding = false;
+			newCable.uuids = [];
+
 			emptyARPTables();
 			editNode.uuid = '';
 		}

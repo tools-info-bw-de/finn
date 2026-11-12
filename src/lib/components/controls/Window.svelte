@@ -249,8 +249,8 @@
 		position: absolute;
 		right: 0;
 		bottom: 0;
-		width: 16px;
-		height: 16px;
+		width: 20px;
+		height: 20px;
 		cursor: nwse-resize;
 		background: linear-gradient(135deg, transparent 50%, #585b70 50%);
 		border-bottom-right-radius: 8px;

@@ -87,6 +87,12 @@
 		position: fixed;
 		z-index: 1000;
 		box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.65);
+		backdrop-filter: blur(5px) saturate(0.7);
+		background-color: rgba(24, 24, 27, 0.8);
+	}
+
+	.list-group-item {
+		background-color: transparent;
 	}
 
 	.list-group button {

@@ -1,9 +1,11 @@
 import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import basicSsl from '@vitejs/plugin-basic-ssl';
 
 export default defineConfig({
 	plugins: [
+		basicSsl(),
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
@@ -32,8 +34,10 @@ export default defineConfig({
 		]
 	},
 	server: {
+		host: '0.0.0.0',
+		allowedHosts: true,
 		hmr: {
-			protocol: 'ws',
+			protocol: 'wss',
 			host: 'localhost',
 			port: 5173,
 			clientPort: 5173

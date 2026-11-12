@@ -10,6 +10,7 @@
 <div class="d-flex flex-row gap-3 justify-content-between mx-4">
 	<label for="name" class="col-form-label">Name</label>
 	<div>
+		<!-- svelte-ignore a11y_autofocus -->
 		<input
 			value={shownName}
 			oninput={handleNameInput}

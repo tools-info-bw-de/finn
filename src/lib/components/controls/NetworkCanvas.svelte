@@ -13,7 +13,7 @@
 	import type { Router } from '$lib/engine/Router.svelte';
 	import ContextMenuPlay from './ContextMenuPlay.svelte';
 	import { onMount } from 'svelte';
-	import { scale } from 'svelte/transition';
+	import { fade, scale } from 'svelte/transition';
 	import { pan, zoom } from '$lib/states/canvas.svelte';
 	import ServersOnHost from './ServersOnHost.svelte';
 	import PacketNotices from './PacketNotices.svelte';
@@ -616,7 +616,7 @@
 	</div>
 	{#if editNode.uuid && settings.mode === 'edit' && popoverLayout}
 		<div
-			transition:scale={{ start: 0.96, duration: 100 }}
+			transition:fade={{ duration: 100 }}
 			class="popover bs-popover-{popoverLayout.placement} show shadow"
 			style="width: max-content; position: absolute; left: {popoverLayout.left}px; top: {popoverLayout.top}px;"
 			bind:offsetWidth={popoverWidth}
@@ -676,6 +676,8 @@
 		background-color: rgba(24, 24, 27, 0.8);
 		border-color: #45475a83;
 		max-width: inherit !important;
+		max-height: 100%;
+		overflow-y: auto;
 	}
 
 	.host-services {

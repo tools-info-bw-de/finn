@@ -21,3 +21,10 @@ $body-secondary-bg-dark: #293533;
 $body-tertiary-bg-dark: #35413f;
 
 @import 'bootstrap/scss/bootstrap';
+
+html,
+body {
+	height: 100%;
+	overflow: hidden;
+	overscroll-behavior: none;
+}

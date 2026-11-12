@@ -6,12 +6,12 @@
 	import type { Router } from '$lib/engine/Router.svelte';
 	import { highlightedCable } from '$lib/states/cables.svelte';
 
-	let { uuid, x, y, onOpenSniffer } = $props<{
-		uuid: string;
-		x: number;
-		y: number;
-		onOpenSniffer: () => void;
-	}>();
+	let {
+		uuid,
+		x,
+		y,
+		onOpenSniffer
+	}: { uuid: string; x: number; y: number; onOpenSniffer: () => void } = $props();
 
 	//let type = $derived(nodes.find((n) => n.uuid === uuid)!.type);
 	let type = $state<string>('');
@@ -80,6 +80,12 @@
 	.list-group {
 		position: fixed;
 		z-index: 1000;
+		backdrop-filter: blur(5px) saturate(0.7);
+		background-color: rgba(24, 24, 27, 0.8);
+	}
+
+	.list-group-item {
+		background-color: transparent;
 	}
 
 	.list-group button {

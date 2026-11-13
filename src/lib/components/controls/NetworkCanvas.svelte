@@ -499,6 +499,9 @@
 
 	let popoverPosition = $state({ x: 0, y: 0 });
 	function handleNodeClick() {
+		contextMenuEdit.uuid = '';
+		contextMenuPlay.uuid = '';
+
 		// Zum Öffnen der Node-Settings
 		if (settings.mode === 'edit' && draggingNodeUuid) {
 			// Hole Position von dem Node, um das Popover dort zu platzieren
@@ -598,6 +601,10 @@
 	let contextMenuEdit = $state<{ x: number; y: number; uuid: string }>({ x: 0, y: 0, uuid: '' });
 	let contextMenuPlay = $state<{ x: number; y: number; uuid: string }>({ x: 0, y: 0, uuid: '' });
 	async function openContextMenu(nodeUuid: string, x: number, y: number, constrain: boolean) {
+		if (settings.mode === 'edit') {
+			editNode.uuid = '';
+		}
+
 		const generation = ++menuGeneration;
 		contextMenuEdit.uuid = nodeUuid;
 		contextMenuPlay.uuid = nodeUuid;

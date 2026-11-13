@@ -84,6 +84,11 @@
 		background-color: rgba(24, 24, 27, 0.8);
 	}
 
+	:global([data-bs-theme='light'] .list-group) {
+		background-color: rgba(238, 238, 238, 0.8);
+		border-color: #adadad83;
+	}
+
 	.list-group-item {
 		background-color: transparent;
 	}

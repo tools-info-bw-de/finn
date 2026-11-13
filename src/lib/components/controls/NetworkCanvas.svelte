@@ -968,6 +968,11 @@
 		overflow-y: auto;
 	}
 
+	:global([data-bs-theme='light'] .popover) {
+		background-color: rgba(238, 238, 238, 0.8);
+		border-color: #adadad83;
+	}
+
 	.host-services {
 		position: absolute;
 		top: 0;

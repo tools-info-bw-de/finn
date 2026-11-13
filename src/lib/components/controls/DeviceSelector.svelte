@@ -68,7 +68,7 @@
 <div class="device-selector d-flex flex-column gap-2 px-2 pt-3">
 	<button
 		type="button"
-		class="btn btn-secondary"
+		class="btn {newCable.adding ? 'btn-danger' : 'btn-secondary'}"
 		onclick={newCable.adding ? stopAddingCable : startAddingCable}
 	>
 		{#if newCable.adding}

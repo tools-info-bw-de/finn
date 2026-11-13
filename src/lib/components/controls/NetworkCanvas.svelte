@@ -141,6 +141,7 @@
 	// 3. Klick auf Node (Node-Drag starten)
 	function handleNodePointerDown(e: PointerEvent, uuid: string) {
 		e.stopPropagation(); // Verhindert Karten-Pan
+		updatePointer(e);
 		if (e.button !== 0) return; // Nur Linksklick erlauben (sonst wird dies auch beim Kontextmenü ausgeführt)
 
 		if (settings.mode === 'play') {
@@ -177,6 +178,8 @@
 		x: 0,
 		y: 0
 	});
+	let mousePointer = $state(false);
+	let pointerPosition = $state({ x: 0, y: 0 });
 
 	function screenToWorld(clientX: number, clientY: number) {
 		const rect = (
@@ -190,12 +193,21 @@
 		};
 	}
 
+	function updatePointer(e: PointerEvent) {
+		mousePointer = e.pointerType === 'mouse';
+		if (mousePointer) {
+			const worldPos = screenToWorld(e.clientX, e.clientY);
+			mouse.x = worldPos.x;
+			mouse.y = worldPos.y;
+			pointerPosition.x = e.clientX;
+			pointerPosition.y = e.clientY;
+		}
+	}
+
 	let isDraggingNode = $state(false);
 	// 4. Globale Bewegung verarbeiten (über <svelte:window>)
 	function handleWindowPointerMove(e: PointerEvent) {
-		const worldPos = screenToWorld(e.clientX, e.clientY);
-		mouse.x = worldPos.x;
-		mouse.y = worldPos.y;
+		updatePointer(e);
 
 		const dx = e.clientX - startPointer.x;
 		const dy = e.clientY - startPointer.y;
@@ -216,15 +228,6 @@
 				node.x = startNodePos.x + dx / zoom.value;
 				node.y = startNodePos.y + dy / zoom.value;
 			}
-		}
-
-		if (newCable.adding) {
-			let cableTooltip = document.querySelector('.cable-tooltip') as HTMLElement;
-
-			let x = e.clientX;
-			let y = e.clientY;
-			cableTooltip.style.left = `${x}px`;
-			cableTooltip.style.top = `${y}px`;
 		}
 	}
 
@@ -476,6 +479,7 @@
 
 <!-- Globale Event-Listener garantieren, dass Dragging nicht abbricht wenn man schnell zieht -->
 <svelte:window
+	onpointerdown={updatePointer}
 	onpointermove={handleWindowPointerMove}
 	onpointerup={handleWindowPointerUp}
 	onkeydown={handleKeyDown}
@@ -560,7 +564,7 @@
 					class:active={c.cable.isTransmitting}
 				/>
 			{/each}
-			{#if newCable.adding && newCable.uuids.length === 1}
+			{#if newCable.adding && mousePointer && newCable.uuids.length === 1}
 				{@const start = getNodeCenter(newCable.uuids[0])}
 				{@const end = { x: mouse.x, y: mouse.y }}
 				<path
@@ -582,6 +586,7 @@
 					start: 0.5
 				}}
 				class="network-node"
+				class:cable-selected={newCable.adding && !mousePointer && newCable.uuids[0] === node.uuid}
 				style="left: {node.x}px; top: {node.y}px; width: 64px; height: 64px;"
 				onpointerdown={(e) => handleNodePointerDown(e, node.uuid)}
 				oncontextmenu={(e) => {
@@ -646,10 +651,14 @@
 		/>
 	{/if}
 
-	{#if newCable.adding}
-		<div class="cable-tooltip">
+	{#if newCable.adding && mousePointer}
+		<div class="cable-tooltip" style:left="{pointerPosition.x}px" style:top="{pointerPosition.y}px">
 			<img src={cable} alt="Cable" width="40" height="40" />
 			<span>{newCable.uuids.length + 1}</span>
+		</div>
+	{:else if newCable.adding}
+		<div class="cable-instruction" role="status">
+			{newCable.uuids.length === 0 ? 'Ersten Knoten auswählen' : 'Zweiten Knoten auswählen'}
 		</div>
 	{/if}
 
@@ -724,6 +733,23 @@
 		margin: 6px 12px;
 		font-size: 12px;
 		font-weight: bold;
+		z-index: 10;
+		pointer-events: none;
+	}
+
+	.cable-instruction {
+		position: absolute;
+		right: 16px;
+		bottom: 16px;
+		max-width: calc(100% - 112px);
+		padding: 6px 12px;
+		border: 1px solid #45475a;
+		border-radius: 6px;
+		background: #313244;
+		color: #cdd6f4;
+		font-size: 12px;
+		font-weight: bold;
+		pointer-events: none;
 		z-index: 10;
 	}
 
@@ -863,6 +889,11 @@
 
 	.network-node:hover {
 		cursor: pointer;
+	}
+
+	.network-node.cable-selected {
+		border-color: #89b4fa;
+		box-shadow: 0 0 0 3px #313244;
 	}
 
 	.network-node:active {

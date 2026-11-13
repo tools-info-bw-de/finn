@@ -12,7 +12,7 @@
 	import ContextMenuEdit from './ContextMenuEdit.svelte';
 	import type { Router } from '$lib/engine/Router.svelte';
 	import ContextMenuPlay from './ContextMenuPlay.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
 	import { pan, zoom } from '$lib/states/canvas.svelte';
 	import ServersOnHost from './ServersOnHost.svelte';
@@ -51,6 +51,7 @@
 
 	onMount(() => {
 		updateNodeSpawn();
+		return () => cancelLongPress();
 	});
 
 	let isPanning = $state(false);
@@ -60,6 +61,34 @@
 	let startPointer = { x: 0, y: 0 };
 	let startPan = { x: 0, y: 0 };
 	let startNodePos = { x: 0, y: 0 };
+	let touchGesture: {
+		pointerId: number;
+		uuid: string;
+		x: number;
+		y: number;
+		moved: boolean;
+		opened: boolean;
+		cableSelection: boolean;
+		timer: ReturnType<typeof setTimeout> | null;
+	} | null = null;
+	let suppressedTouchClick: {
+		uuid: string;
+		until: number;
+	} | null = null;
+	let menuGeneration = 0;
+
+	function cancelLongPress() {
+		if (touchGesture?.timer) clearTimeout(touchGesture.timer);
+		if (touchGesture) touchGesture.timer = null;
+	}
+
+	function selectCableNode(uuid: string) {
+		if (!allowedCableConnection(uuid)) {
+			console.log('Cannot connect cable to this node type');
+			return;
+		}
+		if (!newCable.uuids.includes(uuid)) newCable.uuids.push(uuid);
+	}
 
 	function getNodeCenter(nodeUuid: string) {
 		const node = nodes.find((n) => n.uuid === nodeUuid);
@@ -142,26 +171,42 @@
 	function handleNodePointerDown(e: PointerEvent, uuid: string) {
 		e.stopPropagation(); // Verhindert Karten-Pan
 		updatePointer(e);
+		suppressedTouchClick = null;
 		if (e.button !== 0) return; // Nur Linksklick erlauben (sonst wird dies auch beim Kontextmenü ausgeführt)
+		if (touchGesture) {
+			cancelLongPress();
+			touchGesture.moved = true;
+			return;
+		}
+		if (e.pointerType === 'touch') {
+			touchGesture = {
+				pointerId: e.pointerId,
+				uuid,
+				x: e.clientX,
+				y: e.clientY,
+				moved: false,
+				opened: false,
+				cableSelection: settings.mode === 'edit' && newCable.adding,
+				timer: null
+			};
+			const gesture = touchGesture;
+			gesture.timer = setTimeout(() => {
+				gesture.timer = null;
+				if (touchGesture !== gesture || gesture.moved) return;
+				gesture.opened = true;
+				openContextMenu(uuid, gesture.x, gesture.y, true);
+			}, 500);
+		}
 
 		if (settings.mode === 'play') {
 			// Im Play-Modus keine Dragging-Logik, nur Fenster öffnen
 			draggingNodeUuid = uuid;
-			handleNodeClick();
+			if (e.pointerType !== 'touch') handleNodeClick();
 			return;
 		}
 
 		if (newCable.adding) {
-			if (!allowedCableConnection(uuid)) {
-				console.log('Cannot connect cable to this node type');
-				//TODO Mauszeiger ändern, dass es nicht erlaubt ist
-				//ODER: toast anzeigen
-				return;
-			}
-
-			if (!newCable.uuids.includes(uuid)) {
-				newCable.uuids.push(uuid);
-			}
+			if (e.pointerType !== 'touch') selectCableNode(uuid);
 			// Kein Dragging, wenn wir gerade ein Kabel hinzufügen (sonst teleportiert der Node per Alt-Drag-State)
 			return;
 		}
@@ -204,10 +249,27 @@
 		}
 	}
 
+	function handleWindowPointerDown(e: PointerEvent) {
+		suppressedTouchClick = null;
+		if (touchGesture && e.pointerId !== touchGesture.pointerId) {
+			cancelLongPress();
+			touchGesture.moved = true;
+		}
+		updatePointer(e);
+	}
+
 	let isDraggingNode = $state(false);
 	// 4. Globale Bewegung verarbeiten (über <svelte:window>)
 	function handleWindowPointerMove(e: PointerEvent) {
 		updatePointer(e);
+		if (touchGesture) {
+			if (e.pointerId !== touchGesture.pointerId) return;
+			if (Math.hypot(e.clientX - touchGesture.x, e.clientY - touchGesture.y) > 5) {
+				touchGesture.moved = true;
+				cancelLongPress();
+			}
+			if (touchGesture.opened) return;
+		}
 
 		const dx = e.clientX - startPointer.x;
 		const dy = e.clientY - startPointer.y;
@@ -233,6 +295,29 @@
 
 	// 5. Drag beenden
 	function handleWindowPointerUp(e: PointerEvent) {
+		if (touchGesture && e.pointerId !== touchGesture.pointerId) return;
+		const gesture = touchGesture;
+		cancelLongPress();
+		touchGesture = null;
+		if (gesture?.opened) {
+			suppressedTouchClick = {
+				uuid: gesture.uuid,
+				until: Date.now() + 1500
+			};
+			isPanning = false;
+			isDraggingNode = false;
+			draggingNodeUuid = null;
+			return;
+		}
+		if (gesture?.cableSelection) {
+			if (!gesture.moved && newCable.adding && settings.mode === 'edit') {
+				selectCableNode(gesture.uuid);
+			}
+			isPanning = false;
+			isDraggingNode = false;
+			draggingNodeUuid = null;
+			return;
+		}
 		const viewportRect = viewportEl.getBoundingClientRect();
 		const isWithinViewport =
 			e.clientX >= viewportRect.left &&
@@ -242,7 +327,13 @@
 		// Klicks auf Kontextmenüs/Fenster dürfen das Menü nicht vorzeitig schließen (sonst kommt der eigentliche Klick nie an)
 		const isOnOverlay = (e.target as HTMLElement).closest('.list-group, .window, .toast, .popover');
 
-		if (isWithinViewport && !isDraggingNode && !newCable.adding && !isOnOverlay) {
+		if (
+			isWithinViewport &&
+			!isDraggingNode &&
+			!gesture?.moved &&
+			!newCable.adding &&
+			!isOnOverlay
+		) {
 			if (draggingNodeUuid) {
 				handleNodeClick();
 			} else if (e.button === 0) {
@@ -250,6 +341,18 @@
 			}
 		}
 
+		isPanning = false;
+		isDraggingNode = false;
+		draggingNodeUuid = null;
+	}
+
+	function handleWindowPointerCancel(e: PointerEvent) {
+		if (touchGesture && e.pointerId !== touchGesture.pointerId) return;
+		cancelLongPress();
+		if (touchGesture?.opened) {
+			suppressedTouchClick = { uuid: touchGesture.uuid, until: Date.now() + 1500 };
+		}
+		touchGesture = null;
 		isPanning = false;
 		isDraggingNode = false;
 		draggingNodeUuid = null;
@@ -392,6 +495,7 @@
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
+		suppressedTouchClick = null;
 		if (e.key === 'Escape') {
 			if (newCable.adding) {
 				newCable.adding = false;
@@ -421,20 +525,77 @@
 
 	let contextMenuEdit = $state<{ x: number; y: number; uuid: string }>({ x: 0, y: 0, uuid: '' });
 	let contextMenuPlay = $state<{ x: number; y: number; uuid: string }>({ x: 0, y: 0, uuid: '' });
+	async function openContextMenu(nodeUuid: string, x: number, y: number, constrain: boolean) {
+		const generation = ++menuGeneration;
+		contextMenuEdit.uuid = nodeUuid;
+		contextMenuPlay.uuid = nodeUuid;
+		contextMenuEdit.x = contextMenuPlay.x = constrain ? -10000 : x;
+		contextMenuEdit.y = contextMenuPlay.y = constrain ? -10000 : y;
+		if (!constrain) return;
+		await tick();
+		if (generation !== menuGeneration) return;
+		const menu = viewportEl.querySelector<HTMLElement>(':scope > .list-group');
+		if (!menu) return;
+		const width = menu.offsetWidth;
+		const height = menu.offsetHeight;
+		const gap = 32;
+		const clamp = (value: number, max: number) => Math.max(0, Math.min(value, max));
+		const candidates = [
+			{ x: clamp(x - width / 2, window.innerWidth - width), y: y + gap },
+			{ x: clamp(x - width / 2, window.innerWidth - width), y: y - gap - height },
+			{ x: x + gap, y: clamp(y - height / 2, window.innerHeight - height) },
+			{ x: x - gap - width, y: clamp(y - height / 2, window.innerHeight - height) }
+		];
+		const position =
+			candidates.find(
+				(candidate) =>
+					candidate.x >= 0 &&
+					candidate.y >= 0 &&
+					candidate.x + width <= window.innerWidth &&
+					candidate.y + height <= window.innerHeight
+			) ??
+			candidates.reduce((best, candidate) => {
+				const overflow = (position: { x: number; y: number }) =>
+					Math.max(0, -position.x, position.x + width - window.innerWidth) +
+					Math.max(0, -position.y, position.y + height - window.innerHeight);
+				return overflow(candidate) < overflow(best) ? candidate : best;
+			});
+		contextMenuEdit.x = contextMenuPlay.x = clamp(position.x, window.innerWidth - width);
+		contextMenuEdit.y = contextMenuPlay.y = clamp(position.y, window.innerHeight - height);
+	}
+
 	function handleContextMenuNode(e: MouseEvent, nodeUuid: string) {
 		e.preventDefault();
 		e.stopPropagation();
-		contextMenuEdit.uuid = nodeUuid;
-		contextMenuPlay.uuid = nodeUuid;
-		contextMenuEdit.x = e.clientX;
-		contextMenuEdit.y = e.clientY;
-		contextMenuPlay.x = e.clientX;
-		contextMenuPlay.y = e.clientY;
+		if (touchGesture?.uuid === nodeUuid) {
+			if (touchGesture.opened || touchGesture.moved) return;
+			cancelLongPress();
+			touchGesture.opened = true;
+			openContextMenu(nodeUuid, touchGesture.x, touchGesture.y, true);
+			return;
+		}
+		if (suppressedTouchClick?.uuid === nodeUuid && Date.now() < suppressedTouchClick.until) return;
+		openContextMenu(nodeUuid, e.clientX, e.clientY, false);
 	}
 
 	function closeContextMenu() {
+		menuGeneration++;
 		contextMenuEdit.uuid = '';
 		contextMenuPlay.uuid = '';
+	}
+
+	function suppressLongPressClick(event: MouseEvent) {
+		if (touchGesture?.opened || (suppressedTouchClick && Date.now() < suppressedTouchClick.until)) {
+			event.preventDefault();
+			event.stopImmediatePropagation();
+		}
+	}
+
+	function handleWindowPointerUpCapture(event: PointerEvent) {
+		if (!touchGesture?.opened || event.pointerId !== touchGesture.pointerId) return;
+		event.preventDefault();
+		event.stopImmediatePropagation();
+		handleWindowPointerUp(event);
 	}
 
 	function handleWindowClick(event: MouseEvent) {
@@ -479,10 +640,17 @@
 
 <!-- Globale Event-Listener garantieren, dass Dragging nicht abbricht wenn man schnell zieht -->
 <svelte:window
-	onpointerdown={updatePointer}
+	onpointerdowncapture={() => (suppressedTouchClick = null)}
+	onpointerdown={handleWindowPointerDown}
 	onpointermove={handleWindowPointerMove}
+	onpointerupcapture={handleWindowPointerUpCapture}
 	onpointerup={handleWindowPointerUp}
+	onpointercancel={handleWindowPointerCancel}
 	onkeydown={handleKeyDown}
+	onmousedowncapture={suppressLongPressClick}
+	onmouseupcapture={suppressLongPressClick}
+	onclickcapture={suppressLongPressClick}
+	oncontextmenucapture={suppressLongPressClick}
 	onclick={handleWindowClick}
 />
 
@@ -680,6 +848,12 @@
 </div>
 
 <style>
+	.viewport > :global(.list-group) {
+		max-width: 100vw;
+		max-height: 100vh;
+		overflow-y: auto;
+	}
+
 	.popover {
 		backdrop-filter: blur(4px);
 		background-color: rgba(24, 24, 27, 0.8);
@@ -881,6 +1055,15 @@
 		color: #cdd6f4;
 		/* ESSENZIELL: Verhindert Text-Selection & Touch-Gesten */
 		touch-action: none;
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
+
+	.network-node img {
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
 	}
 
 	:global([data-bs-theme='light'] .network-node) {

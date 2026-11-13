@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
+import { svelteTesting } from '@testing-library/svelte/vite';
 
 export default defineConfig({
 	plugins: [
@@ -28,7 +29,16 @@ export default defineConfig({
 					name: 'server',
 					environment: 'node',
 					include: ['src/**/*.{test,spec}.{js,ts}'],
-					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
+					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}', 'src/**/NetworkCanvas.test.ts']
+				}
+			},
+			{
+				extends: './vite.config.ts',
+				plugins: [svelteTesting()],
+				test: {
+					name: 'client',
+					environment: 'jsdom',
+					include: ['src/**/NetworkCanvas.test.ts']
 				}
 			}
 		]

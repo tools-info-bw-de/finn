@@ -18,6 +18,7 @@
 	import ServersOnHost from './ServersOnHost.svelte';
 	import PacketNotices from './PacketNotices.svelte';
 	import NodeSettings from './NodeSettings.svelte';
+	import { CanvasTouch } from './canvasTouch';
 
 	//let windows = $state<WindowData[]>([]);
 	let visibleWindows = $derived.by(() => {
@@ -56,6 +57,46 @@
 
 	let isPanning = $state(false);
 	let draggingNodeUuid = $state<string | null>(null);
+	const canvasTouch = new CanvasTouch();
+	let suppressedPinchPointers: number[] = [];
+	let suppressPinchClickUntil = 0;
+	const controlSelector =
+		'.window, .list-group, .toast, .popover, button, input, select, textarea, a, [contenteditable], [role="button"]';
+
+	function isCanvasTarget(target: EventTarget | null) {
+		return (
+			target instanceof Element && viewportEl?.contains(target) && !target.closest(controlSelector)
+		);
+	}
+
+	function touchPoint(event: PointerEvent) {
+		const rect = viewportEl.getBoundingClientRect();
+		return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+	}
+
+	function handlePointerDownCapture(event: PointerEvent) {
+		if (event.pointerType !== 'touch') {
+			suppressedTouchClick = null;
+			suppressedPinchPointers = [];
+			suppressPinchClickUntil = 0;
+			return;
+		}
+		suppressedTouchClick = null;
+		if (!isCanvasTarget(event.target)) return;
+		if (canvasTouch.size === 0) {
+			suppressedPinchPointers = [];
+			suppressPinchClickUntil = 0;
+		}
+		canvasTouch.start(event.pointerId, touchPoint(event));
+		if (canvasTouch.pinched) {
+			if (touchGesture?.opened) closeContextMenu();
+			cancelLongPress();
+			touchGesture = null;
+			isPanning = false;
+			isDraggingNode = false;
+			draggingNodeUuid = null;
+		}
+	}
 
 	// Startpositionen für exakte Differenzberechnung
 	let startPointer = { x: 0, y: 0 };
@@ -138,6 +179,7 @@
 
 	// 2. Klick auf den Hintergrund (Karten-Pan starten)
 	function handleViewportPointerDown(e: PointerEvent) {
+		if (e.pointerType === 'touch' && (!canvasTouch.has(e.pointerId) || canvasTouch.pinched)) return;
 		// Sicherheits-Check: Falls e.stopPropagation am Knoten/UI-Overlay fehlschlägt
 		if ((e.target as HTMLElement).closest('.network-node, .list-group, .window, .toast, .popover'))
 			return;
@@ -170,6 +212,7 @@
 	// 3. Klick auf Node (Node-Drag starten)
 	function handleNodePointerDown(e: PointerEvent, uuid: string) {
 		e.stopPropagation(); // Verhindert Karten-Pan
+		if (e.pointerType === 'touch' && (!canvasTouch.has(e.pointerId) || canvasTouch.pinched)) return;
 		updatePointer(e);
 		suppressedTouchClick = null;
 		if (e.button !== 0) return; // Nur Linksklick erlauben (sonst wird dies auch beim Kontextmenü ausgeführt)
@@ -250,11 +293,7 @@
 	}
 
 	function handleWindowPointerDown(e: PointerEvent) {
-		suppressedTouchClick = null;
-		if (touchGesture && e.pointerId !== touchGesture.pointerId) {
-			cancelLongPress();
-			touchGesture.moved = true;
-		}
+		if (e.pointerType !== 'touch') suppressedTouchClick = null;
 		updatePointer(e);
 	}
 
@@ -262,6 +301,25 @@
 	// 4. Globale Bewegung verarbeiten (über <svelte:window>)
 	function handleWindowPointerMove(e: PointerEvent) {
 		updatePointer(e);
+		if (e.pointerType === 'touch') {
+			if (!canvasTouch.has(e.pointerId)) return;
+			const view = canvasTouch.move(
+				e.pointerId,
+				touchPoint(e),
+				{ x: pan.x, y: pan.y, zoom: zoom.value },
+				MIN_ZOOM,
+				MAX_ZOOM
+			);
+			if (canvasTouch.pinched) {
+				if (view) {
+					pan.x = view.x;
+					pan.y = view.y;
+					zoom.value = view.zoom;
+					updateNodeSpawn();
+				}
+				return;
+			}
+		}
 		if (touchGesture) {
 			if (e.pointerId !== touchGesture.pointerId) return;
 			if (Math.hypot(e.clientX - touchGesture.x, e.clientY - touchGesture.y) > 5) {
@@ -295,6 +353,10 @@
 
 	// 5. Drag beenden
 	function handleWindowPointerUp(e: PointerEvent) {
+		if (e.pointerType === 'touch') {
+			if (!canvasTouch.has(e.pointerId)) return;
+			canvasTouch.end(e.pointerId);
+		}
 		if (touchGesture && e.pointerId !== touchGesture.pointerId) return;
 		const gesture = touchGesture;
 		cancelLongPress();
@@ -347,6 +409,16 @@
 	}
 
 	function handleWindowPointerCancel(e: PointerEvent) {
+		if (e.pointerType === 'touch') {
+			if (!canvasTouch.has(e.pointerId)) return;
+			if (canvasTouch.pinched) {
+				suppressedPinchPointers.push(e.pointerId);
+				suppressPinchClickUntil = Date.now() + 1500;
+				canvasTouch.end(e.pointerId);
+				return;
+			}
+			canvasTouch.end(e.pointerId);
+		}
 		if (touchGesture && e.pointerId !== touchGesture.pointerId) return;
 		cancelLongPress();
 		if (touchGesture?.opened) {
@@ -567,6 +639,7 @@
 	function handleContextMenuNode(e: MouseEvent, nodeUuid: string) {
 		e.preventDefault();
 		e.stopPropagation();
+		if (canvasTouch.pinched) return;
 		if (touchGesture?.uuid === nodeUuid) {
 			if (touchGesture.opened || touchGesture.moved) return;
 			cancelLongPress();
@@ -585,6 +658,23 @@
 	}
 
 	function suppressLongPressClick(event: MouseEvent) {
+		if (canvasTouch.pinched && event.type === 'contextmenu' && isCanvasTarget(event.target)) {
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			return;
+		}
+		if (
+			isCanvasTarget(event.target) &&
+			Date.now() < suppressPinchClickUntil &&
+			(!(event instanceof PointerEvent) || event.pointerType === 'touch') &&
+			(!(event instanceof PointerEvent) ||
+				event.pointerId < 0 ||
+				suppressedPinchPointers.includes(event.pointerId))
+		) {
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			return;
+		}
 		if (touchGesture?.opened || (suppressedTouchClick && Date.now() < suppressedTouchClick.until)) {
 			event.preventDefault();
 			event.stopImmediatePropagation();
@@ -592,6 +682,14 @@
 	}
 
 	function handleWindowPointerUpCapture(event: PointerEvent) {
+		if (event.pointerType === 'touch' && canvasTouch.has(event.pointerId) && canvasTouch.pinched) {
+			suppressedPinchPointers.push(event.pointerId);
+			suppressPinchClickUntil = Date.now() + 1500;
+			canvasTouch.end(event.pointerId);
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			return;
+		}
 		if (!touchGesture?.opened || event.pointerId !== touchGesture.pointerId) return;
 		event.preventDefault();
 		event.stopImmediatePropagation();
@@ -640,12 +738,12 @@
 
 <!-- Globale Event-Listener garantieren, dass Dragging nicht abbricht wenn man schnell zieht -->
 <svelte:window
-	onpointerdowncapture={() => (suppressedTouchClick = null)}
+	onpointerdowncapture={handlePointerDownCapture}
 	onpointerdown={handleWindowPointerDown}
 	onpointermove={handleWindowPointerMove}
 	onpointerupcapture={handleWindowPointerUpCapture}
 	onpointerup={handleWindowPointerUp}
-	onpointercancel={handleWindowPointerCancel}
+	onpointercancelcapture={handleWindowPointerCancel}
 	onkeydown={handleKeyDown}
 	onmousedowncapture={suppressLongPressClick}
 	onmouseupcapture={suppressLongPressClick}

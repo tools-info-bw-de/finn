@@ -1,9 +1,9 @@
-import { Cable } from '$lib/engine/Cable.svelte';
+import type { Cable } from '$lib/engine/Cable.svelte';
 import type { CableEndpoint } from '$lib/engine/types';
 import { nodes } from './nodes.svelte';
 import type { Host } from '$lib/engine/Host.svelte';
 import type { SwitchWifi } from '$lib/engine/SwitchWifi.svelte';
-import { Router } from '$lib/engine/Router.svelte';
+import type { Router } from '$lib/engine/Router.svelte';
 
 export const cables = $state<
 	{

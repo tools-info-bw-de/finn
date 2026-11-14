@@ -4,6 +4,7 @@ import { getPacketTrackingId, ipToInt } from './helpers';
 import { RouterInterface } from './RouterInterface.svelte';
 import { SimulationEventBus } from './SimulationEventBus';
 import { nodeSpawn } from '$lib/states/nodes.svelte';
+import { removeCable } from '$lib/states/cables.svelte';
 import { SvelteMap } from 'svelte/reactivity';
 
 export interface RouteEntry {
@@ -95,6 +96,27 @@ export class Router implements NetworkNode {
 		return iface;
 	}
 
+	public removeInterface(iface: RouterInterface): void {
+		// Interface aus der Liste entfernen
+		this.interfaces = this.interfaces.filter((i) => i !== iface);
+
+		// Alle Routen, die über dieses Interface laufen, entfernen
+		this.routingTable = this.routingTable.filter((r) => r.iface !== iface);
+
+		// Paket-Empfang wiederherstellen (falls das Interface noch existiert)
+		const originalReceive = this.originalReceivers.get(iface);
+		if (originalReceive) {
+			iface.networkLayer.receive = originalReceive;
+			this.originalReceivers.delete(iface);
+		}
+
+		const cableUuid = iface.dataLinkLayer.cable?.uuid;
+		if (cableUuid) {
+			removeCable(cableUuid);
+		}
+		iface.dataLinkLayer.cable?.remove();
+	}
+
 	/**
 	 * Trägt die direkt verbundene Route für ein Interface ein
 	 * (kann auch aufgerufen werden, wenn sich die IP des Interfaces ändert!)
@@ -175,7 +197,7 @@ export class Router implements NetworkNode {
 				SimulationEventBus.getInstance().reportDiagnostic(
 					trackingId,
 					ingressIface.config,
-					`Router ${this.name} hat keine Route zu ${ipPacket.header.dstIp}.`
+					`Router "${this.name}" hat keine Route zu ${ipPacket.header.dstIp}.`
 				);
 			this.sendIcmpError(ipPacket, ingressIface, 'destination-unreachable');
 			return;

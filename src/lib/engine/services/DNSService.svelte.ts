@@ -118,6 +118,8 @@ export class DNSService implements UDPPortHandler {
 		const name = normalizeName(domain);
 		if (!name) return Promise.reject(new Error('Domainname darf nicht leer sein.'));
 
+		if (name === 'localhost') return Promise.resolve('127.0.0.1');
+
 		const dnsIp = this.config.dns;
 		if (!isValidIPv4(dnsIp)) {
 			return Promise.reject(new Error('Kein gültiger DNS-Server konfiguriert.'));

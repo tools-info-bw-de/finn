@@ -56,6 +56,9 @@ export function ipToInt(ip: string): number {
 
 // Prüft, ob zwei IPs im selben Subnetz liegen
 export function isSameSubnet(ip1: string, ip2: string, mask: string): boolean {
+	if (ip1 === '127.0.0.1' || ip2 === '127.0.0.1') {
+		return true;
+	}
 	const maskInt = ipToInt(mask);
 	return (ipToInt(ip1) & maskInt) === (ipToInt(ip2) & maskInt);
 }

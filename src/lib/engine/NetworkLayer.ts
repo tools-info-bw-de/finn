@@ -49,6 +49,12 @@ export class NetworkLayer implements LayerInterface {
 			payload
 		};
 
+		if (destinationIp === '127.0.0.1' || destinationIp === this.config.ipAddress) {
+			ipPacket.header.srcIp = ipPacket.header.dstIp;
+			this.receive(ipPacket, 'IP');
+			return;
+		}
+
 		if (!this.lowerLayer || !isValidIPv4(destinationIp)) {
 			const trackingId = getPacketTrackingId(ipPacket);
 			if (trackingId)
@@ -151,6 +157,7 @@ export class NetworkLayer implements LayerInterface {
 
 		const isForMe =
 			ipPacket.header.dstIp === this.config.ipAddress ||
+			ipPacket.header.dstIp === '127.0.0.1' ||
 			ipPacket.header.dstIp === '255.255.255.255';
 
 		if (isForMe) {

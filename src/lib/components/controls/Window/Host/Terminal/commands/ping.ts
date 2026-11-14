@@ -30,7 +30,7 @@ export const pingCommand: CommandHandler = async ({ term, args, currentNode, sig
 		isValidIPv4(targetIp) &&
 		isSameSubnet(currentNode.config.ipAddress, targetIp, currentNode.config.netmask);
 	if (!isLocal && !currentNode.config.gateway) {
-		term.writeln(`\x1b[31mFehler: Ziel-adresse nicht erreichbar.\x1b[0m`);
+		term.writeln(`\x1b[31mFehler: Ziel-Adresse nicht erreichbar.\x1b[0m`);
 		return Promise.resolve();
 	}
 

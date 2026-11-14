@@ -80,9 +80,10 @@ export class ArpService {
 
 			if (arpPacket.uuid) {
 				if (isForMe) {
-					// Diese Kopie führt zur Antwort: Tracking beenden, statt sie als verworfen zu zählen
-					// (sonst könnte der Timeout feuern, bevor die Antwort losgeschickt wurde)
-					SimulationEventBus.getInstance().clearBranch(arpPacket.uuid);
+					// Diese Kopie war erfolgreich; übrige Kopien dürfen keinen Timeout mehr auslösen.
+					const eventBus = SimulationEventBus.getInstance();
+					eventBus.suppressBranchExtinction(arpPacket.uuid);
+					eventBus.resolveBranch(arpPacket.uuid);
 				} else {
 					// Diese Anfrage-Kopie endet hier (kein Weiterleiten durch ARP-Services möglich)
 					SimulationEventBus.getInstance().resolveBranch(arpPacket.uuid);
@@ -94,7 +95,9 @@ export class ArpService {
 		if (arpPacket.type === 'reply' && arpPacket.targetIP === this.config.ipAddress) {
 			const entry = this.pendingQueue.get(arpPacket.senderIP);
 			if (entry) {
-				SimulationEventBus.getInstance().offExtinct(entry.uuid);
+				const eventBus = SimulationEventBus.getInstance();
+				eventBus.suppressBranchExtinction(entry.uuid);
+				eventBus.offExtinct(entry.uuid);
 				this.pendingQueue.delete(arpPacket.senderIP);
 				for (const pendingPacket of entry.packets) {
 					onPacketReadyToDeliver(pendingPacket.packet, arpPacket.senderMac);

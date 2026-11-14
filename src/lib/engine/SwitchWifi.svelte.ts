@@ -36,11 +36,14 @@ export class SwitchWifi implements NetworkNode {
 	}
 
 	public removeCable(cable: Cable): void {
-		const portNumberToRemove: number =
-			this.ports.find((port) => port.cable?.uuid === cable.uuid)?.portNumber ?? -1;
-		if (portNumberToRemove === -1) {
+		const portToRemove = this.ports.find((port) => port.cable?.uuid === cable.uuid);
+		if (!portToRemove) {
 			return;
 		}
+		const portNumberToRemove: number = portToRemove.portNumber;
+
+		portToRemove.cable = undefined; // Remove the cable reference from the port
+
 		this.macTable = Object.fromEntries(
 			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			Object.entries(this.macTable).filter(([_, entry]) => entry.port !== portNumberToRemove)

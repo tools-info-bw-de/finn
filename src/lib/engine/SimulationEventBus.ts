@@ -16,6 +16,7 @@ export class SimulationEventBus {
 	private noticeListeners = new Set<NoticeListener>();
 	// Zählt lebende Kopien eines aufgesplitteten Pakets (z.B. ARP-Broadcasts im Switch)
 	private branchCounts = new Map<string, number>();
+	private suppressedExtinctions = new Set<string>();
 
 	public static getInstance(): SimulationEventBus {
 		if (!SimulationEventBus.instance) {
@@ -29,6 +30,7 @@ export class SimulationEventBus {
 		this.listeners.clear();
 		this.deliveredListeners.clear();
 		this.branchCounts.clear();
+		this.suppressedExtinctions.clear();
 		this.origins.clear();
 		this.cancellations.clear();
 		this.noticeListeners.forEach((listener) => listener(undefined));
@@ -138,9 +140,21 @@ export class SimulationEventBus {
 		if (current === undefined) return;
 		if (current <= 1) {
 			this.branchCounts.delete(id);
-			this.emitExtinct(id);
+			if (!this.suppressedExtinctions.delete(id)) {
+				this.emitExtinct(id);
+			}
 		} else {
 			this.branchCounts.set(id, current - 1);
+		}
+	}
+
+	/**
+	 * Prevents remaining copies from reporting failure after a successful branch.
+	 * Branches stay counted until they drain, so late switch fan-out cannot restart a timeout.
+	 */
+	public suppressBranchExtinction(id: string): void {
+		if (this.branchCounts.has(id)) {
+			this.suppressedExtinctions.add(id);
 		}
 	}
 
@@ -149,5 +163,6 @@ export class SimulationEventBus {
 	 */
 	public clearBranch(id: string): void {
 		this.branchCounts.delete(id);
+		this.suppressedExtinctions.delete(id);
 	}
 }

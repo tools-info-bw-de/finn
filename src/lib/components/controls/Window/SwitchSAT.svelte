@@ -5,28 +5,34 @@
 </script>
 
 <!--Show SAT Table-->
-<table class="table table-striped">
-	<thead>
-		<tr>
-			<th scope="col">MAC</th>
-			<th scope="col">Port</th>
-			<th scope="col">Letzte Aktualisierung</th>
-		</tr>
-	</thead>
-	<tbody>
-		{#each Object.entries(switch_wifi.macTable) as [mac, entry] (entry.mac)}
+<div class="background">
+	<table class="table table-striped">
+		<thead>
 			<tr>
-				<td>{mac}</td>
-				<td>{entry.port}</td>
-				<td>{new Date(entry.updatedAt).toLocaleTimeString()}</td>
+				<th scope="col">MAC</th>
+				<th scope="col">Port</th>
+				<th scope="col">Letzte Aktualisierung</th>
 			</tr>
-		{/each}
-	</tbody>
-</table>
+		</thead>
+		<tbody>
+			{#each Object.entries(switch_wifi.macTable) as [mac, entry] (entry.mac)}
+				<tr>
+					<td>{mac}</td>
+					<td>{entry.port}</td>
+					<td>{new Date(entry.updatedAt).toLocaleTimeString()}</td>
+				</tr>
+			{/each}
+		</tbody>
+	</table>
+</div>
 
 <style>
 	td,
 	th {
 		text-wrap: nowrap;
+	}
+
+	.background {
+		height: 100%;
 	}
 </style>

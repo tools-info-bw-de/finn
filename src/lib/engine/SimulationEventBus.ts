@@ -2,6 +2,8 @@ type ExtinctListener = (timeoutUuid: string, message?: string) => void;
 type DeliveredListener = (timeoutUuid: string) => void;
 type NoticeListener = (message: string | undefined) => void;
 
+const MAX_PENDING_NOTICES = 100;
+
 interface OriginEntry {
 	origin: object;
 	parent?: { id: string; entry: OriginEntry };
@@ -14,6 +16,7 @@ export class SimulationEventBus {
 	private origins = new Map<string, OriginEntry>();
 	private cancellations = new Map<string, () => void>();
 	private noticeListeners = new Set<NoticeListener>();
+	private pendingNotices: string[] = [];
 	// Zählt lebende Kopien eines aufgesplitteten Pakets (z.B. ARP-Broadcasts im Switch)
 	private branchCounts = new Map<string, number>();
 	private suppressedExtinctions = new Set<string>();
@@ -33,6 +36,7 @@ export class SimulationEventBus {
 		this.suppressedExtinctions.clear();
 		this.origins.clear();
 		this.cancellations.clear();
+		this.pendingNotices = [];
 		this.noticeListeners.forEach((listener) => listener(undefined));
 		cancellations.forEach((cancel) => cancel());
 	}
@@ -58,7 +62,23 @@ export class SimulationEventBus {
 
 	public onNotice(listener: NoticeListener): () => void {
 		this.noticeListeners.add(listener);
+		while (this.pendingNotices.length > 0) {
+			listener(this.pendingNotices.shift()!);
+		}
 		return () => this.noticeListeners.delete(listener);
+	}
+
+	/** Sends a notice immediately or buffers it until the next notice listener registers. */
+	public showNotice(message: string): void {
+		if (this.noticeListeners.size === 0) {
+			if (this.pendingNotices.length === MAX_PENDING_NOTICES) {
+				this.pendingNotices.shift();
+				console.warn('Packet notice buffer full; dropping the oldest notice.');
+			}
+			this.pendingNotices.push(message);
+			return;
+		}
+		this.noticeListeners.forEach((listener) => listener(message));
 	}
 
 	public reportDiagnostic(
@@ -70,9 +90,10 @@ export class SimulationEventBus {
 		let entry = this.origins.get(id);
 		while (entry) {
 			if (includeOrigin || entry.origin !== location) {
-				this.noticeListeners.forEach((listener) => listener(message));
+				this.showNotice(message);
 				return;
 			}
+
 			const parent = entry.parent;
 			entry = parent && this.origins.get(parent.id) === parent.entry ? parent.entry : undefined;
 		}
@@ -165,4 +186,13 @@ export class SimulationEventBus {
 		this.branchCounts.delete(id);
 		this.suppressedExtinctions.delete(id);
 	}
+}
+
+/**
+ * Display a message in PacketNotices without requiring a packet or origin.
+ * Before a listener registers, up to 100 messages are buffered; overflow drops
+ * the oldest message with a warning. A simulation reset clears the buffer.
+ */
+export function showNotice(message: string): void {
+	SimulationEventBus.getInstance().showNotice(message);
 }

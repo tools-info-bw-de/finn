@@ -7,6 +7,7 @@
 	import switch_wifi from '$lib/assets/switch-wifi.png';
 	import router from '$lib/assets/router.png';
 	import { Host } from '$lib/engine/Host.svelte';
+	import { showNotice } from '$lib/engine/SimulationEventBus';
 	import { settings } from '$lib/states/settings.svelte';
 	import Window from '$lib/components/controls/Window.svelte';
 	import ContextMenuEdit from './ContextMenuEdit.svelte';
@@ -125,7 +126,7 @@
 
 	function selectCableNode(uuid: string) {
 		if (!allowedCableConnection(uuid)) {
-			console.log('Cannot connect cable to this node type');
+			showNotice('Keine Kabelverbindung möglich.');
 			return;
 		}
 		if (!newCable.uuids.includes(uuid)) newCable.uuids.push(uuid);

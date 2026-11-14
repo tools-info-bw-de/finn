@@ -965,6 +965,13 @@
 		border-color: #45475a83;
 		max-width: inherit !important;
 		max-height: 100%;
+		/* overflow am Popover selbst würde den Pfeil (außerhalb der Box) abschneiden */
+		display: flex;
+		flex-direction: column;
+	}
+
+	.popover > .popover-body {
+		min-height: 0;
 		overflow-y: auto;
 	}
 

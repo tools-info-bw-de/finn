@@ -1,4 +1,6 @@
-import type { ICMPPacket, IPPacket, TCPSegment, UDPDatagram } from './types';
+import { cables } from '$lib/states/cables.svelte';
+import { nodes } from '$lib/states/nodes.svelte';
+import type { ICMPPacket, IPPacket, NetworkNode, TCPSegment, UDPDatagram } from './types';
 
 export function generateRandomMac(): string {
 	const bytes = new Uint8Array(6);
@@ -83,4 +85,74 @@ export function getColorForProtocol(protocol: string | undefined): string {
 		default:
 			return '#89b4fa'; // Default color for unknown protocols
 	}
+}
+
+/**
+ * BFS im Netzwerkgraphen, um Loops zu erkennen.
+ * Es werden nacheinander alle LANs per BFS durchlaufen.
+ * @returns
+ */
+export function checkNetForLoops(): 'loop' | 'sameRouterTwice' | 'ok' {
+	// übertrage knoten und kanten in geeignete datenstrukturen:
+	const knoten: Map<string, { type: NetworkNode['type']; visited: boolean }> = new Map();
+	const kanten: string[][] = [];
+
+	for (const n of nodes) {
+		knoten.set(n.uuid, { type: n.type, visited: false });
+	}
+	for (const c of cables) {
+		kanten.push([c.from, c.to]);
+	}
+
+	const queue: string[] = [];
+
+	// solange es noch weitere nicht-besuchte knoten gibt:
+	while (knoten.values().some((k) => k.type !== 'router' && !k.visited)) {
+		// wähle einen nicht-besuchten knoten aus
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		const current = [...knoten.entries()].find(([_, k]) => k.type !== 'router' && !k.visited);
+		if (!current) break;
+		queue.push(current[0]);
+
+		// führe BFS von diesem Knoten aus durch
+		while (queue.length > 0) {
+			const current = queue.shift();
+			if (!current) break;
+
+			const currentNode = knoten.get(current);
+			if (!currentNode) continue;
+
+			if (currentNode.visited) {
+				if (currentNode.type === 'router') {
+					// Router wurde zweimal im selben LAN gefunden
+					return 'sameRouterTwice'; // "sameRouterTwice"-Fehler
+				}
+				return 'loop'; // Loop gefunden
+			}
+
+			knoten.set(current, { ...currentNode, visited: true });
+
+			if (currentNode.type !== 'router') {
+				// füge benachbarte knoten zur queue hinzu
+				let i = 0;
+				while (i < kanten.length) {
+					const [from, to] = kanten[i];
+					if (from === current || to === current) {
+						queue.push(from === current ? to : from);
+						kanten.splice(i, 1); // Entferne die Kante, um ein zurücklaufen zu vermeiden
+					} else {
+						i++;
+					}
+				}
+			}
+		}
+		// Setze alle router zurück, damit ein weiteres LAN wieder separat überprüft werden kann.
+		for (const [uuid, node] of knoten.entries()) {
+			if (node.type === 'router') {
+				knoten.set(uuid, { ...node, visited: false });
+			}
+		}
+	}
+
+	return 'ok';
 }

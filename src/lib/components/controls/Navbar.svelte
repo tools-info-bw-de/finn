@@ -11,6 +11,8 @@
 	import type { Router } from '$lib/engine/Router.svelte';
 	import { saveState, loadState, resetProject } from '$lib/engine/saveLoadState.svelte';
 	import { newCable } from '$lib/states/cables.svelte';
+	import { checkNetForLoops } from '$lib/engine/helpers';
+	import { Modal } from 'bootstrap';
 
 	$effect(() => {
 		if (settings.mode === 'play') {
@@ -69,6 +71,19 @@
 		resetProject();
 	}
 
+	function clickPlay() {
+		const loops = checkNetForLoops();
+		if (loops === 'loop') {
+			Modal.getOrCreateInstance(document.getElementById('loopDetectedModal')!).show();
+			return;
+		} else if (loops === 'sameRouterTwice') {
+			Modal.getOrCreateInstance(document.getElementById('RouterTwiceDetectedModal')!).show();
+			return;
+		}
+
+		settings.mode = 'play';
+	}
+
 	function clickAbout() {
 		// TODO Modal
 	}
@@ -121,39 +136,19 @@
 		</div>
 
 		<div class="d-flex flex-row btn-group mx-4">
-			<input
-				type="radio"
-				class="btn-check"
-				name="mode"
-				id="edit-mode"
-				autocomplete="off"
-				bind:group={settings.mode}
-				value="edit"
-			/>
-			<label
-				class="btn btn-outline-secondary d-flex flex-column align-items-center mode-label editLabel"
-				class:active={settings.mode === 'edit'}
-				for="edit-mode"
-				><span class="edit-icon" style:--edit-icon={`url("${hammer}")`}></span>Entwurf</label
+			<button
+				onclick={() => (settings.mode = 'edit')}
+				class="btn editBtn {settings.mode === 'edit' ? 'btn-secondary' : 'btn-outline-secondary'}"
 			>
+				<span class="edit-icon" style:--edit-icon={`url("${hammer}")`}></span>Entwurf
+			</button>
 
-			<input
-				type="radio"
-				class="btn-check"
-				name="mode"
-				id="play-mode"
-				autocomplete="off"
-				bind:group={settings.mode}
-				value="play"
-			/>
-			<label
-				class="btn btn-outline-primary d-flex flex-column align-items-center mode-label playLabel"
-				class:active={settings.mode === 'play'}
-				for="play-mode"
+			<button
+				onclick={clickPlay}
+				class="btn playBtn {settings.mode === 'play' ? 'btn-primary' : 'btn-outline-primary'}"
 			>
-				<span class="play-icon" style:--play-icon={`url("${play}")`}></span>
-				Ausführen
-			</label>
+				<span class="play-icon" style:--play-icon={`url("${play}")`}></span>Ausführen
+			</button>
 		</div>
 
 		<div class="d-flex flex-column align-items-center">
@@ -255,15 +250,72 @@
 	</div>
 </div>
 
+<div
+	class="modal fade"
+	id="loopDetectedModal"
+	tabindex="-1"
+	aria-labelledby="loopDetectedModalLabel"
+	aria-hidden="true"
+>
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h1 class="modal-title fs-5">Loop in Netzwerk erkannt</h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				Dein Netzwerk enthält einen <b>Loop (Kreis) aus Switches</b>. Das wird von dieser Simulation
+				nicht unterstützt! <br /> Korrigiere den Fehler, um die Simulation zu starten.
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-primary" data-bs-dismiss="modal">Verstanden</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div
+	class="modal fade"
+	id="RouterTwiceDetectedModal"
+	tabindex="-1"
+	aria-labelledby="RouterTwiceDetectedModalLabel"
+	aria-hidden="true"
+>
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h1 class="modal-title fs-5">Router zweimal im selben LAN erkannt</h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				Ein Router wurde zweimal im selben LAN erkannt. Das wird von dieser Simulation nicht
+				unterstützt! <br /> Korrigiere den Fehler, um die Simulation zu starten.
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-primary" data-bs-dismiss="modal">Verstanden</button>
+			</div>
+		</div>
+	</div>
+</div>
+
 <style>
 	.modal {
 		background-color: rgba(0, 0, 0, 0.1);
 		backdrop-filter: blur(3px);
 	}
 
-	:global([data-bs-theme='dark'] .editLabel:not(.active)) {
+	:global([data-bs-theme='dark'] .editBtn.btn-outline-secondary) {
 		color: --var(--bs-secondary);
 		filter: brightness(1.5);
+	}
+
+	:global([data-bs-theme='dark'] .editBtn.btn-outline-secondary:hover) {
+		color: --var(--bs-secondary);
+		filter: inherit !important;
+	}
+
+	.editBtn.btn-outline-secondary:hover > .edit-icon {
+		background-color: white;
 	}
 
 	.edit-icon {
@@ -274,7 +326,7 @@
 		-webkit-mask: var(--edit-icon) center / contain no-repeat;
 	}
 
-	:global(.editLabel.active > .edit-icon) {
+	.editBtn.btn-secondary > .edit-icon {
 		background-color: white;
 	}
 
@@ -289,21 +341,30 @@
 		background-color: #fe5d3a;
 	}
 
-	.playLabel {
+	.playBtn {
 		border-color: #fe5d3a !important;
 		color: #fe5d3a !important;
 	}
 
-	.playLabel.active {
+	.playBtn.btn-primary {
 		background-color: #fe5d3a !important;
 		color: black !important;
 	}
 
-	:global(.playLabel.active > .play-icon) {
+	.playBtn.btn-outline-primary:hover {
+		background-color: #fe5d3a;
+		color: black !important;
+	}
+
+	.playBtn.btn-outline-primary:hover > .play-icon {
+		background-color: black !important;
+	}
+
+	.playBtn.btn-primary > .play-icon {
 		background-color: black;
 	}
 
-	:global([data-bs-theme='light'] .playLabel) {
+	:global([data-bs-theme='light'] .playBtn) {
 		color: black;
 	}
 
@@ -434,11 +495,5 @@
 	.btn-group button > svg {
 		width: 2rem;
 		height: 2rem;
-	}
-
-	.mode-label {
-		min-width: 5.5rem;
-		height: 4rem;
-		padding: 0.2rem;
 	}
 </style>

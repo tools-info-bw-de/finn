@@ -1,7 +1,6 @@
 <script lang="ts">
 	import hammer from '$lib/assets/hammer.svg';
 	import play from '$lib/assets/play.svg';
-	import letter_f from '$lib/assets/letter-f.png';
 	import light from '$lib/assets/light.svg';
 	import dark from '$lib/assets/dark.svg';
 	import darklight from '$lib/assets/darklight.svg';
@@ -169,8 +168,7 @@
 	</div>
 
 	<div class="finn mx-5">
-		<img src={letter_f} width="48" height="48" alt="F" />
-		<span>inn</span>
+		<span>Finn</span>
 	</div>
 
 	<div class="navbar-end me-4 d-flex flex-row gap-2">

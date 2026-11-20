@@ -60,10 +60,11 @@
 		</div>
 		<button
 			class="close-btn"
+			aria-label="Close"
 			onclick={(e) => {
 				e.stopPropagation();
 				closeApp();
-			}}>✕</button
+			}}><div class="trash-img"></div></button
 		>
 	</div>
 {/snippet}
@@ -249,7 +250,7 @@
 	.close-btn {
 		background: transparent;
 		border: 1px solid #ff2424;
-		color: #ff2424;
+
 		cursor: pointer;
 		font-size: 14px;
 		line-height: 1;
@@ -261,6 +262,18 @@
 		width: 24px;
 		height: 24px;
 		transition: 0.2s;
+	}
+
+	.trash-img {
+		background-color: #ff2424;
+		mask: url($lib/assets/trash.svg) no-repeat center;
+		-webkit-mask: url($lib/assets/trash.svg) no-repeat center;
+		width: 1rem !important;
+		height: 1rem !important;
+	}
+
+	.trash-img:hover {
+		background-color: #000;
 	}
 
 	.close-btn:hover {

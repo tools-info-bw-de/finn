@@ -53,8 +53,10 @@
 	let isResizing = false;
 	let dragOffset = { x: 0, y: 0 };
 
+	type ResizeDirection = 'left' | 'right' | 'top' | 'bottom' | 'bottom-right';
+	let resizeDirection: ResizeDirection = 'bottom-right';
 	let startResizePointer = { x: 0, y: 0 };
-	let startResizeSize = { width: 0, height: 0 };
+	let startResizeBounds = { x: 0, y: 0, width: 0, height: 0 };
 
 	// --- VERSCHIEBEN (DRAG) ---
 	function handleHeaderPointerDown(e: PointerEvent) {
@@ -85,14 +87,15 @@
 	}
 
 	// --- GRÖSSE ÄNDERN (RESIZE) ---
-	function handleResizePointerDown(e: PointerEvent) {
+	function handleResizePointerDown(e: PointerEvent, direction: ResizeDirection) {
 		e.stopPropagation();
 		onFocus();
 		isResizing = true;
+		resizeDirection = direction;
 
 		// Startwerte beim ersten Anpacken sichern
 		startResizePointer = { x: e.clientX, y: e.clientY };
-		startResizeSize = { width, height };
+		startResizeBounds = { x, y, width, height };
 
 		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 	}
@@ -103,16 +106,31 @@
 			const dx = e.clientX - startResizePointer.x;
 			const dy = e.clientY - startResizePointer.y;
 
-			// Neue Größe = Ursprungsgröße + zurückgelegter Weg
-			width = Math.max(200, startResizeSize.width + dx);
-			height = Math.max(120, startResizeSize.height + dy);
+			// Linke/obere Kante verschieben beim Ändern den Fensterursprung;
+			// die gegenüberliegende Kante bleibt dabei an ihrer Position.
+			if (resizeDirection === 'left') {
+				width = Math.max(200, startResizeBounds.width - dx);
+				x = startResizeBounds.x + startResizeBounds.width - width;
+			} else if (resizeDirection === 'right' || resizeDirection === 'bottom-right') {
+				width = Math.max(200, startResizeBounds.width + dx);
+			}
+
+			if (resizeDirection === 'top') {
+				height = Math.max(120, startResizeBounds.height - dy);
+				y = startResizeBounds.y + startResizeBounds.height - height;
+			} else if (resizeDirection === 'bottom' || resizeDirection === 'bottom-right') {
+				height = Math.max(120, startResizeBounds.height + dy);
+			}
 		}
 	}
 
 	function handleResizePointerUp(e: PointerEvent) {
 		if (isResizing) {
 			isResizing = false;
-			(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+			const target = e.currentTarget as HTMLElement;
+			if (target.hasPointerCapture(e.pointerId)) {
+				target.releasePointerCapture(e.pointerId);
+			}
 		}
 	}
 </script>
@@ -166,12 +184,41 @@
 		{/if}
 	</div>
 
-	<!-- Resize Handle unten rechts -->
+	<!-- Resize-Griffe an allen Kanten; der bisherige Eckgriff bleibt unten rechts. -->
 	<div
-		class="resize-handle"
-		onpointerdown={handleResizePointerDown}
+		class="resize-edge-handle resize-edge-left"
+		onpointerdown={(e) => handleResizePointerDown(e, 'left')}
 		onpointermove={handleResizePointerMove}
 		onpointerup={handleResizePointerUp}
+		onpointercancel={handleResizePointerUp}
+	></div>
+	<div
+		class="resize-edge-handle resize-edge-top"
+		onpointerdown={(e) => handleResizePointerDown(e, 'top')}
+		onpointermove={handleResizePointerMove}
+		onpointerup={handleResizePointerUp}
+		onpointercancel={handleResizePointerUp}
+	></div>
+	<div
+		class="resize-edge-handle resize-edge-right"
+		onpointerdown={(e) => handleResizePointerDown(e, 'right')}
+		onpointermove={handleResizePointerMove}
+		onpointerup={handleResizePointerUp}
+		onpointercancel={handleResizePointerUp}
+	></div>
+	<div
+		class="resize-edge-handle resize-edge-bottom"
+		onpointerdown={(e) => handleResizePointerDown(e, 'bottom')}
+		onpointermove={handleResizePointerMove}
+		onpointerup={handleResizePointerUp}
+		onpointercancel={handleResizePointerUp}
+	></div>
+	<div
+		class="resize-handle"
+		onpointerdown={(e) => handleResizePointerDown(e, 'bottom-right')}
+		onpointermove={handleResizePointerMove}
+		onpointerup={handleResizePointerUp}
+		onpointercancel={handleResizePointerUp}
 	></div>
 </div>
 
@@ -245,8 +292,47 @@
 		overflow: auto;
 	}
 
+	.resize-edge-handle {
+		position: absolute;
+		z-index: 1;
+		touch-action: none;
+	}
+
+	.resize-edge-left,
+	.resize-edge-right {
+		top: 0;
+		bottom: 0;
+		width: 8px;
+		cursor: ew-resize;
+	}
+
+	.resize-edge-left {
+		left: 0;
+	}
+
+	.resize-edge-right {
+		right: 0;
+	}
+
+	.resize-edge-top,
+	.resize-edge-bottom {
+		left: 0;
+		right: 0;
+		height: 8px;
+		cursor: ns-resize;
+	}
+
+	.resize-edge-top {
+		top: 0;
+	}
+
+	.resize-edge-bottom {
+		bottom: 0;
+	}
+
 	.resize-handle {
 		position: absolute;
+		z-index: 2;
 		right: 0;
 		bottom: 0;
 		width: 20px;
@@ -254,5 +340,6 @@
 		cursor: nwse-resize;
 		background: linear-gradient(135deg, transparent 50%, #585b70 50%);
 		border-bottom-right-radius: 8px;
+		touch-action: none;
 	}
 </style>

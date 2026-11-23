@@ -6,11 +6,15 @@
 	import dns from '$lib/assets/dns.png';
 	import echo from '$lib/assets/echo.png';
 	import simpleClient from '$lib/assets/simple-client.png';
+	import browser from '$lib/assets/browser.png';
+	import webserverImg from '$lib/assets/webserver.png';
 	import { fly, scale } from 'svelte/transition';
 	import type { AppType } from '$lib/engine/types';
 	import HostAppDock from './Host/HostAppDock.svelte';
 	import DNS from './Host/DNS.svelte';
 	import EchoServer from './Host/EchoServer.svelte';
+	import WebServer from './Host/WebServer.svelte';
+	import WebBrowser from './Host/WebBrowser.svelte';
 
 	let { host }: { host: Host } = $props();
 
@@ -91,6 +95,15 @@
 				{:else if host.currentApp === 'simple-client'}
 					{@render appTitle('Simple Client', simpleClient)}
 					<SimpleClient {host} />
+				{:else if host.currentApp === 'web-server'}
+					{@render appTitle('Web-Server', webserverImg)}
+					<WebServer {host} />
+				{:else if host.currentApp === 'web-browser'}
+					{@render appTitle('Web-Browser', browser)}
+					<WebBrowser {host} />
+				{:else if host.currentApp === 'editor'}
+					{@render appTitle('Editor', '')}
+					<!-- <Editor {host} /> -->
 				{/if}
 			</div>
 		{/key}
@@ -215,7 +228,10 @@
 										href="#"
 										onclick={() => {
 											openApp('web-server');
-										}}>Web-Server</a
+										}}
+									>
+										<img src={webserverImg} alt="Web-Server" />
+										Web-Server</a
 									>
 								</li>
 								<li>
@@ -224,7 +240,10 @@
 										href="#"
 										onclick={() => {
 											openApp('web-browser');
-										}}>Web-Browser</a
+										}}
+									>
+										<img src={browser} alt="Web-Browser" />
+										Web-Browser</a
 									>
 								</li>
 								<li>

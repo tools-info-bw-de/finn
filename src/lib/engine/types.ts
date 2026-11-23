@@ -146,6 +146,24 @@ export interface EchoServerState {
 	connections: SvelteMap<TCPConnection, EchoConnectionState>;
 }
 
+export interface VHost {
+	uuid: string;
+	hostname: string;
+	directory: string; // Unterverzeichnis relativ zu /var/www
+}
+
+export interface WebServerState {
+	serverRunning: boolean;
+	port: number;
+	useVHosts: boolean;
+	vhosts: VHost[];
+}
+
+export interface WebBrowserState {
+	url: string;
+	loading: boolean;
+}
+
 export interface SimpleClientState {
 	serverAddress: string;
 	serverPort: number;
@@ -160,7 +178,9 @@ export type App =
 	| { type: 'dns'; content: DNSState }
 	| { type: 'echo-server'; content: EchoServerState }
 	| { type: 'simple-client'; content: SimpleClientService }
-	| { type: Exclude<AppType, 'terminal' | 'dns'>; content: null };
+	| { type: 'web-server'; content: WebServerState }
+	| { type: 'web-browser'; content: WebBrowserState }
+	| { type: Exclude<AppType, 'terminal' | 'dns' | 'web-server' | 'web-browser'>; content: null };
 
 //------------------------
 

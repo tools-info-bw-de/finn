@@ -120,6 +120,16 @@ export class SimpleClientService implements SimpleClientState {
 		if (!wasConnecting && !this.sendingMessage) this.closeConnection();
 	}
 
+	/** Gespeicherter Zustand (wird von JSON.stringify automatisch verwendet). */
+	public toJSON() {
+		return { serverAddress: this.serverAddress, serverPort: this.serverPort };
+	}
+
+	public restore(data: Partial<ReturnType<SimpleClientService['toJSON']>>): void {
+		if (data.serverAddress !== undefined) this.serverAddress = data.serverAddress;
+		if (data.serverPort !== undefined) this.serverPort = data.serverPort;
+	}
+
 	public dispose(): void {
 		this.disconnect();
 	}

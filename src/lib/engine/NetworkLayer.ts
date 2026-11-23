@@ -51,7 +51,9 @@ export class NetworkLayer implements LayerInterface {
 
 		if (destinationIp === '127.0.0.1' || destinationIp === this.config.ipAddress) {
 			ipPacket.header.srcIp = ipPacket.header.dstIp;
-			this.receive(ipPacket, 'IP');
+			// Loopback asynchron zustellen (wie über eine Warteschlange im echten Netzwerk-Stack).
+			// Synchron würde z. B. die TCP-Antwort noch innerhalb des eigenen send() verarbeitet.
+			setTimeout(() => this.receive(ipPacket, 'IP'), 0);
 			return;
 		}
 

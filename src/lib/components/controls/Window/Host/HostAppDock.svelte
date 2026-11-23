@@ -3,6 +3,8 @@
 	import terminal from '$lib/assets/terminal.png';
 	import dns from '$lib/assets/dns.png';
 	import echo from '$lib/assets/echo.png';
+	import webserverImg from '$lib/assets/webserver.png';
+	import browser from '$lib/assets/browser.png';
 	import simpleClient from '$lib/assets/simple-client.png';
 	import { slide } from 'svelte/transition';
 
@@ -25,6 +27,10 @@
 				<img src={echo} alt={app.type} />
 			{:else if app.type === 'simple-client'}
 				<img src={simpleClient} alt={app.type} />
+			{:else if app.type === 'web-server'}
+				<img src={webserverImg} alt={app.type} />
+			{:else if app.type === 'web-browser'}
+				<img src={browser} alt={app.type} />
 			{/if}
 		</button>
 	{/each}

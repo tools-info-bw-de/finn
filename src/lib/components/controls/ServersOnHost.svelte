@@ -14,7 +14,7 @@
 		if (app.type === 'dns') {
 			return host.dnsState().serverRunning;
 		} else if (app.type === 'web-server') {
-			//return host.webServerState().serverRunning;
+			return host.webServer.serverRunning;
 		} else if (app.type === 'echo-server') {
 			return host.echoServer.serverRunning;
 		}
@@ -23,7 +23,7 @@
 </script>
 
 <div class="d-flex flex-column gap-1">
-	{#each [...host.apps, ...(host.echoServer.serverRunning && !host.apps.some((app) => app.type === 'echo-server') ? [{ type: 'echo-server', content: host.echoServer }] : [])] as app (app.type)}
+	{#each host.apps as app (app.type)}
 		{#if relevantApps.has(app.type)}
 			{@const appRunning = isAppRunning(app)}
 			<div class="d-flex align-items-center">

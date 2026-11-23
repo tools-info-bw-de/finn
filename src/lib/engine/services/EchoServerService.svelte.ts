@@ -54,11 +54,44 @@ export class EchoServerService implements EchoServerState {
 		this.log.push({ type: 'serverStopped', message: '' });
 	}
 
+	/** Gespeicherter Zustand (wird von JSON.stringify automatisch verwendet). */
+	public toJSON() {
+		return { port: this.port, serverRunning: this.serverRunning };
+	}
+
+	public restore(data: Partial<ReturnType<EchoServerService['toJSON']>>): void {
+		if (data.port) this.port = data.port;
+		if (!data.serverRunning) return;
+		try {
+			this.start(this.port);
+		} catch (error) {
+			this.log.push({
+				type: 'error',
+				message:
+					error instanceof Error ? error.message : 'Echo-Server konnte nicht gestartet werden.'
+			});
+		}
+	}
+
 	public dispose(): void {
 		this.releaseListener?.();
 		this.releaseListener = undefined;
 		this.serverRunning = false;
 		for (const state of [...this.connections.values()]) this.removeConnection(state);
+	}
+
+	/** Beendet den Echo-Server vollständig (App wurde geschlossen): Verbindungen zu, Zustand zurücksetzen. */
+	public shutdown(): void {
+		for (const state of [...this.connections.values()]) {
+			try {
+				state.connection.close();
+			} catch {
+				// Verbindung war bereits geschlossen
+			}
+		}
+		this.dispose();
+		this.port = 55555;
+		this.log = [];
 	}
 
 	private acceptConnection(connection: TCPConnection): void {

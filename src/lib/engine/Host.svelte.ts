@@ -8,7 +8,9 @@ import type {
 	DNSState,
 	EchoServerState,
 	NetworkNode,
-	TerminalState
+	TerminalState,
+	WebServerState,
+	WebBrowserState
 } from './types';
 import { NetworkConfig } from './NetworkConfig.svelte';
 import { ICMPService } from './services/ICMPService.svelte';
@@ -16,6 +18,9 @@ import { DNSService } from './services/DNSService.svelte';
 import { UDPService } from './services/UDPService';
 import { TCPService } from './services/TCPService';
 import { EchoServerService } from './services/EchoServerService.svelte';
+import { WebServerService } from './services/WebServerService.svelte';
+import { WebBrowserService } from './services/WebBrowserService.svelte';
+import { FileSystem } from './FileSystem.svelte';
 import { SimpleClientService } from './services/SimpleClientService.svelte';
 import { nodeSpawn } from '$lib/states/nodes.svelte';
 
@@ -40,6 +45,9 @@ export class Host implements NetworkNode {
 	public tcp: TCPService;
 	public dns: DNSService;
 	public echoServer: EchoServerService;
+	public webServer: WebServerService;
+	public webBrowser: WebBrowserService;
+	public fileSystem = new FileSystem();
 
 	constructor(
 		name: string,
@@ -72,6 +80,7 @@ export class Host implements NetworkNode {
 		this.networkLayer.registerProtocolHandler('UDP', this.udp);
 		this.tcp = new TCPService(this.networkLayer);
 		this.echoServer = new EchoServerService(this.tcp);
+		this.webServer = new WebServerService(this.tcp, this.fileSystem);
 		this.networkLayer.registerProtocolHandler('TCP', this.tcp);
 		this.icmp.registerErrorHandler('TCP', (packet, srcIp) =>
 			this.tcp.handleIcmpError(packet, srcIp)
@@ -86,6 +95,7 @@ export class Host implements NetworkNode {
 			},
 			this.icmp
 		);
+		this.webBrowser = new WebBrowserService(this.tcp, this.dns);
 
 		this.dataLinkLayer.upperLayer = this.networkLayer;
 		this.networkLayer.lowerLayer = this.dataLinkLayer;
@@ -124,8 +134,31 @@ export class Host implements NetworkNode {
 				type,
 				content: new SimpleClientService(this.tcp, this.dns)
 			};
+		} else if (type === 'web-server') {
+			return {
+				type,
+				content: this.webServer
+			};
+		} else if (type === 'web-browser') {
+			return {
+				type,
+				content: this.webBrowser
+			};
 		}
 		return { type, content: null };
+	}
+
+	/** Stellt eine gespeicherte App wieder her (Gegenstück zum automatischen toJSON der Dienste). */
+	public restoreApp(type: AppType, saved: unknown): App {
+		const app = this.createApp(type);
+		if (!saved || typeof saved !== 'object') return app;
+		if (app.type === 'terminal' || app.type === 'dns') {
+			// Reine Zustandsobjekte werden direkt übernommen
+			return { ...app, content: saved } as App;
+		}
+		// Dienste stellen sich selbst wieder her
+		(app.content as { restore?: (data: object) => void } | null)?.restore?.(saved);
+		return app;
 	}
 
 	public openApp(type: AppType): void {
@@ -135,15 +168,20 @@ export class Host implements NetworkNode {
 		this.currentApp = type;
 	}
 
-	// Entfernt die aktuelle App samt ihrem Zustand
+	// Beendet die aktuelle App samt ihrem Zustand (Server werden gestoppt)
 	public closeCurrentApp(): void {
 		if (this.currentApp === 'simple-client') this.simpleClientState().dispose();
+		if (this.currentApp === 'echo-server') this.echoServer.shutdown();
+		if (this.currentApp === 'web-server') this.webServer.shutdown();
+		if (this.currentApp === 'web-browser') this.webBrowser.reset();
 		this.apps = this.apps.filter((app) => app.type !== this.currentApp);
 		this.currentApp = '';
 	}
 
 	public dispose(): void {
 		this.echoServer.dispose();
+		this.webServer.dispose();
+		this.webBrowser.dispose();
 		for (const app of this.apps) {
 			if (app.type === 'simple-client' && app.content) app.content.dispose();
 		}
@@ -169,6 +207,22 @@ export class Host implements NetworkNode {
 			(a): a is Extract<App, { type: 'echo-server' }> => a.type === 'echo-server'
 		);
 		if (!app) throw new Error('Echo-Server-App ist nicht geöffnet');
+		return app.content;
+	}
+
+	public webServerState(): WebServerState {
+		const app = this.apps.find(
+			(a): a is Extract<App, { type: 'web-server' }> => a.type === 'web-server'
+		);
+		if (!app) throw new Error('Web-Server-App ist nicht geöffnet');
+		return app.content;
+	}
+
+	public webBrowserState(): WebBrowserState {
+		const app = this.apps.find(
+			(a): a is Extract<App, { type: 'web-browser' }> => a.type === 'web-browser'
+		);
+		if (!app) throw new Error('Web-Browser-App ist nicht geöffnet');
 		return app.content;
 	}
 

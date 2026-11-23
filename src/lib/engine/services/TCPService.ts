@@ -7,6 +7,8 @@ const LAST_PORT = 65535;
 const RETRY_DELAY_MS = 1000;
 const HANDSHAKE_TIMEOUT_MS = 120000;
 const MAX_ATTEMPTS = 3;
+// Ethernet-MTU 1500 Byte − 20 Byte IP-Header − 20 Byte TCP-Header
+export const TCP_MSS = 1460;
 
 export interface TCPConnection {
 	readonly localPort: number;
@@ -327,9 +329,23 @@ export class TCPService implements ProtocolHandler {
 		if (state.outstanding) throw new Error('Es wartet bereits ein TCP-Segment auf Bestätigung.');
 		if (payload.length === 0) throw new RangeError('TCP-Nutzdaten dürfen nicht leer sein.');
 
-		const segment = this.createSegment(state, { ACK: true }, payload.slice());
-		state.sendSequence = this.advanceSequence(state.sendSequence, payload.length);
-		this.sendReliable(state, segment, onAcknowledged, onError);
+		// Größere Nutzdaten werden in Segmente zu höchstens TCP_MSS Byte aufgeteilt und nacheinander
+		// gesendet (Stop-and-Wait: das nächste Segment erst nach dem ACK des vorherigen).
+		const data = payload.slice();
+		const sendChunk = (offset: number) => {
+			if (state.phase !== 'established') return;
+			const chunk = data.subarray(offset, offset + TCP_MSS);
+			const next = offset + chunk.length;
+			const segment = this.createSegment(state, { ACK: true }, chunk.slice());
+			state.sendSequence = this.advanceSequence(state.sendSequence, chunk.length);
+			this.sendReliable(
+				state,
+				segment,
+				next < data.length ? () => sendChunk(next) : onAcknowledged,
+				onError
+			);
+		};
+		sendChunk(0);
 	}
 
 	private closeConnection(

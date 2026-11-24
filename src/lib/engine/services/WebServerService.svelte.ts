@@ -18,7 +18,7 @@ import {
 	type HttpRequest,
 	type HttpResponse
 } from '../http';
-import { defaultWebsiteFiles, vhostIndexHtml } from '../defaultWebsite';
+import { vhostIndexHtml } from '../defaultWebsite';
 import type { VHost, WebServerState } from '../types';
 import type { TCPConnection, TCPService } from './TCPService';
 
@@ -53,20 +53,10 @@ export class WebServerService implements WebServerState {
 	constructor(
 		private readonly tcp: TCPService,
 		private readonly fileSystem: FileSystem
-	) {
-		this.ensureDefaultContent();
-	}
-
-	/** Legt die Standardseite (HTML, CSS, Bild) an, sofern die Dateien noch nicht existieren. */
-	public ensureDefaultContent(): void {
-		for (const [name, content] of Object.entries(defaultWebsiteFiles())) {
-			const path = `${DEFAULT_DOCUMENT_ROOT}/${name}`;
-			if (!this.fileSystem.isFile(path)) this.fileSystem.writeFile(path, content);
-		}
-	}
+	) {}
 
 	public start(): void {
-		if (this.releaseListener) throw new Error('Web-Server läuft bereits.');
+		if (this.releaseListener) throw new Error('Webserver läuft bereits.');
 		let active = true;
 		const release = this.tcp.listen(WEB_SERVER_PORT, (connection) => {
 			if (active) {
@@ -84,7 +74,7 @@ export class WebServerService implements WebServerState {
 			release();
 		};
 		this.serverRunning = true;
-		this.logNotice(`${SERVER_NAME} gestartet, lauscht auf Port ${WEB_SERVER_PORT}`);
+		this.logNotice(`Webserver gestartet, lauscht auf Port ${WEB_SERVER_PORT}`);
 	}
 
 	public stop(): void {
@@ -392,7 +382,7 @@ export class WebServerService implements WebServerState {
 
 	public logStartError(error: unknown): void {
 		this.logError(
-			error instanceof Error ? error.message : 'Web-Server konnte nicht gestartet werden.'
+			error instanceof Error ? error.message : 'Webserver konnte nicht gestartet werden.'
 		);
 	}
 }

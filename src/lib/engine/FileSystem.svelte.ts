@@ -6,6 +6,17 @@ export type FileContent = string | Uint8Array;
 // Binärdateien werden beim Speichern als Base64 abgelegt
 type SavedFileContent = string | { base64: string };
 
+export type SavedFileSystem = {
+	files?: Record<string, SavedFileContent>;
+	deleted?: string[];
+	directories?: string[];
+};
+
+function sameContent(a: FileContent, b: FileContent): boolean {
+	if (typeof a === 'string' || typeof b === 'string') return a === b;
+	return a.length === b.length && a.every((byte, index) => byte === b[index]);
+}
+
 export function bytesToBase64(bytes: Uint8Array): string {
 	let binary = '';
 	for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -28,8 +39,12 @@ export class FileSystem {
 	public files = new SvelteMap<string, FileContent>();
 	public directories = new SvelteMap<string, true>();
 
-	constructor() {
-		this.mkdir('/');
+	/**
+	 * @param defaults Standarddateien (absoluter Pfad -> Inhalt), mit denen das Dateisystem startet.
+	 *   Beim Speichern werden nur Abweichungen davon abgelegt.
+	 */
+	constructor(private readonly defaults: Record<string, FileContent> = {}) {
+		this.reset();
 	}
 
 	/**
@@ -87,24 +102,52 @@ export class FileSystem {
 		this.files.delete(FileSystem.normalize(path));
 	}
 
-	public toJSON(): { files: Record<string, SavedFileContent>; directories: string[] } {
+	/**
+	 * Gespeicherter Zustand – nur die Abweichungen von den Standarddateien:
+	 * geänderte/neue Dateien, gelöschte Standarddateien und leere Verzeichnisse
+	 * (alle anderen Verzeichnisse ergeben sich aus den Dateipfaden).
+	 */
+	public toJSON(): SavedFileSystem {
 		const files: Record<string, SavedFileContent> = {};
 		for (const [path, content] of this.files) {
+			const original = this.defaults[path];
+			if (original !== undefined && sameContent(original, content)) continue;
 			files[path] = typeof content === 'string' ? content : { base64: bytesToBase64(content) };
 		}
-		return { files, directories: [...this.directories.keys()] };
+		const deleted = Object.keys(this.defaults).filter((path) => !this.files.has(path));
+		const directories = [...this.directories.keys()].filter((dir) => this.isEmptyDirectory(dir));
+
+		return {
+			...(Object.keys(files).length > 0 && { files }),
+			...(deleted.length > 0 && { deleted }),
+			...(directories.length > 0 && { directories })
+		};
 	}
 
-	public load(
-		data: { files?: Record<string, SavedFileContent>; directories?: string[] } | undefined
-	): void {
+	/** Stellt den gespeicherten Zustand wieder her: Standarddateien + gespeicherte Abweichungen. */
+	public load(data: SavedFileSystem | undefined): void {
+		this.reset();
 		if (!data) return;
-		this.files.clear();
-		this.directories.clear();
-		this.mkdir('/');
+		for (const path of data.deleted ?? []) this.deleteFile(path);
 		for (const dir of data.directories ?? []) this.mkdir(dir);
 		for (const [path, content] of Object.entries(data.files ?? {})) {
 			this.writeFile(path, typeof content === 'string' ? content : base64ToBytes(content.base64));
 		}
+	}
+
+	/** Setzt das Dateisystem auf die Standarddateien zurück. */
+	private reset(): void {
+		this.files.clear();
+		this.directories.clear();
+		this.mkdir('/');
+		for (const [path, content] of Object.entries(this.defaults)) this.writeFile(path, content);
+	}
+
+	private isEmptyDirectory(dir: string): boolean {
+		if (dir === '/') return false;
+		const prefix = dir + '/';
+		for (const path of this.files.keys()) if (path.startsWith(prefix)) return false;
+		for (const other of this.directories.keys()) if (other.startsWith(prefix)) return false;
+		return true;
 	}
 }

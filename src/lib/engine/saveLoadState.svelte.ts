@@ -187,7 +187,7 @@ export function loadState(stateString: string): void {
 					nodeData.dns,
 					nodeData.dataLinkLayerUuid
 				);
-				if (nodeData.fileSystem) node.fileSystem.load(nodeData.fileSystem);
+				node.fileSystem.load(nodeData.fileSystem);
 				const host = node;
 				node.apps = nodeData.apps.map((app: { type: AppType; content: unknown }) =>
 					host.restoreApp(app.type, app.content)

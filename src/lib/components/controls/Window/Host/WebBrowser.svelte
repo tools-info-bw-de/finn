@@ -51,12 +51,14 @@
 		void browser.navigate(data.href, browser.pageUrl ?? undefined);
 	}
 
-	// Klicks in das iframe erreichen das Window nicht. Beim Klick verliert aber das Hauptfenster
-	// den Fokus an das iframe -> dann ein pointerdown weiterreichen, damit das Window nach vorne kommt.
+	// Klicks in das iframe erreichen die umgebende App nicht. Beim Klick verliert aber das Hauptfenster
+	// den Fokus an das iframe -> dann den Klick nachbilden: pointerdown holt das Window nach vorne,
+	// click schließt z. B. das geöffnete Startmenü.
 	function handleWindowBlur() {
 		setTimeout(() => {
 			if (frame && document.activeElement === frame) {
 				frame.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+				frame.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 			}
 		});
 	}

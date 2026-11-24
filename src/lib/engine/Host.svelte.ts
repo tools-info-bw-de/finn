@@ -21,6 +21,7 @@ import { EchoServerService } from './services/EchoServerService.svelte';
 import { WebServerService } from './services/WebServerService.svelte';
 import { WebBrowserService } from './services/WebBrowserService.svelte';
 import { FileSystem } from './FileSystem.svelte';
+import { defaultFiles } from './defaultWebsite';
 import { SimpleClientService } from './services/SimpleClientService.svelte';
 import { nodeSpawn } from '$lib/states/nodes.svelte';
 
@@ -47,7 +48,7 @@ export class Host implements NetworkNode {
 	public echoServer: EchoServerService;
 	public webServer: WebServerService;
 	public webBrowser: WebBrowserService;
-	public fileSystem = new FileSystem();
+	public fileSystem = new FileSystem(defaultFiles());
 
 	constructor(
 		name: string,
@@ -214,7 +215,7 @@ export class Host implements NetworkNode {
 		const app = this.apps.find(
 			(a): a is Extract<App, { type: 'web-server' }> => a.type === 'web-server'
 		);
-		if (!app) throw new Error('Web-Server-App ist nicht geöffnet');
+		if (!app) throw new Error('Webserver-App ist nicht geöffnet');
 		return app.content;
 	}
 
@@ -222,7 +223,7 @@ export class Host implements NetworkNode {
 		const app = this.apps.find(
 			(a): a is Extract<App, { type: 'web-browser' }> => a.type === 'web-browser'
 		);
-		if (!app) throw new Error('Web-Browser-App ist nicht geöffnet');
+		if (!app) throw new Error('Webbrowser-App ist nicht geöffnet');
 		return app.content;
 	}
 

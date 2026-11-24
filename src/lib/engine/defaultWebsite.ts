@@ -53,10 +53,10 @@ const INDEX_HTML = `<!DOCTYPE html>
 <body>
   <main>
     <h1>Es funktioniert!</h1>
-    Dies ist die Standardseite des Web-Servers.
+    Dies ist die Standardseite des Webservers.
     <img width=200px src="finn-network.jpg" alt="Finn-Netzwerk">
     <p>
-      Die Seite liegt auf dem Web-Server unter <code>${DEFAULT_DOCUMENT_ROOT}/${DIRECTORY_INDEX}</code>.<br>
+      Die Seite liegt auf dem Webserver unter <code>${DEFAULT_DOCUMENT_ROOT}/${DIRECTORY_INDEX}</code>.<br>
     </p>
   </main>
 </body>
@@ -67,12 +67,14 @@ function dataUriToBytes(dataUri: string): Uint8Array {
 	return base64ToBytes(dataUri.slice(dataUri.indexOf(',') + 1));
 }
 
-/** Dateien relativ zu /var/www/html */
-export function defaultWebsiteFiles(): Record<string, FileContent> {
+const FINN_NETWORK_JPG = dataUriToBytes(finnNetworkJpg);
+
+/** Standarddateien eines Hosts (absoluter Pfad -> Inhalt). Werden nicht mitgespeichert, solange unverändert. */
+export function defaultFiles(): Record<string, FileContent> {
 	return {
-		[DIRECTORY_INDEX]: INDEX_HTML,
-		'style.css': STYLE_CSS,
-		'finn-network.jpg': dataUriToBytes(finnNetworkJpg)
+		[`${DEFAULT_DOCUMENT_ROOT}/${DIRECTORY_INDEX}`]: INDEX_HTML,
+		[`${DEFAULT_DOCUMENT_ROOT}/style.css`]: STYLE_CSS,
+		[`${DEFAULT_DOCUMENT_ROOT}/finn-network.jpg`]: FINN_NETWORK_JPG
 	};
 }
 

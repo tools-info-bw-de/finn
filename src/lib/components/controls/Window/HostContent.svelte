@@ -96,10 +96,10 @@
 					{@render appTitle('Simple Client', simpleClient)}
 					<SimpleClient {host} />
 				{:else if host.currentApp === 'web-server'}
-					{@render appTitle('Web-Server', webserverImg)}
+					{@render appTitle('Webserver', webserverImg)}
 					<WebServer {host} />
 				{:else if host.currentApp === 'web-browser'}
-					{@render appTitle('Web-Browser', browser)}
+					{@render appTitle('Webbrowser', browser)}
 					<WebBrowser {host} />
 				{:else if host.currentApp === 'editor'}
 					{@render appTitle('Editor', '')}
@@ -230,8 +230,8 @@
 											openApp('web-server');
 										}}
 									>
-										<img src={webserverImg} alt="Web-Server" />
-										Web-Server</a
+										<img src={webserverImg} alt="Webserver" />
+										Webserver</a
 									>
 								</li>
 								<li>
@@ -242,8 +242,8 @@
 											openApp('web-browser');
 										}}
 									>
-										<img src={browser} alt="Web-Browser" />
-										Web-Browser</a
+										<img src={browser} alt="Webbrowser" />
+										Webbrowser</a
 									>
 								</li>
 								<li>

@@ -51,10 +51,18 @@
 		void browser.navigate(data.href, browser.pageUrl ?? undefined);
 	}
 
-	let loadedCount = $derived(browser.resources.filter((r) => r.status === 'done').length);
+	// Klicks in das iframe erreichen das Window nicht. Beim Klick verliert aber das Hauptfenster
+	// den Fokus an das iframe -> dann ein pointerdown weiterreichen, damit das Window nach vorne kommt.
+	function handleWindowBlur() {
+		setTimeout(() => {
+			if (frame && document.activeElement === frame) {
+				frame.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+			}
+		});
+	}
 </script>
 
-<svelte:window onmessage={handleMessage} />
+<svelte:window onmessage={handleMessage} onblur={handleWindowBlur} />
 
 <div class="background flex-fill d-flex flex-column">
 	<form class="d-flex flex-row gap-2 p-2" onsubmit={submit}>

@@ -1,7 +1,14 @@
 <script lang="ts">
 	import type { Host } from '$lib/engine/Host.svelte';
 	import type { Router } from '$lib/engine/Router.svelte';
-	import type { ARPPacket, ICMPPacket, IPPacket, TCPSegment, UDPDatagram } from '$lib/engine/types';
+	import type {
+		ARPPacket,
+		EthernetFrame,
+		ICMPPacket,
+		IPPacket,
+		TCPSegment,
+		UDPDatagram
+	} from '$lib/engine/types';
 	import type { capturedPackage } from '$lib/engine/DataLinkLayer.svelte';
 	import { nodes } from '$lib/states/nodes.svelte';
 	import { getColorForProtocol } from '$lib/engine/helpers';
@@ -189,11 +196,13 @@
 				layer = 'Transport';
 				protocolColor = 'TCP';
 				detail =
-					(tcpSegment.header.flags.SYN && !tcpSegment.header.flags.ACK ? 'TCP Handshake (' : '') +
-					(tcpSegment.header.flags.SYN && tcpSegment.header.flags.ACK
-						? 'Bestätige & TCP Handshake ('
+					(tcpSegment.header.flags.SYN && !tcpSegment.header.flags.ACK
+						? 'Verbindungsaufbau ('
 						: '') +
-					(tcpSegment.header.flags.FIN && tcpSegment.header.flags.ACK ? 'TCP Teardown (' : '') +
+					(tcpSegment.header.flags.SYN && tcpSegment.header.flags.ACK
+						? 'Bestätige & Verbindungsaufbau ('
+						: '') +
+					(tcpSegment.header.flags.FIN && tcpSegment.header.flags.ACK ? 'Verbindungsabbau (' : '') +
 					(tcpSegment.header.flags.ACK &&
 					!tcpSegment.header.flags.SYN &&
 					!tcpSegment.header.flags.FIN &&
@@ -244,7 +253,188 @@
 		resizing = false;
 		(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
 	}
+
+	// Eine Schicht des Pakets; "kind" legt fest, welcher Typ in "data" steckt
+	type Layer =
+		| { kind: 'ethernet'; data: EthernetFrame }
+		| { kind: 'arp'; data: ARPPacket }
+		| { kind: 'ip'; data: IPPacket }
+		| { kind: 'icmp'; data: ICMPPacket }
+		| { kind: 'udp'; data: UDPDatagram }
+		| { kind: 'tcp'; data: TCPSegment }
+		| { kind: 'application'; protocol: string; data: Uint8Array };
+
+	type LayerPreview = {
+		title: string;
+		color: string; // Protokoll für getColorForProtocol
+		from?: string | number;
+		to?: string | number;
+		endpointType?: string;
+		inner?: Layer; // eingepackte Schicht -> wird rekursiv dargestellt
+		text?: string; // Anwendungsdaten (innerste Schicht)
+	};
+
+	/** Kurzer Text für ein TCP-Segment ohne Anwendungsdaten (Auf-/Abbau, Bestätigung). */
+	function TCPtoShortString(header: TCPSegment['header']): string {
+		const { SYN, ACK, FIN, RST } = header.flags;
+		const numbers = `Seq=${header.seqNum}, Ack=${header.ackNum}`;
+		if (RST) return `Verbindung abgebrochen (RST)`;
+		if (SYN && !ACK) return `Verbindungsaufbau (SYN)`;
+		if (SYN && ACK) return `Bestätige & Verbindungsaufbau`;
+		if (FIN) return `Verbindungsabbau`;
+		if (ACK) return `Bestätigung`;
+		return numbers;
+	}
+
+	/** Kurzer Text für eine DNS-Nachricht (JSON); leer, wenn sie nicht lesbar ist. */
+	function DNStoShortString(payload: string): string {
+		let data: unknown;
+		try {
+			data = JSON.parse(payload);
+		} catch {
+			return '';
+		}
+		if (!isObject(data) || typeof data.name !== 'string') return '';
+		if (data.kind === 'response' && typeof data.error === 'string') {
+			return `DNS-Fehler für ${data.name}: ${data.error}`;
+		} else if (data.kind === 'query' && data.recordType === 'A') {
+			return `Suche IP für ${data.name}`;
+		} else if (data.kind === 'response' && data.recordType === 'A') {
+			return `IP-Adresse für ${data.name} -> ${data.address}`;
+		} else if (data.kind === 'query' && data.recordType === 'NS') {
+			return `Suche Nameserver für ${data.name}`;
+		} else if (data.kind === 'response' && data.recordType === 'NS') {
+			return `Nameserver für ${data.name} -> ${data.nsDomain}`;
+		} else if (data.kind === 'query' && data.recordType === 'MX') {
+			return `Suche Mailserver für ${data.name}`;
+		} else if (data.kind === 'response' && data.recordType === 'MX') {
+			return `Mailserver für ${data.name} -> ${data.mxDomain}`;
+		}
+
+		return '';
+	}
+
+	/** Beschreibt eine Schicht und liefert die darin eingepackte nächste Schicht. */
+	function describeLayer(layer: Layer): LayerPreview {
+		switch (layer.kind) {
+			case 'ethernet': {
+				const { header, payload } = layer.data;
+				return {
+					title: 'Ethernet',
+					color: 'default',
+					from: header.srcMac,
+					to: header.dstMac,
+					endpointType: 'MAC',
+					inner:
+						header.type === 'ARP'
+							? { kind: 'arp', data: payload as ARPPacket }
+							: { kind: 'ip', data: payload as IPPacket }
+				};
+			}
+			case 'arp': {
+				const arp = layer.data;
+				return {
+					title: 'ARP',
+					color: 'ARP',
+					endpointType: 'IP',
+					text: arp.senderIP + ' sucht MAC für ' + arp.targetIP
+				};
+			}
+			case 'ip': {
+				const { header, payload } = layer.data;
+				let inner: Layer;
+				if (header.protocol === 'TCP') inner = { kind: 'tcp', data: payload as TCPSegment };
+				else if (header.protocol === 'UDP') inner = { kind: 'udp', data: payload as UDPDatagram };
+				else inner = { kind: 'icmp', data: payload as ICMPPacket };
+				return {
+					title: 'IP',
+					color: 'default',
+					from: header.srcIp,
+					to: header.dstIp,
+					endpointType: 'IP-Adresse',
+					inner
+				};
+			}
+			case 'icmp': {
+				const icmp = layer.data;
+				const isError = icmp.type !== 'echo-request' && icmp.type !== 'echo-reply';
+				return {
+					title: 'ICMP',
+					text:
+						icmp.type === 'echo-request'
+							? 'Ping'
+							: icmp.type === 'echo-reply'
+								? 'Pong'
+								: `ICMP Type ${icmp.type}`,
+					color: isError ? 'ERROR' : 'ICMP'
+				};
+			}
+			case 'udp': {
+				const { header, payload } = layer.data;
+				const isDns = header.srcPort === 53 || header.dstPort === 53;
+				return {
+					title: 'UDP',
+					color: 'UDP',
+					from: header.srcPort,
+					to: header.dstPort,
+					endpointType: 'Port',
+					inner:
+						payload.length > 0
+							? { kind: 'application', protocol: isDns ? 'DNS' : 'Daten', data: payload }
+							: undefined
+				};
+			}
+			case 'tcp': {
+				const { header, payload } = layer.data;
+				return {
+					title: 'TCP',
+					color: 'TCP',
+					from: header.srcPort,
+					to: header.dstPort,
+					endpointType: 'Port',
+					inner:
+						payload.length > 0
+							? { kind: 'application', protocol: header.protocol ?? 'Daten', data: payload }
+							: undefined,
+					text: payload.length === 0 ? TCPtoShortString(header) : undefined
+				};
+			}
+			case 'application': {
+				const text = new TextDecoder().decode(layer.data);
+				return {
+					title: layer.protocol,
+					color: 'Anwendung',
+					text: (layer.protocol === 'DNS' && DNStoShortString(text)) || text
+				};
+			}
+		}
+	}
+
+	let selectedPacket = $derived(captureBuffer?.find((p) => p.number === detailsNumber));
 </script>
+
+{#snippet packagePreview(layer: Layer)}
+	{@const preview = describeLayer(layer)}
+	<div class="package" style="border-color: {getColorForProtocol(preview.color)};">
+		<div class="p-header" style="background-color: {getColorForProtocol(preview.color)};">
+			{preview.title}
+			{#if preview.endpointType}<span class="p-info">({preview.endpointType})</span>{/if}
+		</div>
+		<div class="p-body">
+			{#if preview.from !== undefined || preview.to !== undefined}
+				<div class="endpoints {preview.text !== undefined ? 'divider' : ''}">
+					<span>{preview.from ?? '–'}</span>
+					<span>{preview.to ?? '–'}</span>
+				</div>
+			{/if}
+			{#if preview.inner}
+				{@render packagePreview(preview.inner)}
+			{:else if preview.text !== undefined}
+				<pre class="p-payload">{preview.text}</pre>
+			{/if}
+		</div>
+	</div>
+{/snippet}
 
 <div class="sniffer background" bind:this={snifferEl}>
 	<div class="table-scroll" bind:this={tableScroll}>
@@ -289,14 +479,20 @@
 		onpointerup={stopResize}
 	></div>
 
-	<div class="details" style="height: {detailsHeight}px;">
-		{#if detailsNumber !== null}
-			{@const packet = captureBuffer?.find((p) => p.number === detailsNumber)}
-			{#if packet}
-				<h3>Details for Packet {packet.number}</h3>
-				<p>{JSON.stringify(packet, null, 2)}</p>
-			{/if}
+	<!-- Vorschau + Details bilden gemeinsam den in der Höhe veränderbaren Bereich unter dem Griff -->
+	<div class="lower" style="height: {detailsHeight}px;">
+		{#if selectedPacket}
+			<div class="packagePreview">
+				{@render packagePreview({ kind: 'ethernet', data: selectedPacket.frame })}
+			</div>
 		{/if}
+
+		<div class="details">
+			{#if selectedPacket}
+				<h3>Details for Packet {selectedPacket.number}</h3>
+				<p>{JSON.stringify(selectedPacket, null, 2)}</p>
+			{/if}
+		</div>
 	</div>
 </div>
 
@@ -313,8 +509,16 @@
 		overflow: auto;
 	}
 
-	.details {
+	.lower {
 		flex: none;
+		display: flex;
+		flex-direction: row;
+		min-height: 0;
+	}
+
+	.details {
+		flex: 1;
+		min-height: 0;
 		overflow: auto;
 		padding: 0.25rem 0.5rem;
 	}
@@ -358,5 +562,58 @@
 	td:not(:last-child) {
 		width: 1%;
 		white-space: nowrap;
+	}
+	.packagePreview {
+		flex: none;
+		overflow: auto;
+		padding: 0.25rem 0.5rem;
+		font-size: 0.85rem;
+		width: fit-content;
+	}
+
+	.package {
+		border: 2px solid;
+		border-radius: 4px;
+		background-color: #ffffff;
+		color: #11111b;
+	}
+
+	.p-header {
+		color: #fff;
+		font-weight: bold;
+		padding: 0 0.4rem;
+	}
+
+	.p-info {
+		font-weight: normal;
+		margin-left: 0.5rem;
+	}
+
+	.p-body {
+		display: flex;
+		flex-direction: row;
+		gap: 0.25rem;
+	}
+
+	.endpoints {
+		display: flex;
+		flex-direction: column;
+		justify-content: end;
+		padding: 0 0.1rem;
+	}
+
+	.endpoints.divider {
+		border-right: 1px solid #45475a;
+	}
+
+	.p-payload {
+		margin: 0;
+		max-height: 3rem;
+		max-width: 15rem;
+		overflow: auto;
+		white-space: pre-wrap;
+		word-break: break-all;
+		font-size: 0.8rem;
+		align-self: center;
 	}
 </style>

@@ -9,28 +9,31 @@ const STYLE_CSS = `body {
   background: #eef2f6;
   color: #1f2933;
   margin: 0;
-  padding: 2rem 1rem;
+  padding: 1rem 1rem;
 }
 
 main {
   max-width: 36rem;
-  margin: 0 auto;
-  padding: 1.5rem 2rem;
+  margin: 0;
+  padding: 1rem 1.5rem;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 h1 {
   margin-top: 0;
   color: #2b6cb0;
+  margin-bottom: 0.5rem;
 }
 
 img {
   display: block;
   max-width: 100%;
   margin: 1rem auto;
-  border-radius: 8px;
 }
 
 code {
@@ -50,11 +53,10 @@ const INDEX_HTML = `<!DOCTYPE html>
 <body>
   <main>
     <h1>Es funktioniert!</h1>
-    <p>Dies ist die Standardseite des Web-Servers.</p>
-    <img src="finn-network.jpg" alt="Finn-Netzwerk">
+    Dies ist die Standardseite des Web-Servers.
+    <img width=200px src="finn-network.jpg" alt="Finn-Netzwerk">
     <p>
-      Die Seite liegt unter <code>${DEFAULT_DOCUMENT_ROOT}/${DIRECTORY_INDEX}</code>.<br>
-      Stylesheet und Bild hat der Browser jeweils mit einer eigenen Anfrage nachgeladen.
+      Die Seite liegt auf dem Web-Server unter <code>${DEFAULT_DOCUMENT_ROOT}/${DIRECTORY_INDEX}</code>.<br>
     </p>
   </main>
 </body>

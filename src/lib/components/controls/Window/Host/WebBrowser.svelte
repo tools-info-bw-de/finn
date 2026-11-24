@@ -67,7 +67,18 @@
 			spellcheck="false"
 			autocomplete="off"
 		/>
-		<button class="btn btn-primary btn-sm" type="submit" disabled={browser.loading}>Start</button>
+		<button
+			class="d-flex flex-row align-items-center btn btn-primary btn-sm"
+			type="submit"
+			disabled={browser.loading}
+		>
+			{#if browser.loading}
+				<div class="spinner-border spinner-border-sm me-2" role="status">
+					<span class="visually-hidden">Loading...</span>
+				</div>
+			{/if}
+			Start
+		</button>
 	</form>
 
 	<div class="page flex-fill">
@@ -92,15 +103,13 @@
 		{/if}
 	</div>
 
-	<div class="statusBar small text-muted px-2">
-		{#if browser.loading && browser.currentRequest}
-			Lade {browser.currentRequest} …
-		{:else if browser.pageUrl}
-			Fertig{browser.resources.length > 0
-				? ` – ${loadedCount} von ${browser.resources.length} Dateien geladen`
-				: ''}
-		{/if}
-	</div>
+	{#if browser.loading && browser.currentRequest}
+		<div class="statusBar small text-muted px-2">
+			{#if browser.loading && browser.currentRequest}
+				Lade {browser.currentRequest} …
+			{/if}
+		</div>
+	{/if}
 </div>
 
 <style>

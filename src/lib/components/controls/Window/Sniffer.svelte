@@ -13,6 +13,11 @@
 		return nodes.find((n) => n.uuid === nodeUuid);
 	});
 
+	// svelte-ignore state_referenced_locally
+	let detailsNumber = $state<number | null>(
+		(node as Host)?.dataLinkLayer?.captureBuffer.length ?? 0
+	);
+
 	let captureBuffer = $derived.by(() => {
 		if (!node) return undefined;
 		if (node.type === 'desktop' || node.type === 'notebook')
@@ -145,7 +150,7 @@
 					const recordType = payloadObject.recordType;
 					if (payloadObject.kind === 'query' && isDNSRecordType(recordType)) {
 						const labels = { A: 'IP-Adresse', NS: 'Nameserver', MX: 'Mailserver' };
-						detail = `DNS: Suche ${labels[recordType]} für ${name}`;
+						detail = `Suche ${labels[recordType]} für ${name}`;
 					} else if (
 						payloadObject.kind === 'response' &&
 						isDNSRecordType(payloadObject.recordType)
@@ -156,19 +161,19 @@
 							payloadObject.recordType === 'A' &&
 							typeof payloadObject.address === 'string'
 						) {
-							detail = `DNS: IP-Adresse für ${name} -> ${payloadObject.address}`;
+							detail = `IP-Adresse für ${name} -> ${payloadObject.address}`;
 						} else if (
 							payloadObject.recordType === 'NS' &&
 							typeof payloadObject.nsDomain === 'string'
 						) {
 							detail =
-								`DNS: Nameserver für ${name} -> ${payloadObject.nsDomain}` +
+								`Nameserver für ${name} -> ${payloadObject.nsDomain}` +
 								(payloadObject.glueIp ? ` (${payloadObject.glueIp})` : '');
 						} else if (
 							payloadObject.recordType === 'MX' &&
 							typeof payloadObject.mxDomain === 'string'
 						) {
-							detail = `DNS: Mailserver für ${name} -> ${payloadObject.mxDomain}`;
+							detail = `Mailserver für ${name} -> ${payloadObject.mxDomain}`;
 						}
 					}
 				}
@@ -181,14 +186,26 @@
 				srcIp = ipPacket.header.srcIp + ':' + tcpSegment.header.srcPort;
 				dstIp = ipPacket.header.dstIp + ':' + tcpSegment.header.dstPort;
 				protocol = 'TCP';
-				layer = 'Transportschicht';
+				layer = 'Transport';
 				protocolColor = 'TCP';
 				detail =
-					`TCP Segment, ${tcpSegment.payload.length} Bytes, Seq=${tcpSegment.header.seqNum}, Ack=${tcpSegment.header.ackNum}` +
+					(tcpSegment.header.flags.SYN && !tcpSegment.header.flags.ACK ? 'TCP Handshake (' : '') +
+					(tcpSegment.header.flags.SYN && tcpSegment.header.flags.ACK
+						? 'Bestätige & TCP Handshake ('
+						: '') +
+					(tcpSegment.header.flags.FIN && tcpSegment.header.flags.ACK ? 'TCP Teardown (' : '') +
+					(tcpSegment.header.flags.ACK &&
+					!tcpSegment.header.flags.SYN &&
+					!tcpSegment.header.flags.FIN &&
+					!tcpSegment.header.flags.RST
+						? 'Bestätige ('
+						: '') +
+					`Seq=${tcpSegment.header.seqNum}, Ack=${tcpSegment.header.ackNum}` +
 					(tcpSegment.header.flags.SYN ? ', SYN' : '') +
 					(tcpSegment.header.flags.ACK ? ', ACK' : '') +
 					(tcpSegment.header.flags.FIN ? ', FIN' : '') +
-					(tcpSegment.header.flags.RST ? ', RST' : '');
+					(tcpSegment.header.flags.RST ? ', RST' : '') +
+					')';
 			} else if (
 				ipPacket.header.protocol === 'TCP' &&
 				(ipPacket.payload as TCPSegment).payload.length > 0
@@ -196,17 +213,15 @@
 				const tcpSegment = ipPacket.payload as TCPSegment;
 				srcIp = ipPacket.header.srcIp + ':' + tcpSegment.header.srcPort;
 				dstIp = ipPacket.header.dstIp + ':' + tcpSegment.header.dstPort;
-				protocol = '';
+				protocol = tcpSegment.header.protocol ?? '';
 				layer = 'Anwendung';
-				protocolColor = 'TCP';
+				protocolColor = 'Anwendung';
 				detail = new TextDecoder().decode(tcpSegment.payload);
 			}
 		}
 
 		return { number, time, srcIp, dstIp, protocol, layer, detail, protocolColor };
 	}
-
-	let detailsNumber = $state<number | null>(1);
 
 	let snifferEl = $state<HTMLDivElement | null>(null);
 	let detailsHeight = $state(150);

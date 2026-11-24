@@ -1,6 +1,7 @@
 import { SvelteSet } from 'svelte/reactivity';
 import {
 	BrowserError,
+	errorTypeForStatus,
 	buildGetRequest,
 	isResponseComplete,
 	mimeType,
@@ -28,7 +29,9 @@ export type BrowserResource = {
 	content?: string;
 };
 
-export type BrowserPageError = { title: string; detail: string };
+export type BrowserErrorType = 'connection' | 'dns' | '404' | '403' | '405' | '400';
+
+export type BrowserPageError = { type: BrowserErrorType; title: string; detail: string };
 
 // Wird in jede Seite eingefügt: setzt nachgeladene Dateien ein und leitet Link-Klicks an den Browser weiter
 const PAGE_RUNTIME = `(function () {
@@ -98,6 +101,13 @@ export class WebBrowserService implements WebBrowserState {
 			if (navigation !== this.navigation) return;
 
 			this.url = finalUrl.href;
+			if (response.status >= 400) {
+				throw new BrowserError(
+					errorTypeForStatus(response.status),
+					`${response.status} ${response.statusText}`.trim(),
+					finalUrl.href
+				);
+			}
 			this.pageUrl = finalUrl.href;
 			this.showDocument(response, finalUrl);
 			await this.loadResources(navigation);
@@ -105,8 +115,9 @@ export class WebBrowserService implements WebBrowserState {
 			if (navigation !== this.navigation) return;
 			this.error =
 				error instanceof BrowserError
-					? { title: error.title, detail: error.message }
+					? { type: error.type, title: error.title, detail: error.message }
 					: {
+							type: 'connection',
 							title: 'Fehler',
 							detail: error instanceof Error ? error.message : String(error)
 						};
@@ -158,7 +169,7 @@ export class WebBrowserService implements WebBrowserState {
 				return { response, finalUrl: current };
 			}
 			if (redirects >= MAX_REDIRECTS) {
-				throw new BrowserError('Zu viele Weiterleitungen', current.href);
+				throw new BrowserError('connection', 'Zu viele Weiterleitungen', current.href);
 			}
 			current = parseBrowserUrl(location, current.href);
 		}
@@ -173,12 +184,14 @@ export class WebBrowserService implements WebBrowserState {
 			ip = await (this.dnsCache[url.hostname] ??= this.dns.resolveAddress(url.hostname));
 		} catch (error) {
 			throw new BrowserError(
+				'dns',
 				'Server nicht gefunden',
 				error instanceof Error ? error.message : url.hostname
 			);
 		}
-		if (!isValidIPv4(ip)) throw new BrowserError('Server nicht gefunden', url.hostname);
-		if (navigation !== this.navigation) throw new BrowserError('Abgebrochen', url.href);
+		if (!isValidIPv4(ip)) throw new BrowserError('dns', 'Server nicht gefunden', url.hostname);
+		if (navigation !== this.navigation)
+			throw new BrowserError('connection', 'Abgebrochen', url.href);
 
 		const bytes = await new Promise<Uint8Array>((resolve, reject) => {
 			let received: Uint8Array<ArrayBuffer> = new Uint8Array(0);
@@ -192,7 +205,7 @@ export class WebBrowserService implements WebBrowserState {
 				for (const off of detach) off();
 				if (connection) this.openConnections.delete(connection);
 				if (error) {
-					reject(new BrowserError('Verbindung fehlgeschlagen', error.message));
+					reject(new BrowserError('connection', 'Verbindung fehlgeschlagen', error.message));
 					return;
 				}
 				resolve(received);
@@ -240,7 +253,11 @@ export class WebBrowserService implements WebBrowserState {
 		});
 
 		if (bytes.length === 0) {
-			throw new BrowserError('Leere Antwort', `${url.host} hat keine Daten gesendet.`);
+			throw new BrowserError(
+				'connection',
+				'Leere Antwort',
+				`${url.host} hat keine Daten gesendet.`
+			);
 		}
 		return parseHttpResponse(bytes);
 	}
@@ -257,7 +274,11 @@ export class WebBrowserService implements WebBrowserState {
 		} else if (type.startsWith('text/') || type.endsWith('json') || type.endsWith('xml')) {
 			this.document = `<!DOCTYPE html><html><body><pre style="white-space:pre-wrap">${escapeHtml(text)}</pre></body></html>`;
 		} else {
-			throw new BrowserError('Nicht darstellbar', `Inhaltstyp ${type} wird nicht unterstützt.`);
+			throw new BrowserError(
+				'400',
+				'Nicht darstellbar',
+				`Inhaltstyp ${type} wird nicht unterstützt.`
+			);
 		}
 	}
 

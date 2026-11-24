@@ -352,7 +352,7 @@
 		z-index: -1;
 		border-radius: inherit;
 		backdrop-filter: blur(5px);
-		background-color: #ffffff94;
+		background-color: #f0f0f094;
 	}
 
 	.dropdown-item {

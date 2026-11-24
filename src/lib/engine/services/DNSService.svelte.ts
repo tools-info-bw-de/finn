@@ -406,7 +406,7 @@ export class DNSService implements UDPPortHandler {
 
 		this.finishLookup(packet.timeoutUuid, pending);
 		pending.reject(
-			new DNSLookupError('icmp-unreachable', `Ziel bzw. Dienst bei ${srcIp} nicht erreichbar.`)
+			new DNSLookupError('icmp-unreachable', `DNS-Server bei ${srcIp} nicht erreichbar.`)
 		);
 	}
 

@@ -1,6 +1,11 @@
 <script lang="ts">
 	import type { Host } from '$lib/engine/Host.svelte';
 	import browserImg from '$lib/assets/browser.png';
+	import browser_error_dns from '$lib/assets/browser_error_dns.jpg';
+	import browser_error_connection from '$lib/assets/browser_error_connection.jpg';
+	import browser_error_400 from '$lib/assets/browser_error_400.jpg';
+	import browser_error_403_405 from '$lib/assets/browser_error_403_405.jpg';
+	import browser_error_404 from '$lib/assets/browser_error_404.jpg';
 
 	let { host }: { host: Host } = $props();
 
@@ -96,6 +101,37 @@
 			<div class="error h-100 d-flex flex-column align-items-center justify-content-center">
 				<div class="fw-bold">{browser.error.title}</div>
 				<div class="small text-muted">{browser.error.detail}</div>
+				{#if browser.error.type === 'dns'}
+					<img src={browser_error_dns} alt="DNS-Fehler" class="errorImg mt-2" draggable="false" />
+				{:else if browser.error.type === 'connection'}
+					<img
+						src={browser_error_connection}
+						alt="Verbindungsfehler"
+						class="errorImg mt-2"
+						draggable="false"
+					/>
+				{:else if browser.error.type === '400'}
+					<img
+						src={browser_error_400}
+						alt="400 Bad Request"
+						class="errorImg mt-2"
+						draggable="false"
+					/>
+				{:else if browser.error.type === '403' || browser.error.type === '405'}
+					<img
+						src={browser_error_403_405}
+						alt="403 Forbidden"
+						class="errorImg mt-2"
+						draggable="false"
+					/>
+				{:else if browser.error.type === '404'}
+					<img
+						src={browser_error_404}
+						alt="404 Not Found"
+						class="errorImg mt-2"
+						draggable="false"
+					/>
+				{/if}
 			</div>
 		{:else if browser.document !== null}
 			<iframe
@@ -106,9 +142,9 @@
 				onload={() => (frameReady = true)}
 			></iframe>
 		{:else}
-			<div class="d-flex flex-column align-items-center justify-content-center">
-				FireKitten - der Browser der schnurrt!<br />
-				<img src={browserImg} alt="Kätzchen mit Ball" class="browserImg mb-2" />
+			<div class="d-flex flex-column align-items-center justify-content-center pt-3">
+				FireKitten - der Browser, der schnurrt!<br />
+				<img src={browserImg} alt="Kätzchen mit Ball" class="browserImg mb-2" draggable="false" />
 			</div>
 		{/if}
 	</div>
@@ -124,9 +160,17 @@
 
 <style>
 	.browserImg {
-		width: 200px;
-		height: 200px;
+		width: 180px;
 		object-fit: contain;
+		user-select: none;
+		-webkit-user-drag: none;
+	}
+
+	.errorImg {
+		width: 250px;
+		object-fit: contain;
+		user-select: none;
+		-webkit-user-drag: none;
 	}
 
 	.background {

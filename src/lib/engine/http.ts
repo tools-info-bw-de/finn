@@ -1,3 +1,4 @@
+import type { BrowserErrorType } from './services/WebBrowserService.svelte';
 import { bytesToBase64, FileSystem, type FileContent } from './FileSystem.svelte';
 
 // Reine HTTP-Hilfsfunktionen (ohne Svelte-Reaktivität) für den simulierten Web-Server
@@ -145,11 +146,18 @@ export function parseRequest(head: string): HttpRequest | undefined {
 
 export class BrowserError extends Error {
 	constructor(
+		public readonly type: BrowserErrorType,
 		public readonly title: string,
 		detail: string
 	) {
 		super(detail);
 	}
+}
+
+/** Ordnet einen HTTP-Fehlerstatus dem passenden Fehlertyp des Browsers zu. */
+export function errorTypeForStatus(status: number): BrowserErrorType {
+	if (status === 403 || status === 404 || status === 405) return String(status) as BrowserErrorType;
+	return '400';
 }
 
 export type HttpClientResponse = {
@@ -165,25 +173,30 @@ export type HttpClientResponse = {
  */
 export function parseBrowserUrl(input: string, base?: string): URL {
 	const value = input.trim();
-	if (value === '') throw new BrowserError('Ungültige URL', 'Bitte eine Adresse eingeben.');
+	if (value === '') throw new BrowserError('400', 'Ungültige URL', 'Bitte eine Adresse eingeben.');
 	const withScheme = base || /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `http://${value}`;
 
 	let url: URL;
 	try {
 		url = new URL(withScheme, base);
 	} catch {
-		throw new BrowserError('Ungültige URL', value);
+		throw new BrowserError('400', 'Ungültige URL', value);
 	}
 	if (url.protocol !== 'http:') {
 		throw new BrowserError(
+			'connection',
 			`Protokoll "${url.protocol}" nicht unterstützt`,
 			'Nur http:// wird unterstützt.'
 		);
 	}
 	if (url.port !== '' && url.port !== String(WEB_SERVER_PORT)) {
-		throw new BrowserError('Nicht unterstützt', `Nur Port ${WEB_SERVER_PORT} wird unterstützt.`);
+		throw new BrowserError(
+			'connection',
+			'Nicht unterstützt',
+			`Nur Port ${WEB_SERVER_PORT} wird unterstützt.`
+		);
 	}
-	if (url.hostname === '') throw new BrowserError('Ungültige URL', value);
+	if (url.hostname === '') throw new BrowserError('400', 'Ungültige URL', value);
 	url.hash = '';
 	return url;
 }
@@ -220,6 +233,7 @@ export function parseHttpResponse(bytes: Uint8Array): HttpClientResponse {
 	const headerEnd = findHeaderEnd(bytes);
 	if (headerEnd === -1) {
 		throw new BrowserError(
+			'connection',
 			'Ungültige Antwort',
 			'Der Server hat keine gültige HTTP-Antwort gesendet.'
 		);
@@ -229,6 +243,7 @@ export function parseHttpResponse(bytes: Uint8Array): HttpClientResponse {
 	const match = /^HTTP\/\d\.\d (\d{3})(?: (.*))?$/.exec(statusLine);
 	if (!match) {
 		throw new BrowserError(
+			'connection',
 			'Ungültige Antwort',
 			'Der Server hat keine gültige HTTP-Antwort gesendet.'
 		);

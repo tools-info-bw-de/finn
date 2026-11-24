@@ -72,6 +72,7 @@ export interface TCPSegment {
 			FIN: boolean;
 			RST: boolean;
 		};
+		protocol?: 'HTTP';
 	};
 	payload: Uint8Array;
 }

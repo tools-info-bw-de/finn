@@ -23,6 +23,14 @@ export interface TCPConnection {
 
 export type TCPConnectionListener = (connection: TCPConnection) => void;
 
+/** Anwendungsprotokoll, mit dem Segmente mit Nutzdaten gekennzeichnet werden (z. B. für den Sniffer). */
+export type ApplicationProtocol = NonNullable<TCPSegment['header']['protocol']>;
+
+interface PortListener {
+	listener: TCPConnectionListener;
+	protocol?: ApplicationProtocol;
+}
+
 type ConnectionPhase = 'syn-sent' | 'syn-received' | 'established' | 'closing' | 'closed';
 
 interface PendingSegment {
@@ -60,11 +68,12 @@ interface ConnectionState {
 	closeListeners: Set<() => void>;
 	errorListeners: Set<(error: Error) => void>;
 	handle: TCPConnection;
+	protocol?: ApplicationProtocol;
 }
 
 export class TCPService implements ProtocolHandler {
 	private readonly networkLayer: NetworkLayer;
-	private readonly listeners = new Map<number, TCPConnectionListener>();
+	private readonly listeners = new Map<number, PortListener>();
 	private readonly connections = new Map<string, ConnectionState>();
 	private readonly ephemeralPorts = new Set<number>();
 	private readonly transientSegments = new Map<string, PendingTransientSegment>();
@@ -75,13 +84,22 @@ export class TCPService implements ProtocolHandler {
 		this.networkLayer = networkLayer;
 	}
 
-	public listen(port: number, listener: TCPConnectionListener): () => void {
+	/**
+	 * @param protocol Anwendungsprotokoll, mit dem die Datensegmente angenommener Verbindungen
+	 *   gekennzeichnet werden.
+	 */
+	public listen(
+		port: number,
+		listener: TCPConnectionListener,
+		protocol?: ApplicationProtocol
+	): () => void {
 		this.validatePort(port);
 		if (this.listeners.has(port)) throw new Error(`TCP-Port ${port} ist bereits belegt.`);
 
-		this.listeners.set(port, listener);
+		const entry: PortListener = { listener, protocol };
+		this.listeners.set(port, entry);
 		return () => {
-			if (this.listeners.get(port) === listener) this.listeners.delete(port);
+			if (this.listeners.get(port) === entry) this.listeners.delete(port);
 		};
 	}
 
@@ -89,7 +107,8 @@ export class TCPService implements ProtocolHandler {
 		remoteIp: string,
 		remotePort: number,
 		onConnected: (connection: TCPConnection) => void,
-		onError?: (error: Error) => void
+		onError?: (error: Error) => void,
+		protocol?: ApplicationProtocol
 	): TCPConnection {
 		this.validatePort(remotePort);
 		const localPort = this.allocateEphemeralPort();
@@ -101,6 +120,7 @@ export class TCPService implements ProtocolHandler {
 			this.allocateInitialSequence()
 		);
 		state.connectCallback = onConnected;
+		state.protocol = protocol;
 		state.connectError = onError;
 		this.connections.set(this.connectionKey(state.localIp, localPort, remoteIp, remotePort), state);
 
@@ -126,9 +146,9 @@ export class TCPService implements ProtocolHandler {
 
 		if (!state) {
 			if (segment.header.flags.SYN && !segment.header.flags.ACK) {
-				const listener = this.listeners.get(segment.header.dstPort);
-				if (listener) {
-					state = this.acceptSyn(segment, srcIp, listener);
+				const portListener = this.listeners.get(segment.header.dstPort);
+				if (portListener) {
+					state = this.acceptSyn(segment, srcIp, portListener);
 					SimulationEventBus.getInstance().emitDelivered(segment.header.timeoutUuid);
 					return;
 				}
@@ -193,17 +213,22 @@ export class TCPService implements ProtocolHandler {
 
 		if (payloadLength > 0) {
 			state.receiveSequence = this.advanceSequence(state.receiveSequence, payloadLength);
-			const payload = segment.payload.slice();
-			state.dataListeners.forEach((callback) => callback(payload));
 		}
-
 		if (hasFin) {
 			state.receiveSequence = this.advanceSequence(state.receiveSequence, 1);
 			state.remoteClosed = true;
-			state.closeListeners.forEach((callback) => callback());
 		}
 
+		// Erst den Empfang bestätigen, dann die Anwendung informieren – sonst würde eine sofortige
+		// Antwort der Anwendung (Daten oder FIN) noch vor dem ACK verschickt.
 		this.sendAcknowledgement(state);
+
+		if (payloadLength > 0) {
+			const payload = segment.payload.slice();
+			state.dataListeners.forEach((callback) => callback(payload));
+		}
+		if (hasFin) state.closeListeners.forEach((callback) => callback());
+
 		if (hasFin && !state.localCloseRequested) this.sendFin(state);
 		if (state.remoteClosed && state.localFinAcknowledged) this.finishConnection(state);
 	}
@@ -241,7 +266,7 @@ export class TCPService implements ProtocolHandler {
 	private acceptSyn(
 		segment: TCPSegment,
 		remoteIp: string,
-		listener: TCPConnectionListener
+		{ listener, protocol }: PortListener
 	): ConnectionState {
 		const state = this.createConnectionState(
 			segment.header.dstPort,
@@ -252,6 +277,7 @@ export class TCPService implements ProtocolHandler {
 		);
 		state.receiveSequence = this.advanceSequence(segment.header.seqNum, 1);
 		state.acceptCallback = listener;
+		state.protocol = protocol;
 		this.connections.set(
 			this.connectionKey(state.localIp, state.localPort, remoteIp, state.remotePort),
 			state
@@ -337,6 +363,7 @@ export class TCPService implements ProtocolHandler {
 			const chunk = data.subarray(offset, offset + TCP_MSS);
 			const next = offset + chunk.length;
 			const segment = this.createSegment(state, { ACK: true }, chunk.slice());
+			if (state.protocol) segment.header.protocol = state.protocol;
 			state.sendSequence = this.advanceSequence(state.sendSequence, chunk.length);
 			this.sendReliable(
 				state,

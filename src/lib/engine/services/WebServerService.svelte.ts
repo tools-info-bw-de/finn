@@ -58,17 +58,21 @@ export class WebServerService implements WebServerState {
 	public start(): void {
 		if (this.releaseListener) throw new Error('Webserver läuft bereits.');
 		let active = true;
-		const release = this.tcp.listen(WEB_SERVER_PORT, (connection) => {
-			if (active) {
-				this.acceptConnection(connection);
-			} else {
-				try {
-					connection.close();
-				} catch {
-					return;
+		const release = this.tcp.listen(
+			WEB_SERVER_PORT,
+			(connection) => {
+				if (active) {
+					this.acceptConnection(connection);
+				} else {
+					try {
+						connection.close();
+					} catch {
+						return;
+					}
 				}
-			}
-		});
+			},
+			'HTTP'
+		);
 		this.releaseListener = () => {
 			active = false;
 			release();

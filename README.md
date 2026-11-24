@@ -21,7 +21,7 @@ Die Seite verwendet Bilder von Flaticon.com:
 - Echo-Server: <a href="https://www.flaticon.com/free-icons/undo" title="undo icons">Undo icons created by Pixel perfect - Flaticon</a>
 - Einfacher Client: <a href="https://www.flaticon.com/free-icons/registration" title="registration icons">Registration icons created by Magnific - Flaticon</a>
 - Stop-Cable: <a href="https://www.flaticon.com/free-icons/stop-sign" title="stop sign icons">Stop sign icons created by Bartama Graphic - Flaticon</a>
-- Web-Server: <a href="https://www.flaticon.com/free-icons/ui" title="ui icons">Ui icons created by iconmas - Flaticon</a>
+- Webserver: <a href="https://www.flaticon.com/free-icons/ui" title="ui icons">Ui icons created by iconmas - Flaticon</a>
 
 ## Developing
 

@@ -1,4 +1,3 @@
-import { SvelteSet } from 'svelte/reactivity';
 import {
 	BrowserError,
 	errorTypeForStatus,
@@ -30,6 +29,16 @@ export type BrowserResource = {
 };
 
 export type BrowserErrorType = 'connection' | 'dns' | '404' | '403' | '405' | '400';
+
+type PooledConnection = {
+	connection: TCPConnection;
+	established: Promise<void>;
+	// Bisher empfangene Bytes der aktuellen Antwort
+	received: Uint8Array<ArrayBuffer>;
+	// Wartende Anfrage (es läuft immer höchstens eine Anfrage pro Verbindung)
+	pending?: { resolve: (bytes: Uint8Array) => void; reject: (error: Error) => void };
+	closed: boolean;
+};
 
 export type BrowserPageError = { type: BrowserErrorType; title: string; detail: string };
 
@@ -77,7 +86,8 @@ export class WebBrowserService implements WebBrowserState {
 	private navigation = 0;
 	// DNS-Cache für den aktuellen Ladevorgang: jeder Hostname wird nur einmal aufgelöst
 	private dnsCache: Record<string, Promise<string>> = {};
-	private openConnections = new SvelteSet<TCPConnection>();
+	// Offene, persistente Verbindungen des aktuellen Ladevorgangs (Hostname -> Verbindung)
+	private pool: Record<string, PooledConnection> = {};
 
 	constructor(
 		private readonly tcp: TCPService,
@@ -87,6 +97,7 @@ export class WebBrowserService implements WebBrowserState {
 	/** Lädt die Seite im URL-Feld (oder eine übergebene Adresse, z. B. von einem Link). */
 	public async navigate(input: string = this.url, base?: string): Promise<void> {
 		const navigation = ++this.navigation;
+		this.closeConnections();
 		this.dnsCache = {};
 		this.loading = true;
 		this.error = null;
@@ -125,6 +136,7 @@ export class WebBrowserService implements WebBrowserState {
 			if (navigation === this.navigation) {
 				this.loading = false;
 				this.currentRequest = null;
+				this.closeConnections();
 			}
 		}
 	}
@@ -193,64 +205,18 @@ export class WebBrowserService implements WebBrowserState {
 		if (navigation !== this.navigation)
 			throw new BrowserError('connection', 'Abgebrochen', url.href);
 
+		const pooled = await this.connectionFor(url.hostname, ip);
 		const bytes = await new Promise<Uint8Array>((resolve, reject) => {
-			let received: Uint8Array<ArrayBuffer> = new Uint8Array(0);
-			let finished = false;
-			let connection: TCPConnection | undefined;
-			const detach: (() => void)[] = [];
-
-			const finish = (error?: Error) => {
-				if (finished) return;
-				finished = true;
-				for (const off of detach) off();
-				if (connection) this.openConnections.delete(connection);
-				if (error) {
-					reject(new BrowserError('connection', 'Verbindung fehlgeschlagen', error.message));
-					return;
-				}
-				resolve(received);
-			};
-
-			const receive = (payload: Uint8Array) => {
-				const combined = new Uint8Array(received.length + payload.length);
-				combined.set(received, 0);
-				combined.set(payload, received.length);
-				received = combined;
-				if (!connection || !isResponseComplete(received)) return;
-				// Antwort vollständig -> der Browser beendet die Verbindung selbst (FIN)
-				const finishedConnection = connection;
-				finish();
-				try {
-					finishedConnection.close();
-				} catch {
-					// Verbindung wurde bereits vom Server geschlossen
-				}
-			};
-
+			pooled.pending = { resolve, reject };
 			try {
-				connection = this.tcp.connect(
-					ip,
-					WEB_SERVER_PORT,
-					(established) => {
-						try {
-							established.send(buildGetRequest(url), undefined, finish);
-						} catch (error) {
-							finish(error instanceof Error ? error : new Error(String(error)));
-						}
-					},
-					finish
-				);
+				pooled.connection.send(buildGetRequest(url), undefined, reject);
 			} catch (error) {
-				finish(error instanceof Error ? error : new Error(String(error)));
-				return;
+				reject(error instanceof Error ? error : new Error(String(error)));
 			}
-			this.openConnections.add(connection);
-			detach.push(
-				connection.onData(receive),
-				connection.onClose(() => finish()),
-				connection.onError(finish)
-			);
+		}).catch((error: Error) => {
+			throw new BrowserError('connection', 'Verbindung fehlgeschlagen', error.message);
 		});
+		pooled.pending = undefined;
 
 		if (bytes.length === 0) {
 			throw new BrowserError(
@@ -348,14 +314,89 @@ export class WebBrowserService implements WebBrowserState {
 		}
 	}
 
+	/**
+	 * Liefert die offene Verbindung zu einem Host oder baut eine neue auf. Alle Anfragen eines
+	 * Seitenaufrufs an denselben Host laufen nacheinander über diese eine (persistente) Verbindung.
+	 */
+	private async connectionFor(hostname: string, ip: string): Promise<PooledConnection> {
+		let pooled = this.pool[hostname];
+		if (!pooled || pooled.closed) {
+			pooled = this.openConnection(hostname, ip);
+			this.pool[hostname] = pooled;
+		}
+		try {
+			await pooled.established;
+		} catch (error) {
+			throw new BrowserError(
+				'connection',
+				'Verbindung fehlgeschlagen',
+				error instanceof Error ? error.message : String(error)
+			);
+		}
+		return pooled;
+	}
+
+	private openConnection(hostname: string, ip: string): PooledConnection {
+		let markEstablished!: () => void;
+		let failEstablishing!: (error: Error) => void;
+		const established = new Promise<void>((resolve, reject) => {
+			markEstablished = resolve;
+			failEstablishing = reject;
+		});
+		// Wird ggf. nie abgewartet (z. B. Abbruch) -> keine "unhandled rejection"
+		established.catch(() => {});
+
+		const pooled: PooledConnection = {
+			connection: undefined as unknown as TCPConnection,
+			established,
+			received: new Uint8Array(0),
+			closed: false
+		};
+		const drop = (error?: Error) => {
+			if (pooled.closed) return;
+			pooled.closed = true;
+			if (this.pool[hostname] === pooled) delete this.pool[hostname];
+			failEstablishing(error ?? new Error('Verbindung wurde geschlossen.'));
+			const pending = pooled.pending;
+			pooled.pending = undefined;
+			// Server hat nach der Antwort geschlossen (Connection: close) -> Antwort ist vollständig
+			if (pending && !error && pooled.received.length > 0) pending.resolve(pooled.received);
+			else pending?.reject(error ?? new Error('Verbindung wurde vom Server geschlossen.'));
+		};
+
+		try {
+			pooled.connection = this.tcp.connect(ip, WEB_SERVER_PORT, markEstablished, drop, 'HTTP');
+		} catch (error) {
+			drop(error instanceof Error ? error : new Error(String(error)));
+			return pooled;
+		}
+		pooled.connection.onData((payload) => {
+			const combined = new Uint8Array(pooled.received.length + payload.length);
+			combined.set(pooled.received, 0);
+			combined.set(payload, pooled.received.length);
+			pooled.received = combined;
+			if (!pooled.pending || !isResponseComplete(pooled.received)) return;
+			const pending = pooled.pending;
+			const response = pooled.received;
+			pooled.pending = undefined;
+			pooled.received = new Uint8Array(0);
+			pending.resolve(response);
+		});
+		pooled.connection.onClose(() => drop());
+		pooled.connection.onError(drop);
+		return pooled;
+	}
+
+	/** Seite fertig geladen (oder abgebrochen): Der Browser beendet alle Verbindungen (FIN). */
 	private closeConnections(): void {
-		for (const connection of this.openConnections) {
+		for (const pooled of Object.values(this.pool)) {
+			pooled.closed = true;
 			try {
-				connection.close();
+				pooled.connection.close();
 			} catch {
-				// Verbindung war bereits geschlossen
+				// Verbindung war bereits geschlossen oder wartet noch auf ein ACK
 			}
 		}
-		this.openConnections.clear();
+		this.pool = {};
 	}
 }

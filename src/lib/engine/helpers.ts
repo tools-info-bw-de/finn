@@ -85,6 +85,8 @@ export function getColorForProtocol(protocol: string | undefined): string {
 			return '#ffa600';
 		case 'TCP':
 			return '#0000ff';
+		case 'Anwendung':
+			return '#006400'; // dunkelgrün
 		default:
 			return '#89b4fa'; // Default color for unknown protocols
 	}

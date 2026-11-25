@@ -75,6 +75,10 @@ export function getSubnetAddress(ip: string, mask: string): string {
 
 export function getColorForProtocol(protocol: string | undefined): string {
 	switch (protocol) {
+		case 'Ethernet':
+			return '#757575';
+		case 'IP':
+			return '#313131';
 		case 'ARP':
 			return '#523e3a';
 		case 'ICMP':

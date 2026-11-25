@@ -26,7 +26,7 @@ export type DNSResponse = {
 	error?: string;
 };
 
-type DNSMessage = DNSQuery | DNSResponse;
+export type DNSMessage = DNSQuery | DNSResponse;
 
 type PendingLookup = {
 	sourcePort: number;

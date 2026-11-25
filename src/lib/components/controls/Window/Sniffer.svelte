@@ -304,7 +304,7 @@
 		} else if (data.kind === 'query' && data.recordType === 'NS') {
 			return `Suche Nameserver für ${data.name}`;
 		} else if (data.kind === 'response' && data.recordType === 'NS') {
-			return `Nameserver für ${data.name} -> ${data.nsDomain}`;
+			return `Nameserver für ${data.name} -> ${data.nsDomain} ${data.glueIp ? '(' + data.glueIp + ')' : ''}`;
 		} else if (data.kind === 'query' && data.recordType === 'MX') {
 			return `Suche Mailserver für ${data.name}`;
 		} else if (data.kind === 'response' && data.recordType === 'MX') {
@@ -321,7 +321,7 @@
 				const { header, payload } = layer.data;
 				return {
 					title: 'Ethernet',
-					color: 'default',
+					color: 'Ethernet',
 					from: header.srcMac,
 					to: header.dstMac,
 					endpointType: 'MAC',
@@ -337,7 +337,10 @@
 					title: 'ARP',
 					color: 'ARP',
 					endpointType: 'IP',
-					text: arp.senderIP + ' sucht MAC für ' + arp.targetIP
+					text:
+						arp.type === 'request'
+							? `${arp.senderIP} sucht MAC für ${arp.targetIP}`
+							: `${arp.senderIP} hat MAC ${arp.senderMac}`
 				};
 			}
 			case 'ip': {
@@ -348,7 +351,7 @@
 				else inner = { kind: 'icmp', data: payload as ICMPPacket };
 				return {
 					title: 'IP',
-					color: 'default',
+					color: 'IP',
 					from: header.srcIp,
 					to: header.dstIp,
 					endpointType: 'IP-Adresse',
@@ -410,6 +413,146 @@
 		}
 	}
 
+	type DetailSection = {
+		title: string;
+		rows: { label: string; value: string | number; block?: boolean }[];
+	};
+
+	/** Detail-Abschnitt (Schicht + Felder) einer einzelnen Paketschicht. */
+	function layerDetails(layer: Layer): DetailSection {
+		switch (layer.kind) {
+			case 'ethernet': {
+				const { header } = layer.data;
+				return {
+					title: 'Netzzugang (Ethernet)',
+					rows: [
+						{ label: 'Quell-MAC', value: header.srcMac },
+						{ label: 'Ziel-MAC', value: header.dstMac }
+					]
+				};
+			}
+			case 'arp': {
+				const arp = layer.data;
+				return {
+					title: 'Vermittlung (ARP)',
+					rows: [
+						{ label: 'Operation', value: arp.type === 'request' ? 'Request' : 'Reply' },
+						{ label: 'Sender-IP', value: arp.senderIP },
+						{ label: 'Sender-MAC', value: arp.senderMac },
+						{ label: 'Ziel-IP', value: arp.targetIP },
+						...(arp.targetMac ? [{ label: 'Ziel-MAC', value: arp.targetMac }] : [])
+					]
+				};
+			}
+			case 'ip': {
+				const { header } = layer.data;
+				return {
+					title: 'Vermittlung (IP)',
+					rows: [
+						{ label: 'Quell-IP', value: header.srcIp },
+						{ label: 'Ziel-IP', value: header.dstIp },
+						{ label: 'TTL', value: header.ttl }
+					]
+				};
+			}
+			case 'icmp': {
+				const icmp = layer.data;
+				const original = icmp.original;
+				return {
+					title: 'Vermittlung (ICMP)',
+					rows: [
+						{ label: 'Typ', value: icmp.type },
+						...(icmp.seq !== undefined ? [{ label: 'Seq.-Nr.', value: icmp.seq }] : []),
+						...(original
+							? [
+									{
+										label: 'Auslösendes Paket',
+										value:
+											original.protocol +
+											(original.srcPort !== undefined
+												? `, Port ${original.srcPort} -> ${original.dstPort}`
+												: '') +
+											(original.seq !== undefined ? `, Seq ${original.seq}` : '')
+									}
+								]
+							: [])
+					]
+				};
+			}
+			case 'udp': {
+				const { header } = layer.data;
+				return {
+					title: 'Transport (UDP)',
+					rows: [
+						{ label: 'Quell-Port', value: header.srcPort },
+						{ label: 'Ziel-Port', value: header.dstPort }
+					]
+				};
+			}
+			case 'tcp': {
+				const { header } = layer.data;
+				const flags = (['SYN', 'ACK', 'FIN', 'RST'] as const).filter((f) => header.flags[f]);
+				return {
+					title: 'Transport (TCP)',
+					rows: [
+						{ label: 'Quell-Port', value: header.srcPort },
+						{ label: 'Ziel-Port', value: header.dstPort },
+						{ label: 'Seq.-Nr.', value: header.seqNum },
+						{ label: 'Ack.-Nr.', value: header.ackNum },
+						{ label: 'Flags', value: flags.length > 0 ? flags.join('+') : '–' }
+					]
+				};
+			}
+			case 'application': {
+				if (layer.protocol === 'DNS') {
+					const text = JSON.parse(new TextDecoder().decode(layer.data));
+					let details = `${text.name} ${text.recordType} IN`;
+					if (text.kind === 'query') {
+						return {
+							title: `Anwendung (${layer.protocol})`,
+							rows: [
+								{ label: 'Länge', value: `${details.length} Bytes` },
+								{ label: `Details`, value: details, block: true }
+							]
+						};
+					} else {
+						let details = `${text.name} ${text.recordType} 3600 ${text.address ?? text.nsDomain ?? text.mxDomain} ${text.glueIp ? '\n' + text.nsDomain + ' A 3600 ' + text.glueIp : ''}`;
+						return {
+							title: `Anwendung (${layer.protocol})`,
+							rows: [
+								{ label: 'Länge', value: `${details.length} Bytes` },
+								{
+									label: `Details`,
+									value: details,
+									block: true
+								}
+							]
+						};
+					}
+				} else {
+					return {
+						title: `Anwendung (${layer.protocol})`,
+						rows: [
+							{ label: 'Länge', value: `${layer.data.length} Bytes` },
+							{ label: 'Inhalt', value: new TextDecoder().decode(layer.data), block: true }
+						]
+					};
+				}
+			}
+		}
+	}
+
+	/** Alle Schichten des Frames von außen nach innen als Detail-Abschnitte. */
+	function packetDetails(frame: EthernetFrame): DetailSection[] {
+		const sections: DetailSection[] = [];
+		let layer: Layer | undefined = { kind: 'ethernet', data: frame };
+		while (layer) {
+			sections.push(layerDetails(layer));
+			layer = describeLayer(layer).inner;
+		}
+		return sections;
+	}
+
 	let selectedPacket = $derived(captureBuffer?.find((p) => p.number === detailsNumber));
 </script>
 
@@ -424,6 +567,7 @@
 			{#if preview.from !== undefined || preview.to !== undefined}
 				<div class="endpoints {preview.text !== undefined ? 'divider' : ''}">
 					<span>{preview.from ?? '–'}</span>
+					<div class="divider"></div>
 					<span>{preview.to ?? '–'}</span>
 				</div>
 			{/if}
@@ -489,8 +633,22 @@
 
 		<div class="details">
 			{#if selectedPacket}
-				<h3>Details for Packet {selectedPacket.number}</h3>
-				<p>{JSON.stringify(selectedPacket, null, 2)}</p>
+				Nr.: {selectedPacket.number} / Zeit: {new Date(selectedPacket.time).toLocaleTimeString()}
+
+				<!-- Ein flaches Grid mit zwei Spalten (Bezeichnung | Wert) -> alle Werte stehen in einer Flucht -->
+				<div class="details-grid">
+					{#each packetDetails(selectedPacket.frame) as section (section.title)}
+						<div class="section-title">{section.title}:</div>
+						{#each section.rows as row (row.label)}
+							<div class="row-label">{row.label}:</div>
+							{#if row.block}
+								<pre class="p-payload row-value">{row.value}</pre>
+							{:else}
+								<div class="row-value">{row.value}</div>
+							{/if}
+						{/each}
+					{/each}
+				</div>
 			{/if}
 		</div>
 	</div>
@@ -523,16 +681,36 @@
 		padding: 0.25rem 0.5rem;
 	}
 
+	.details-grid {
+		display: grid;
+		grid-template-columns: max-content minmax(0, 1fr);
+		column-gap: 0.75rem;
+		margin-top: 0.25rem;
+	}
+
+	.section-title {
+		grid-column: 1 / -1;
+		font-weight: bold;
+	}
+
+	.row-label {
+		grid-column: 1;
+		padding-left: 1rem;
+	}
+
+	.row-value {
+		grid-column: 2;
+		min-width: 0;
+		margin: 0;
+		overflow-wrap: anywhere;
+	}
+
 	.details-handle {
 		flex: none;
 		height: 6px;
 		background: #45475a;
 		cursor: row-resize;
 		touch-action: none;
-	}
-
-	.details p {
-		white-space: pre-wrap;
 	}
 
 	th,
@@ -568,11 +746,11 @@
 		overflow: auto;
 		padding: 0.25rem 0.5rem;
 		font-size: 0.85rem;
-		width: fit-content;
+		width: 270px;
 	}
 
 	.package {
-		border: 2px solid;
+		border: 3px solid;
 		border-radius: 4px;
 		background-color: #ffffff;
 		color: #11111b;
@@ -591,19 +769,24 @@
 
 	.p-body {
 		display: flex;
-		flex-direction: row;
+		flex-direction: column;
 		gap: 0.25rem;
+		padding: 0 0.4rem;
 	}
 
 	.endpoints {
 		display: flex;
-		flex-direction: column;
-		justify-content: end;
+		flex-direction: row;
+		justify-content: space-evenly;
 		padding: 0 0.1rem;
 	}
 
-	.endpoints.divider {
+	.endpoints .divider {
 		border-right: 1px solid #45475a;
+	}
+
+	.endpoints span {
+		margin: 0 0.25rem;
 	}
 
 	.p-payload {

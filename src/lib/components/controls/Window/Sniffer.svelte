@@ -675,6 +675,7 @@
 	}
 
 	.details {
+		font-size: 0.9rem;
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
@@ -715,7 +716,7 @@
 
 	th,
 	td {
-		font-size: 0.9rem;
+		font-size: 0.85rem;
 		padding: 0.1rem 0.1rem;
 	}
 
@@ -770,14 +771,14 @@
 	.p-body {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		/* gap: 0.25rem; */
 		padding: 0 0.4rem;
 	}
 
+	/* Zwei gleich breite Hälften -> der Trennstrich sitzt unabhängig von der Textlänge genau mittig */
 	.endpoints {
-		display: flex;
-		flex-direction: row;
-		justify-content: space-evenly;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 		padding: 0 0.1rem;
 	}
 
@@ -787,6 +788,8 @@
 
 	.endpoints span {
 		margin: 0 0.25rem;
+		text-align: center;
+		overflow-wrap: anywhere;
 	}
 
 	.p-payload {
@@ -796,6 +799,7 @@
 		overflow: auto;
 		white-space: pre-wrap;
 		word-break: break-all;
+		word-wrap: anywhere;
 		font-size: 0.8rem;
 		align-self: center;
 	}

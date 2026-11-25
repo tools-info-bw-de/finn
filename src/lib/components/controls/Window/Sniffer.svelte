@@ -154,6 +154,7 @@
 
 				if (isDnsPacket && isObject(payloadObject) && typeof payloadObject.name === 'string') {
 					const name = payloadObject.name;
+					protocol = 'DNS';
 					const recordType = payloadObject.recordType;
 					if (payloadObject.kind === 'query' && isDNSRecordType(recordType)) {
 						const labels = { A: 'IP-Adresse', NS: 'Nameserver', MX: 'Mailserver' };
@@ -559,7 +560,12 @@
 {#snippet packagePreview(layer: Layer)}
 	{@const preview = describeLayer(layer)}
 	<div class="package" style="border-color: {getColorForProtocol(preview.color)};">
-		<div class="p-header" style="background-color: {getColorForProtocol(preview.color)};">
+		<div
+			class="p-header"
+			style="background-color: {getColorForProtocol(preview.color)}; {preview.color === 'UDP'
+				? 'color: black !important;'
+				: ''}"
+		>
 			{preview.title}
 			{#if preview.endpointType}<span class="p-info">({preview.endpointType})</span>{/if}
 		</div>
@@ -599,7 +605,10 @@
 					{@const { number, time, srcIp, dstIp, protocol, layer, detail, protocolColor } =
 						spyPacket(packet)}
 					<tr
-						style="background-color: {getColorForProtocol(protocolColor)}70;"
+						style="background-color: {getColorForProtocol(protocolColor)}70; {protocolColor ===
+						'UDP'
+							? 'color: black !important;'
+							: ''}"
 						onclick={() => (detailsNumber = number)}
 					>
 						<td>{number}</td>
@@ -724,10 +733,15 @@
 		border-right: 1px solid #bec3c7c7;
 	}
 
+	tr {
+		color: white;
+	}
+
 	td {
 		background-color: inherit;
 		text-wrap: nowrap;
 		border-right: 1px solid #dee2e659;
+		color: inherit;
 	}
 
 	table {

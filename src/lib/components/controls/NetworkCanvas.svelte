@@ -125,8 +125,17 @@
 	}
 
 	function selectCableNode(uuid: string) {
-		if (!allowedCableConnection(uuid)) {
+		const allowed = allowedCableConnection(uuid);
+		if (allowed === 'error') {
 			showNotice('Keine Kabelverbindung möglich.');
+			return;
+		}
+		if (allowed === 'noFreeInterfaces') {
+			showNotice('Keine freien Schnittstellen verfügbar.');
+			return;
+		}
+		if (allowed === 'alreadyConnected') {
+			showNotice('Die beiden Geräte sind bereits miteinander verbunden.');
 			return;
 		}
 		if (!newCable.uuids.includes(uuid)) newCable.uuids.push(uuid);
@@ -190,23 +199,38 @@
 		startPan = { x: pan.x, y: pan.y };
 	}
 
-	function allowedCableConnection(nodeUuid: string): boolean {
+	function allowedCableConnection(
+		nodeUuid: string
+	): 'ok' | 'error' | 'noFreeInterfaces' | 'alreadyConnected' {
 		const node = nodes.find((n) => n.uuid === nodeUuid);
-		if (!node) return false;
+		if (!node) return 'error';
+
+		// Zweiter Knoten: Ein weiteres Kabel zwischen zwei bereits direkt verbundenen Geräten
+		// (z. B. Switch -> Router-Interface 1 und Router-Interface 2 -> derselbe Switch) ergibt einen Loop
+		const firstUuid = newCable.uuids[0];
+		if (firstUuid !== undefined && firstUuid !== nodeUuid) {
+			const alreadyConnected = cables.some(
+				(c) =>
+					(c.from === firstUuid && c.to === nodeUuid) || (c.from === nodeUuid && c.to === firstUuid)
+			);
+			if (alreadyConnected) return 'alreadyConnected';
+		}
 
 		if (node.type === 'notebook' || node.type === 'desktop') {
 			const host = node as Host;
-			return host.dataLinkLayer.cable === undefined; // Host kann nur 1 Kabel haben
+			return host.dataLinkLayer.cable === undefined ? 'ok' : 'noFreeInterfaces'; // Host kann nur 1 Kabel haben
 		} else if (node.type === 'switch') {
-			return true;
+			return 'ok';
 		} else if (node.type === 'router') {
 			// only allow, if a router-interface is free
 			const router = node as Router; // TODO: Typisierung für Router
 			return router.interfaces.some((i) => {
 				return i.dataLinkLayer.cable === undefined;
-			});
+			})
+				? 'ok'
+				: 'noFreeInterfaces';
 		} else {
-			return false;
+			return 'error';
 		}
 	}
 

@@ -47,8 +47,26 @@
 	}
 
 	let tableScroll = $state<HTMLDivElement | null>(null);
+
+	// Nur mitscrollen, solange man ganz unten ist. Bewusst kein $state: das Scrollen
+	// soll den Effekt nicht neu auslösen.
+	let stickToBottom = true;
+	let lastScrollTop = 0;
+	function onTableScroll() {
+		if (!tableScroll) return;
+		const { scrollTop, scrollHeight, clientHeight } = tableScroll;
+		if (scrollHeight - scrollTop - clientHeight < 4) {
+			stickToBottom = true;
+		} else if (scrollTop < lastScrollTop) {
+			// Nur beim Hochscrollen loslassen. Das eigene, sanfte Scrollen nach unten
+			// erzeugt Zwischenpositionen, die noch nicht ganz unten sind.
+			stickToBottom = false;
+		}
+		lastScrollTop = scrollTop;
+	}
+
 	$effect(() => {
-		if (captureBuffer?.length && tableScroll) {
+		if (captureBuffer?.length && tableScroll && stickToBottom) {
 			tick().then(() => {
 				// scrollIntoView würde auch Vorfahren horizontal verschieben
 				tableScroll?.scrollTo({ top: tableScroll.scrollHeight, behavior: 'smooth' });
@@ -590,7 +608,7 @@
 {/snippet}
 
 <div class="sniffer background" bind:this={snifferEl}>
-	<div class="table-scroll" bind:this={tableScroll}>
+	<div class="table-scroll" bind:this={tableScroll} onscroll={onTableScroll}>
 		<table class="table table-sm table-hover">
 			<thead>
 				<tr>
@@ -764,7 +782,7 @@
 		overflow: auto;
 		padding: 0.25rem 0.5rem;
 		font-size: 0.85rem;
-		width: 270px;
+		width: 290px;
 	}
 
 	.package {

@@ -16,8 +16,9 @@ export function generateRandomMac(): string {
 	return macString;
 }
 
+// Jeder Block 0–255 ohne führende Null (also "0", aber nicht "02" oder "010")
 export const IPv4Pattern: string =
-	'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$';
+	'^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$';
 
 export const NetmaskPattern: string =
 	'^((255|254|252|248|240|224|192|128|0)\\.){3}(255|254|252|248|240|224|192|128|0)$';

@@ -8,6 +8,7 @@
 	import simpleClient from '$lib/assets/simple-client.png';
 	import browser from '$lib/assets/browser.png';
 	import webserverImg from '$lib/assets/webserver.png';
+	import editor from '$lib/assets/editor.png';
 	import { fly, scale } from 'svelte/transition';
 	import type { AppType } from '$lib/engine/types';
 	import HostAppDock from './Host/HostAppDock.svelte';
@@ -15,6 +16,7 @@
 	import EchoServer from './Host/EchoServer.svelte';
 	import WebServer from './Host/WebServer.svelte';
 	import WebBrowser from './Host/WebBrowser.svelte';
+	import Editor from './Host/Editor.svelte';
 
 	let { host }: { host: Host } = $props();
 
@@ -102,8 +104,8 @@
 					{@render appTitle('Webbrowser', browser)}
 					<WebBrowser {host} />
 				{:else if host.currentApp === 'editor'}
-					{@render appTitle('Editor', '')}
-					<!-- <Editor {host} /> -->
+					{@render appTitle('Editor', editor)}
+					<Editor {host} />
 				{/if}
 			</div>
 		{/key}
@@ -252,7 +254,10 @@
 										href="#"
 										onclick={() => {
 											openApp('editor');
-										}}>Editor</a
+										}}
+									>
+										<img src={editor} alt="Editor" />
+										Editor</a
 									>
 								</li>
 							</ul>

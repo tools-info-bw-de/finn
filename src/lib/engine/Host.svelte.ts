@@ -10,7 +10,8 @@ import type {
 	NetworkNode,
 	TerminalState,
 	WebServerState,
-	WebBrowserState
+	WebBrowserState,
+	EditorAppState
 } from './types';
 import { NetworkConfig } from './NetworkConfig.svelte';
 import { ICMPService } from './services/ICMPService.svelte';
@@ -145,6 +146,8 @@ export class Host implements NetworkNode {
 				type,
 				content: this.webBrowser
 			};
+		} else if (type === 'editor') {
+			return { type, content: { path: null, draft: null } };
 		}
 		return { type, content: null };
 	}
@@ -153,7 +156,7 @@ export class Host implements NetworkNode {
 	public restoreApp(type: AppType, saved: unknown): App {
 		const app = this.createApp(type);
 		if (!saved || typeof saved !== 'object') return app;
-		if (app.type === 'terminal' || app.type === 'dns') {
+		if (app.type === 'terminal' || app.type === 'dns' || app.type === 'editor') {
 			// Reine Zustandsobjekte werden direkt übernommen
 			return { ...app, content: saved } as App;
 		}
@@ -224,6 +227,12 @@ export class Host implements NetworkNode {
 			(a): a is Extract<App, { type: 'web-browser' }> => a.type === 'web-browser'
 		);
 		if (!app) throw new Error('Webbrowser-App ist nicht geöffnet');
+		return app.content;
+	}
+
+	public editorState(): EditorAppState {
+		const app = this.apps.find((a): a is Extract<App, { type: 'editor' }> => a.type === 'editor');
+		if (!app) throw new Error('Editor-App ist nicht geöffnet');
 		return app.content;
 	}
 

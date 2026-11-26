@@ -165,6 +165,13 @@ export interface WebBrowserState {
 	loading: boolean;
 }
 
+// Editor: geöffnete Datei + ungespeicherter Entwurf (überlebt das Schließen des Fensters)
+export interface EditorAppState {
+	path: string | null;
+	draft: string | null; // null = keine ungespeicherten Änderungen
+	root?: string; // im Dateibaum angezeigtes Verzeichnis (Standard: /var/www)
+}
+
 export interface SimpleClientState {
 	serverAddress: string;
 	serverPort: number;
@@ -181,7 +188,11 @@ export type App =
 	| { type: 'simple-client'; content: SimpleClientService }
 	| { type: 'web-server'; content: WebServerState }
 	| { type: 'web-browser'; content: WebBrowserState }
-	| { type: Exclude<AppType, 'terminal' | 'dns' | 'web-server' | 'web-browser'>; content: null };
+	| { type: 'editor'; content: EditorAppState }
+	| {
+			type: Exclude<AppType, 'terminal' | 'dns' | 'web-server' | 'web-browser' | 'editor'>;
+			content: null;
+	  };
 
 //------------------------
 

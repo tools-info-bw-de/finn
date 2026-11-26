@@ -6,6 +6,7 @@
 	import webserverImg from '$lib/assets/webserver.png';
 	import browser from '$lib/assets/browser.png';
 	import simpleClient from '$lib/assets/simple-client.png';
+	import editor from '$lib/assets/editor.png';
 	import { slide } from 'svelte/transition';
 
 	let { apps, openApp }: { apps: App[]; openApp: (appType: AppType) => void } = $props();
@@ -31,6 +32,8 @@
 				<img src={webserverImg} alt={app.type} />
 			{:else if app.type === 'web-browser'}
 				<img src={browser} alt={app.type} />
+			{:else if app.type === 'editor'}
+				<img src={editor} alt={app.type} />
 			{/if}
 		</button>
 	{/each}

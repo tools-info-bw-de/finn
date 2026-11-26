@@ -102,6 +102,58 @@ export class FileSystem {
 		this.files.delete(FileSystem.normalize(path));
 	}
 
+	/** Löscht ein Verzeichnis samt Inhalt. Die Wurzel "/" kann nicht gelöscht werden. */
+	public deleteDirectory(path: string): void {
+		const dir = FileSystem.normalize(path);
+		if (dir === '/') return;
+		const prefix = dir + '/';
+		for (const file of [...this.files.keys()]) {
+			if (file.startsWith(prefix)) this.files.delete(file);
+		}
+		for (const other of [...this.directories.keys()]) {
+			if (other === dir || other.startsWith(prefix)) this.directories.delete(other);
+		}
+	}
+
+	/**
+	 * Benennt eine Datei bzw. ein Verzeichnis (samt Inhalt) um oder verschiebt es.
+	 * Wirft einen Fehler mit verständlicher Meldung, wenn das nicht möglich ist.
+	 */
+	public move(fromPath: string, toPath: string): void {
+		const from = FileSystem.normalize(fromPath);
+		const to = FileSystem.normalize(toPath);
+		if (from === to) return;
+		if (from === '/') throw new Error('Das Wurzelverzeichnis kann nicht verschoben werden.');
+		if (this.isFile(to) || this.isDirectory(to)) throw new Error(`${to} existiert bereits.`);
+		if (this.isFile(FileSystem.dirname(to))) {
+			throw new Error(`${FileSystem.dirname(to)} ist eine Datei und kein Verzeichnis.`);
+		}
+
+		const content = this.files.get(from);
+		if (content !== undefined) {
+			this.writeFile(to, content);
+			this.files.delete(from);
+			return;
+		}
+		if (!this.isDirectory(from)) throw new Error(`${from} existiert nicht.`);
+		if (to.startsWith(from + '/')) {
+			throw new Error('Ein Verzeichnis kann nicht in sich selbst verschoben werden.');
+		}
+
+		const prefix = from + '/';
+		const rename = (path: string) => to + path.slice(from.length);
+		for (const [path, data] of [...this.files]) {
+			if (!path.startsWith(prefix)) continue;
+			this.files.delete(path);
+			this.writeFile(rename(path), data);
+		}
+		for (const dir of [...this.directories.keys()]) {
+			if (dir !== from && !dir.startsWith(prefix)) continue;
+			this.directories.delete(dir);
+			this.mkdir(rename(dir));
+		}
+	}
+
 	/**
 	 * Gespeicherter Zustand – nur die Abweichungen von den Standarddateien:
 	 * geänderte/neue Dateien, gelöschte Standarddateien und leere Verzeichnisse
@@ -132,6 +184,19 @@ export class FileSystem {
 		for (const dir of data.directories ?? []) this.mkdir(dir);
 		for (const [path, content] of Object.entries(data.files ?? {})) {
 			this.writeFile(path, typeof content === 'string' ? content : base64ToBytes(content.base64));
+		}
+		// Verzeichnisse, die nur durch (jetzt gelöschte) Standarddateien entstanden sind, entfernen.
+		// Gewollt leere Verzeichnisse stehen in data.directories.
+		const keep = (data.directories ?? []).map((dir) => FileSystem.normalize(dir));
+		let removed = true;
+		while (removed) {
+			removed = false;
+			for (const dir of [...this.directories.keys()]) {
+				if (!keep.includes(dir) && this.isEmptyDirectory(dir)) {
+					this.directories.delete(dir);
+					removed = true;
+				}
+			}
 		}
 	}
 

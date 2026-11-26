@@ -83,10 +83,6 @@
 		settings.mode = 'play';
 	}
 
-	function clickAbout() {
-		// TODO Modal
-	}
-
 	$effect(() => {
 		if (settings.lightMode === 'auto') {
 			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -168,7 +164,7 @@
 	</div>
 
 	<div class="finn mx-5">
-		<span>Finn</span>
+		<span class="finnColor">Finn</span>
 	</div>
 
 	<div class="navbar-end me-4 d-flex flex-row gap-2">
@@ -213,7 +209,12 @@
 			</ul>
 		</div>
 
-		<button onclick={clickAbout} type="button" class="btn btn-warning">
+		<button
+			data-bs-toggle="modal"
+			data-bs-target="#aboutModal"
+			type="button"
+			class="btn btn-warning"
+		>
 			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"
 				><!--!Font Awesome Free v7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path
 					d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM288 224C288 206.3 302.3 192 320 192C337.7 192 352 206.3 352 224C352 241.7 337.7 256 320 256C302.3 256 288 241.7 288 224zM280 288L328 288C341.3 288 352 298.7 352 312L352 400L360 400C373.3 400 384 410.7 384 424C384 437.3 373.3 448 360 448L280 448C266.7 448 256 437.3 256 424C256 410.7 266.7 400 280 400L304 400L304 336L280 336C266.7 336 256 325.3 256 312C256 298.7 266.7 288 280 288z"
@@ -243,6 +244,66 @@
 				<button type="button" class="btn btn-primary" onclick={newProject} data-bs-dismiss="modal"
 					>Ja, neues Projekt starten</button
 				>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div
+	class="modal fade"
+	id="aboutModal"
+	tabindex="-1"
+	aria-labelledby="aboutModalLabel"
+	aria-hidden="true"
+>
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h1 class="modal-title fs-5">Über <span class="finnColor"><b>Finn</b></span></h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div class="text-center mb-3">
+					<!-- <span class="finnColor"><b>Finn</b></span> steht für -->
+					<span class="finnColor"><b>F</b></span>REIER
+					<span class="finnColor"><b>IN</b></span>TERAKTIVER
+					<span class="finnColor"><b>N</b></span>ETZWERKSIMULATOR <br />
+				</div>
+
+				<hr />
+
+				Das Tool versucht, die realen Protokolle einerseits
+				<u> bestmöglich zu simulieren</u>, macht gleichzeitig aber
+				<u>gezielte Vereinfachungen</u>, um das Verständnis zu erleichtern.<br /><br />
+
+				Wenn du denkst, dass du einen Fehler gefunden hast, oder eine dringend benötigte Funktion
+				vermisst, dann melde dich gerne bei mir (entweder per GitHub Issue oder per Mail).
+
+				<hr />
+
+				<div class="d-flex flex-row justify-content-evenly">
+					<div>
+						<span>Quellcode:</span>
+						<a href="https://github.com/tools-info-bw-de/finn" target="_blank">GitHub</a>
+					</div>
+
+					<div>
+						<span>Lizenz:</span>
+						<a href="https://github.com/tools-info-bw-de/finn/blob/main/LICENSE" target="_blank"
+							>GNU GPL v3.0</a
+						>
+					</div>
+				</div>
+
+				<span class="d-flex justify-content-center mt-3"
+					><a
+						href="&#x6d;&#x61;&#105;&#108;&#x74;&#x6f;&#58;&#x6d;&#x61;&#114;&#x63;&#x6f;&#46;&#107;&#117;&#101;&#x6d;&#109;&#x65;&#108;&#64;&#98;&#x73;&#x2d;&#x67;&#121;&#109;&#45;&#119;&#103;&#116;&#46;&#x73;&#101;&#109;&#105;&#110;&#97;&#114;&#45;&#x62;&#x77;&#46;&#x64;&#101;"
+						>Marco Kümmel</a
+					></span
+				>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-primary" data-bs-dismiss="modal">Schließen</button>
 			</div>
 		</div>
 	</div>
@@ -460,6 +521,9 @@
 		margin-left: -0.3rem;
 		align-self: flex-end;
 		padding: 0;
+	}
+
+	.finnColor {
 		background: linear-gradient(to bottom, #feb160, #fe171b);
 		background-clip: text;
 		-webkit-text-fill-color: transparent;

@@ -223,7 +223,7 @@
 			return 'ok';
 		} else if (node.type === 'router') {
 			// only allow, if a router-interface is free
-			const router = node as Router; // TODO: Typisierung für Router
+			const router = node as Router;
 			return router.interfaces.some((i) => {
 				return i.dataLinkLayer.cable === undefined;
 			})

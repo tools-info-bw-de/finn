@@ -125,7 +125,8 @@ export class DNSService implements UDPPortHandler {
 			return Promise.reject(new Error('Kein gültiger DNS-Server konfiguriert.'));
 		}
 
-		return this.queryServer(name, dnsIp).then((response) => {
+		// NS-Verweise mit Glue-IP werden verfolgt; nur ein NS-Verweis ohne Glue-IP endet als "nicht gefunden"
+		return this.resolveIteratively(name, dnsIp).then((response) => {
 			if (response.address && isValidIPv4(response.address)) {
 				return response.address;
 			}
@@ -204,7 +205,7 @@ export class DNSService implements UDPPortHandler {
 	private async resolveIteratively(
 		name: string,
 		startIp: string,
-		parentId: string
+		parentId?: string
 	): Promise<DNSResponse> {
 		let serverIp = startIp;
 		for (let hop = 0; hop < MAX_RECURSION_HOPS; hop++) {

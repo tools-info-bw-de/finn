@@ -123,16 +123,18 @@
 
 				if (icmpPacket.type === 'echo-request') {
 					detail =
-						'ICMP Echo Request (ping), TTL=' +
-						ipPacket.header.ttl +
-						', Seq.-No.: ' +
-						icmpPacket.seq;
+						'Echo Request (ping), TTL=' + ipPacket.header.ttl + ', Seq.-No.: ' + icmpPacket.seq;
 				} else if (icmpPacket.type === 'echo-reply') {
 					detail =
-						'ICMP Echo Reply (pong), TTL=' + ipPacket.header.ttl + ', Seq.-No.: ' + icmpPacket.seq;
+						'Echo Reply (pong), TTL=' + ipPacket.header.ttl + ', Seq.-No.: ' + icmpPacket.seq;
+				} else if (icmpPacket.type === 'time-exceeded') {
+					detail = `Time Exceeded, TTL=${ipPacket.header.ttl}`;
+					protocolColor = 'ERROR';
+				} else if (icmpPacket.type === 'destination-unreachable') {
+					detail = `Destination Unreachable (Ziel oder Dienst nicht erreichbar)`;
+					protocolColor = 'ERROR';
 				} else {
 					detail = `ICMP Type ${icmpPacket.type}`;
-					protocolColor = 'ERROR'; // Fehlerhafte ICMP-Pakete (z.B. Time Exceeded, Destination Unreachable) werden rot markiert
 				}
 			} else if (ipPacket.header.protocol === 'UDP') {
 				const udpDatagram = ipPacket.payload as UDPDatagram;
@@ -155,6 +157,7 @@
 				if (isDnsPacket && isObject(payloadObject) && typeof payloadObject.name === 'string') {
 					const name = payloadObject.name;
 					protocol = 'DNS';
+					layer = 'Anwendung';
 					const recordType = payloadObject.recordType;
 					if (payloadObject.kind === 'query' && isDNSRecordType(recordType)) {
 						const labels = { A: 'IP-Adresse', NS: 'Nameserver', MX: 'Mailserver' };
@@ -164,7 +167,7 @@
 						isDNSRecordType(payloadObject.recordType)
 					) {
 						if (typeof payloadObject.error === 'string') {
-							detail = `DNS: ${payloadObject.error}`;
+							detail = payloadObject.error;
 						} else if (
 							payloadObject.recordType === 'A' &&
 							typeof payloadObject.address === 'string'

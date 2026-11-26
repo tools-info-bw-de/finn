@@ -49,6 +49,33 @@
 		return node.name;
 	});
 
+	let windowEl = $state<HTMLDivElement | null>(null);
+	let headerEl = $state<HTMLDivElement | null>(null);
+
+	/**
+	 * Hält das Fenster im sichtbaren Bereich (Container des Fensters):
+	 * links/rechts darf höchstens die halbe Breite hinausragen,
+	 * oben/unten muss die Titelleiste vollständig sichtbar bleiben.
+	 */
+	function clampPosition() {
+		const container = windowEl?.offsetParent as HTMLElement | null;
+		if (!container) return;
+		const headerHeight = headerEl?.offsetHeight ?? 0;
+		const maxX = container.clientWidth - width / 2;
+		const maxY = container.clientHeight - headerHeight;
+		x = Math.min(Math.max(x, -width / 2), Math.max(maxX, -width / 2));
+		y = Math.min(Math.max(y, 0), Math.max(maxY, 0));
+	}
+
+	// Beim Öffnen (z. B. aus einer Speicherdatei) und wenn sich der Container ändert (Browserfenster)
+	$effect(() => {
+		const container = windowEl?.offsetParent;
+		if (!container) return;
+		const observer = new ResizeObserver(() => clampPosition());
+		observer.observe(container);
+		return () => observer.disconnect();
+	});
+
 	let isDragging = false;
 	let isResizing = false;
 	let dragOffset = { x: 0, y: 0 };
@@ -76,6 +103,7 @@
 		if (isDragging) {
 			x = e.clientX - dragOffset.x;
 			y = e.clientY - dragOffset.y;
+			clampPosition();
 		}
 	}
 
@@ -116,8 +144,10 @@
 			}
 
 			if (resizeDirection === 'top') {
-				height = Math.max(120, startResizeBounds.height - dy);
-				y = startResizeBounds.y + startResizeBounds.height - height;
+				// Obere Kante nicht über den sichtbaren Bereich hinaus ziehen
+				const bottom = startResizeBounds.y + startResizeBounds.height;
+				height = Math.min(Math.max(120, startResizeBounds.height - dy), Math.max(bottom, 120));
+				y = bottom - height;
 			} else if (resizeDirection === 'bottom' || resizeDirection === 'bottom-right') {
 				height = Math.max(120, startResizeBounds.height + dy);
 			}
@@ -139,6 +169,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="window"
+	bind:this={windowEl}
 	style="left: {x}px; top: {y}px; width: {width}px; height: {height}px; z-index: {zIndex};"
 	onpointerdown={onFocus}
 	transition:scale={{ duration: 180, start: 0.92, opacity: 0, easing: cubicOut }}
@@ -146,6 +177,7 @@
 	<!-- Header / Drag Handle -->
 	<div
 		class="window-header"
+		bind:this={headerEl}
 		onpointerdown={handleHeaderPointerDown}
 		onpointermove={handleHeaderPointerMove}
 		onpointerup={handleHeaderPointerUp}

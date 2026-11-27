@@ -633,6 +633,53 @@
 		return { text, color: preview.color };
 	}
 
+	// --- Pfeiltasten: vorheriges/nächstes Paket der aktuell sichtbaren Ansicht ---
+	// Die Sequenz zeigt nur IP-Pakete, die Tabelle alle -> jeweils die passende Reihenfolge
+	let navigableNumbers = $derived(
+		snifferView === 'sequence'
+			? sequencePackages.map((p) => p.number)
+			: (captureBuffer?.map((p) => p.number) ?? [])
+	);
+
+	function onSnifferKeyDown(e: KeyboardEvent) {
+		if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+		if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+		if (navigableNumbers.length === 0) return;
+		e.preventDefault(); // sonst scrollt der Container zusätzlich
+
+		const delta = e.key === 'ArrowDown' ? 1 : -1;
+		const index = detailsNumber === null ? -1 : navigableNumbers.indexOf(detailsNumber);
+		// Nichts (Sichtbares) ausgewählt -> beim ersten bzw. letzten Paket beginnen
+		const next =
+			index === -1
+				? delta > 0
+					? 0
+					: navigableNumbers.length - 1
+				: Math.min(Math.max(index + delta, 0), navigableNumbers.length - 1);
+		detailsNumber = navigableNumbers[next];
+		tick().then(() => scrollSelectedIntoView());
+	}
+
+	/**
+	 * Scrollt nur den eigenen Container so, dass das ausgewählte Paket sichtbar ist
+	 * (scrollIntoView würde auch die Vorfahren/den Canvas verschieben).
+	 * Die sticky Kopfzeile (thead bzw. Geräteliste) wird dabei berücksichtigt.
+	 */
+	function scrollSelectedIntoView() {
+		if (!tableScroll || detailsNumber === null) return;
+		const el = tableScroll.querySelector(`[data-number="${detailsNumber}"]`);
+		if (!el) return;
+		const head = tableScroll.querySelector<HTMLElement>('thead, .sequenceDeviceList');
+		const container = tableScroll.getBoundingClientRect();
+		const target = el.getBoundingClientRect();
+		const visibleTop = container.top + (head?.offsetHeight ?? 0);
+		if (target.top < visibleTop) {
+			tableScroll.scrollTop -= visibleTop - target.top;
+		} else if (target.bottom > container.bottom) {
+			tableScroll.scrollTop += target.bottom - container.bottom;
+		}
+	}
+
 	let sequenceWidth = $derived(sequenceDeviceList.length * SequenceColWidth);
 	let sequenceHeight = $derived(sequencePackages.length * SequenceRowHeight + 8);
 </script>
@@ -666,7 +713,9 @@
 	</div>
 {/snippet}
 
-<div class="sniffer background" bind:this={snifferEl}>
+<!-- tabindex="-1": per Klick fokussierbar -> empfängt die Pfeiltasten (vorheriges/nächstes Paket) -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="sniffer background" bind:this={snifferEl} tabindex="-1" onkeydown={onSnifferKeyDown}>
 	{#if snifferView === 'sequence'}
 		<!-- Kopfzeile und SVG liegen im selben Scroll-Container -> scrollen gemeinsam nach rechts.
 		     tableScroll/onTableScroll wiederverwendet: automatisch mitscrollen nur, wenn man unten ist. -->
@@ -704,6 +753,7 @@
 						{@const stroke = getColorForProtocol(color)}
 						<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 						<g
+							data-number={number}
 							class="message"
 							class:selected={number === detailsNumber}
 							onclick={() => (detailsNumber = number)}
@@ -753,6 +803,8 @@
 							'UDP'
 								? 'color: black !important;'
 								: ''}"
+							data-number={number}
+							class:selected={number === detailsNumber}
 							onclick={() => (detailsNumber = number)}
 						>
 							<td>{number}</td>
@@ -876,6 +928,10 @@
 		padding: 0rem 0.4rem;
 	}
 
+	.sniffer:focus {
+		outline: none;
+	}
+
 	.sniffer {
 		display: flex;
 		flex-direction: column;
@@ -949,11 +1005,16 @@
 		color: white;
 	}
 
+	tr.selected {
+		outline: 3px solid rgb(0, 102, 255);
+	}
+
 	td {
 		background-color: inherit;
 		text-wrap: nowrap;
 		border-right: 1px solid #dee2e659;
 		color: inherit;
+		cursor: pointer;
 	}
 
 	table {

@@ -17,9 +17,28 @@ export class DataLinkLayer implements LayerInterface, CableEndpoint {
 	public upperLayer?: LayerInterface;
 
 	public captureBuffer = $state<capturedPackage[]>([]);
+	// Fortlaufende Paketnummer; nicht aus der Länge ableiten, da ab 200 Paketen alte entfernt werden
+	private nextCaptureNumber = 1;
 
 	constructor(config: NetworkConfig) {
 		this.config = config;
+	}
+
+	private capture(frame: EthernetFrame): void {
+		this.captureBuffer.push({
+			number: this.nextCaptureNumber++,
+			time: Date.now(),
+			frame
+		});
+		if (this.captureBuffer.length > 200) {
+			this.captureBuffer.shift(); // Remove the oldest frame if buffer exceeds 200 frames
+		}
+	}
+
+	/** Leert den Mitschnitt (z. B. nach Änderung von IP/Netzmaske); Nummerierung beginnt neu. */
+	public clearCaptureBuffer(): void {
+		this.captureBuffer = [];
+		this.nextCaptureNumber = 1;
 	}
 
 	public send(packet: IPPacket | ARPPacket, destinationMac: string, type: 'IP' | 'ARP'): void {
@@ -33,14 +52,7 @@ export class DataLinkLayer implements LayerInterface, CableEndpoint {
 			payload: packet
 		};
 
-		this.captureBuffer.push({
-			number: this.captureBuffer.length + 1,
-			time: Date.now(),
-			frame
-		});
-		if (this.captureBuffer.length > 200) {
-			this.captureBuffer.shift(); // Remove the oldest frame if buffer exceeds 200 frames
-		}
+		this.capture(frame);
 
 		if (this.cable) {
 			this.cable.transmit(this, frame);
@@ -62,14 +74,7 @@ export class DataLinkLayer implements LayerInterface, CableEndpoint {
 	}
 
 	public receive(frame: EthernetFrame): void {
-		this.captureBuffer.push({
-			number: this.captureBuffer.length + 1,
-			time: Date.now(),
-			frame
-		});
-		if (this.captureBuffer.length > 200) {
-			this.captureBuffer.shift(); // Remove the oldest frame if buffer exceeds 200 frames
-		}
+		this.capture(frame);
 
 		if (
 			frame.header.dstMac === this.config.macAddress ||

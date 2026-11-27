@@ -28,6 +28,7 @@
 			{#if n}
 				<input
 					bind:value={n.config.ipAddress}
+					onchange={() => n?.dataLinkLayer.clearCaptureBuffer()}
 					type="text"
 					class="form-control"
 					id="ip"
@@ -42,6 +43,7 @@
 			{#if n}
 				<input
 					bind:value={n.config.netmask}
+					onchange={() => n?.dataLinkLayer.clearCaptureBuffer()}
 					type="text"
 					class="form-control {n?.config.netmask && !isValidNetmask(n?.config.netmask)
 						? 'is-invalid'

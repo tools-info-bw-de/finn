@@ -173,12 +173,12 @@
 		let node = nodes.find((n) => n.uuid === sniffedNode);
 		if (node?.type === 'desktop' || node?.type === 'notebook') {
 			const host = node as Host;
-			host.dataLinkLayer.captureBuffer = [];
+			host.dataLinkLayer.clearCaptureBuffer();
 		} else if (node?.type === 'router') {
 			const router = node as Router;
 			router.interfaces.forEach((iface) => {
 				if (iface.dataLinkLayer.uuid === nodeUuid) {
-					iface.dataLinkLayer.captureBuffer = [];
+					iface.dataLinkLayer.clearCaptureBuffer();
 				}
 			});
 		}

@@ -112,6 +112,7 @@
 					type="text"
 					onchange={() => {
 						n.updateConnectedRoute(iface);
+						iface.dataLinkLayer.clearCaptureBuffer();
 					}}
 					class="form-control"
 					pattern={IPv4Pattern}
@@ -128,6 +129,7 @@
 					type="text"
 					onchange={() => {
 						n.updateConnectedRoute(iface);
+						iface.dataLinkLayer.clearCaptureBuffer();
 					}}
 					class="form-control {iface.networkLayer.config.netmask &&
 					!isValidNetmask(iface.networkLayer.config.netmask)

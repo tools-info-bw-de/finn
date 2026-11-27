@@ -276,8 +276,8 @@
 				<u> bestmöglich zu simulieren</u>, macht gleichzeitig aber
 				<u>gezielte Vereinfachungen</u>, um das Verständnis zu erleichtern.<br /><br />
 
-				Wenn du denkst, dass du einen Fehler gefunden hast, oder eine dringend benötigte Funktion
-				vermisst, dann melde dich gerne bei mir (entweder per GitHub Issue oder per Mail).
+				Wenn du einen Fehler gefunden hast oder eine dringend benötigte Funktion vermisst, dann
+				melde dich gerne bei mir (entweder per GitHub Issue oder per Mail).
 
 				<hr />
 

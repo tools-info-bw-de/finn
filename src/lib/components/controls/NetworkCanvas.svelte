@@ -556,6 +556,7 @@
 				windows.push({
 					nodeUuid: node.uuid,
 					isSniffer: false,
+					snifferView: 'sequence',
 					x: 100,
 					y: 100,
 					width: 500,
@@ -745,6 +746,7 @@
 				nodeUuid: nodeToSniff.dataLinkLayerUuid,
 				isSniffer: true,
 				sniffedNode: n.uuid,
+				snifferView: 'sequence',
 				x: 150,
 				y: 150,
 				width: 700,
@@ -965,6 +967,7 @@
 			nodeUuid={win.nodeUuid}
 			isSniffer={win.isSniffer}
 			sniffedNode={win.sniffedNode}
+			bind:snifferView={win.snifferView}
 			bind:x={win.x}
 			bind:y={win.y}
 			bind:width={win.width}

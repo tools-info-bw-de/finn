@@ -8,11 +8,14 @@
 	import { Router } from '$lib/engine/Router.svelte';
 	import HostContent from './Window/HostContent.svelte';
 	import { Host } from '$lib/engine/Host.svelte';
+	import type { SnifferView } from '$lib/engine/types';
+	import trashImg from '$lib/assets/trash.svg';
 
 	let {
 		nodeUuid,
 		isSniffer,
 		sniffedNode,
+		snifferView = $bindable(),
 		x = $bindable(100),
 		y = $bindable(100),
 		width = $bindable(320),
@@ -24,6 +27,7 @@
 		nodeUuid: string;
 		isSniffer: boolean;
 		sniffedNode?: string;
+		snifferView: SnifferView;
 		x: number;
 		y: number;
 		width: number;
@@ -87,8 +91,9 @@
 
 	// --- VERSCHIEBEN (DRAG) ---
 	function handleHeaderPointerDown(e: PointerEvent) {
-		// 1. SCHUTZ: Falls der Schließen-Button geklickt wurde, Dragging ignorieren
-		if ((e.target as HTMLElement).closest('.close-btn')) {
+		// 1. SCHUTZ: Bei Buttons im Header (Schließen, Ansicht wechseln) nicht draggen –
+		// setPointerCapture würde sonst den Klick auf den Header umleiten
+		if ((e.target as HTMLElement).closest('button')) {
 			return;
 		}
 
@@ -163,6 +168,21 @@
 			}
 		}
 	}
+
+	function emptyCaptureBuffer() {
+		let node = nodes.find((n) => n.uuid === sniffedNode);
+		if (node?.type === 'desktop' || node?.type === 'notebook') {
+			const host = node as Host;
+			host.dataLinkLayer.captureBuffer = [];
+		} else if (node?.type === 'router') {
+			const router = node as Router;
+			router.interfaces.forEach((iface) => {
+				if (iface.dataLinkLayer.uuid === nodeUuid) {
+					iface.dataLinkLayer.captureBuffer = [];
+				}
+			});
+		}
+	}
 </script>
 
 <!-- Fenster Element -->
@@ -192,6 +212,39 @@
 								?.config.ipAddress
 						: (sniffedNodeData as Host)?.config.ipAddress}
 				Datenaustausch: {sniffedNodeData?.name} ({ip})
+
+				<div class="btn-group ms-3 snifferViewBtnGroup" role="group">
+					<button
+						type="button"
+						class="btn {snifferView === 'sequence' ? 'btn-primary' : 'btn-outline-primary'}"
+						onclick={() => (snifferView = 'sequence')}
+					>
+						<svg width="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"
+							><!--!Font Awesome Free v7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path
+								d="M566.6 214.6L470.6 310.6C458.1 323.1 437.8 323.1 425.3 310.6C412.8 298.1 412.8 277.8 425.3 265.3L466.7 224L96 224C78.3 224 64 209.7 64 192C64 174.3 78.3 160 96 160L466.7 160L425.3 118.6C412.8 106.1 412.8 85.8 425.3 73.3C437.8 60.8 458.1 60.8 470.6 73.3L566.6 169.3C579.1 181.8 579.1 202.1 566.6 214.6zM169.3 566.6L73.3 470.6C60.8 458.1 60.8 437.8 73.3 425.3L169.3 329.3C181.8 316.8 202.1 316.8 214.6 329.3C227.1 341.8 227.1 362.1 214.6 374.6L173.3 416L544 416C561.7 416 576 430.3 576 448C576 465.7 561.7 480 544 480L173.3 480L214.7 521.4C227.2 533.9 227.2 554.2 214.7 566.7C202.2 579.2 181.9 579.2 169.4 566.7z"
+							/></svg
+						>
+					</button>
+					<button
+						type="button"
+						class="btn {snifferView === 'table' ? 'btn-primary' : 'btn-outline-primary'}"
+						onclick={() => (snifferView = 'table')}
+					>
+						<svg width="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"
+							><!--!Font Awesome Free v7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path
+								d="M96 160C96 124.7 124.7 96 160 96L480 96C515.3 96 544 124.7 544 160L544 480C544 515.3 515.3 544 480 544L160 544C124.7 544 96 515.3 96 480L96 160zM160 160L160 224L224 224L224 160L160 160zM480 160L288 160L288 224L480 224L480 160zM160 288L160 352L224 352L224 288L160 288zM480 288L288 288L288 352L480 352L480 288zM160 416L160 480L224 480L224 416L160 416zM480 416L288 416L288 480L480 480L480 416z"
+							/></svg
+						>
+					</button>
+				</div>
+
+				<button
+					type="button"
+					class="ms-3 deleteBtn btn btn-outline-danger"
+					onclick={emptyCaptureBuffer}
+				>
+					<img src={trashImg} alt="Löschen" width="20" height="20" />
+				</button>
 			{:else}
 				{title}
 			{/if}
@@ -208,7 +261,7 @@
 	<!-- Inhalt -->
 	<div class="window-content">
 		{#if isSniffer}
-			<Sniffer nodeUuid={sniffedNode!} linkLayerUuid={nodeUuid} />
+			<Sniffer {snifferView} nodeUuid={sniffedNode!} linkLayerUuid={nodeUuid} />
 		{:else if type === 'notebook' || type === 'desktop'}
 			<HostContent {host} />
 		{:else if type === 'switch'}
@@ -255,6 +308,18 @@
 </div>
 
 <style>
+	.snifferViewBtnGroup > button {
+		padding: 0 0.2rem;
+		display: flex;
+		align-items: center;
+	}
+
+	.deleteBtn {
+		padding: 0 0.2rem;
+		display: inline-flex;
+		align-items: center;
+	}
+
 	.window {
 		position: absolute;
 		border: 1px solid #45475a;

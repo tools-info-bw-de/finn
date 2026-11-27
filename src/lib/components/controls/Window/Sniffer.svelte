@@ -13,8 +13,14 @@
 	import { nodes } from '$lib/states/nodes.svelte';
 	import { getColorForProtocol } from '$lib/engine/helpers';
 	import { tick } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 
-	let { nodeUuid, linkLayerUuid }: { nodeUuid: string; linkLayerUuid: string } = $props();
+	let {
+		snifferView,
+		nodeUuid,
+		linkLayerUuid
+	}: { snifferView: 'sequence' | 'table' | undefined; nodeUuid: string; linkLayerUuid: string } =
+		$props();
 
 	let node = $derived.by(() => {
 		return nodes.find((n) => n.uuid === nodeUuid);
@@ -222,14 +228,14 @@
 						? 'Verbindungsaufbau ('
 						: '') +
 					(tcpSegment.header.flags.SYN && tcpSegment.header.flags.ACK
-						? 'Bestätige & Verbindungsaufbau ('
+						? 'Bestätigung & Verbindungsaufbau ('
 						: '') +
 					(tcpSegment.header.flags.FIN && tcpSegment.header.flags.ACK ? 'Verbindungsabbau (' : '') +
 					(tcpSegment.header.flags.ACK &&
 					!tcpSegment.header.flags.SYN &&
 					!tcpSegment.header.flags.FIN &&
 					!tcpSegment.header.flags.RST
-						? 'Bestätige ('
+						? 'Bestätigung ('
 						: '') +
 					`Seq=${tcpSegment.header.seqNum}, Ack=${tcpSegment.header.ackNum}` +
 					(tcpSegment.header.flags.SYN ? ', SYN' : '') +
@@ -302,9 +308,9 @@
 		const numbers = `Seq=${header.seqNum}, Ack=${header.ackNum}`;
 		if (RST) return `Verbindung abgebrochen (RST)`;
 		if (SYN && !ACK) return `Verbindungsaufbau (SYN)`;
-		if (SYN && ACK) return `Bestätige & Verbindungsaufbau`;
-		if (FIN) return `Verbindungsabbau`;
-		if (ACK) return `Bestätigung`;
+		if (SYN && ACK) return `Bestätigung & Verbindungsaufbau (ACK+SYN)`;
+		if (FIN) return `Verbindungsabbau (FIN)`;
+		if (ACK) return `Bestätigung (ACK)`;
 		return numbers;
 	}
 
@@ -428,7 +434,8 @@
 				const text = new TextDecoder().decode(layer.data);
 				return {
 					title: layer.protocol,
-					color: 'Anwendung',
+					// DNS in der UDP-Farbe (gelb), damit es sich deutlich von echten Nutzdaten (grün) abhebt
+					color: layer.protocol === 'DNS' ? 'UDP' : 'Anwendung',
 					text: (layer.protocol === 'DNS' && DNStoShortString(text)) || text
 				};
 			}
@@ -576,6 +583,58 @@
 	}
 
 	let selectedPacket = $derived(captureBuffer?.find((p) => p.number === detailsNumber));
+
+	let sequenceDeviceList = $derived.by(() => {
+		// Listet alle Geräte, die im CaptureBuffer vorkommen (außer ARP-Meldungen)
+		if (!captureBuffer) return [];
+		const devices = new SvelteSet<string>();
+		for (const packet of captureBuffer) {
+			const frame = packet.frame;
+			if (frame.header.type === 'IP') {
+				const ipPacket = frame.payload as IPPacket;
+				devices.add(ipPacket.header.srcIp);
+				devices.add(ipPacket.header.dstIp);
+			}
+		}
+		return Array.from(devices);
+	});
+
+	let sequencePackages = $derived.by(() => {
+		if (!captureBuffer) return [];
+		return captureBuffer
+			.filter((p) => p.frame.header.type === 'IP')
+			.map((p) => {
+				// number wird für die Auswahl per Klick (detailsNumber) benötigt
+				return { number: p.number, ip: p.frame.payload as IPPacket };
+			});
+	});
+
+	const SequenceColWidth = 150; // px
+
+	function sequencePosition(ip: string): number {
+		const index = sequenceDeviceList.indexOf(ip);
+		if (index === -1) return 0;
+		return index * SequenceColWidth + SequenceColWidth / 2;
+	}
+
+	const SequenceRowHeight = 32; // px pro Paket
+	const SequenceArrowHead = 9; // px Länge der Pfeilspitze
+	const SequenceMaxTextLength = 40;
+
+	/**
+	 * Kurzbeschreibung wie im packagePreview: Text der innersten Schicht.
+	 * Anwendungsdaten (z. B. HTML) werden auf die erste Zeile gekürzt.
+	 */
+	function sequenceDescription(ip: IPPacket): { text: string; color: string } {
+		let preview = describeLayer({ kind: 'ip', data: ip });
+		while (preview.inner) preview = describeLayer(preview.inner);
+		let text = (preview.text ?? preview.title).split('\n')[0].trim();
+		if (text.length > SequenceMaxTextLength) text = text.slice(0, SequenceMaxTextLength - 1) + '…';
+		return { text, color: preview.color };
+	}
+
+	let sequenceWidth = $derived(sequenceDeviceList.length * SequenceColWidth);
+	let sequenceHeight = $derived(sequencePackages.length * SequenceRowHeight + 8);
 </script>
 
 {#snippet packagePreview(layer: Layer)}
@@ -608,42 +667,107 @@
 {/snippet}
 
 <div class="sniffer background" bind:this={snifferEl}>
-	<div class="table-scroll" bind:this={tableScroll} onscroll={onTableScroll}>
-		<table class="table table-sm table-hover">
-			<thead>
-				<tr>
-					<th>Nr.</th>
-					<th>Zeit</th>
-					<th>Quelle</th>
-					<th>Ziel</th>
-					<th>Protokoll</th>
-					<th>Schicht</th>
-					<th>Bemerkungen / Details</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each captureBuffer as packet (packet.number)}
-					{@const { number, time, srcIp, dstIp, protocol, layer, detail, protocolColor } =
-						spyPacket(packet)}
-					<tr
-						style="background-color: {getColorForProtocol(protocolColor)}70; {protocolColor ===
-						'UDP'
-							? 'color: black !important;'
-							: ''}"
-						onclick={() => (detailsNumber = number)}
-					>
-						<td>{number}</td>
-						<td>{time}</td>
-						<td>{srcIp}</td>
-						<td>{dstIp}</td>
-						<td>{protocol}</td>
-						<td>{layer}</td>
-						<td>{detail}</td>
+	{#if snifferView === 'sequence'}
+		<!-- Kopfzeile und SVG liegen im selben Scroll-Container -> scrollen gemeinsam nach rechts.
+		     tableScroll/onTableScroll wiederverwendet: automatisch mitscrollen nur, wenn man unten ist. -->
+		<div class="sequence-scroll" bind:this={tableScroll} onscroll={onTableScroll}>
+			<div class="sequence-content">
+				<div
+					class="sequenceDeviceList"
+					style:--seq-cols={sequenceDeviceList.length}
+					style:--seq-col-width="{SequenceColWidth}px"
+				>
+					{#each sequenceDeviceList as device (device)}
+						<div>
+							<div class="device">
+								{device}
+							</div>
+						</div>
+					{/each}
+				</div>
+
+				<svg class="sequence-svg" width={sequenceWidth} height={sequenceHeight}>
+					<!-- senkrechte Lebenslinien, eine pro Gerät -->
+					{#each sequenceDeviceList as device (device)}
+						{@const x = sequencePosition(device)}
+						<line class="lifeline" x1={x} y1="0" x2={x} y2={sequenceHeight} />
+					{/each}
+
+					<!-- ein waagerechter Pfeil pro Paket -->
+					{#each sequencePackages as { number, ip }, k (number)}
+						{@const x1 = sequencePosition(ip.header.srcIp)}
+						{@const x2 = sequencePosition(ip.header.dstIp)}
+						{@const dir = x2 >= x1 ? 1 : -1}
+						{@const top = k * SequenceRowHeight}
+						{@const y = top + SequenceRowHeight * 0.72}
+						{@const { text, color } = sequenceDescription(ip)}
+						{@const stroke = getColorForProtocol(color)}
+						<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+						<g
+							class="message"
+							class:selected={number === detailsNumber}
+							onclick={() => (detailsNumber = number)}
+						>
+							<title>Nr. {number}: {ip.header.srcIp} → {ip.header.dstIp}</title>
+							<!-- unsichtbare Fläche über die ganze Zeile: macht die Zeile anklickbar -->
+							<rect class="hit" x="0" y={top} width={sequenceWidth} height={SequenceRowHeight} />
+							<text x={(x1 + x2) / 2} y={y - 6} text-anchor="middle">{text}</text>
+							<line
+								{x1}
+								y1={y}
+								x2={x2 - dir * SequenceArrowHead}
+								y2={y}
+								{stroke}
+								stroke-width="2"
+							/>
+							<polygon
+								points="{x2},{y} {x2 - dir * SequenceArrowHead},{y - 5} {x2 -
+									dir * SequenceArrowHead},{y + 5}"
+								fill={stroke}
+							/>
+						</g>
+					{/each}
+				</svg>
+			</div>
+		</div>
+	{:else if snifferView === 'table'}
+		<div class="table-scroll" bind:this={tableScroll} onscroll={onTableScroll}>
+			<table class="table table-sm table-hover">
+				<thead>
+					<tr>
+						<th>Nr.</th>
+						<th>Zeit</th>
+						<th>Quelle</th>
+						<th>Ziel</th>
+						<th>Protokoll</th>
+						<th>Schicht</th>
+						<th>Bemerkungen / Details</th>
 					</tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
+				</thead>
+				<tbody>
+					{#each captureBuffer as packet (packet.number)}
+						{@const { number, time, srcIp, dstIp, protocol, layer, detail, protocolColor } =
+							spyPacket(packet)}
+						<tr
+							style="background-color: {getColorForProtocol(protocolColor)}70; {protocolColor ===
+							'UDP'
+								? 'color: black !important;'
+								: ''}"
+							onclick={() => (detailsNumber = number)}
+						>
+							<td>{number}</td>
+							<td>{time}</td>
+							<td>{srcIp}</td>
+							<td>{dstIp}</td>
+							<td>{protocol}</td>
+							<td>{layer}</td>
+							<td>{detail}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{/if}
 
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
@@ -685,6 +809,73 @@
 </div>
 
 <style>
+	.sequence-scroll {
+		flex: 1;
+		min-height: 0;
+		overflow: auto;
+	}
+
+	/* Seitlicher Abstand für Kopfzeile und SVG gemeinsam -> beide starten bei derselben x-Position */
+	.sequence-content {
+		width: max-content;
+		padding-inline: 0.5rem;
+	}
+
+	.sequenceDeviceList {
+		display: grid;
+		grid-template-columns: repeat(var(--seq-cols), var(--seq-col-width));
+		padding-block: 0.25rem;
+		position: sticky;
+		top: 0;
+		z-index: 1;
+		background-color: var(--bs-body-bg);
+	}
+
+	/* Gerät mittig über seiner Lebenslinie */
+	.sequenceDeviceList > div {
+		display: flex;
+		justify-content: center;
+	}
+
+	.sequence-svg {
+		display: block;
+		color: inherit;
+		font-size: 0.8rem;
+	}
+
+	.lifeline {
+		stroke: #888;
+		stroke-width: 1;
+		stroke-dasharray: 4 4;
+	}
+
+	.message {
+		cursor: pointer;
+	}
+
+	.message text {
+		fill: currentColor;
+	}
+
+	.message .hit {
+		fill: transparent;
+	}
+
+	.message:hover .hit {
+		fill: rgba(128, 128, 128, 0.15);
+	}
+
+	.message.selected .hit {
+		fill: rgba(74, 89, 226, 0.3);
+	}
+
+	.device {
+		background-color: #4a59e2;
+		width: fit-content;
+		border-radius: 4px;
+		padding: 0rem 0.4rem;
+	}
+
 	.sniffer {
 		display: flex;
 		flex-direction: column;

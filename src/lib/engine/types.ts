@@ -105,10 +105,13 @@ export interface CableEndpoint {
 
 //------------------------
 
+export type SnifferView = 'table' | 'sequence';
+
 export interface WindowData {
 	nodeUuid: string;
 	isSniffer: boolean;
 	sniffedNode?: string;
+	snifferView: SnifferView; // nur für Sniffer-Fenster relevant
 	x: number;
 	y: number;
 	width: number;
